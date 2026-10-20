@@ -31,12 +31,13 @@ struct EmptyDashboardView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 3)
             }
-            .buttonStyle(.borderedProminent)
+            .glassButtonStyle(prominent: true)
             .controlSize(.large)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
         .padding(.top, 22)
         .padding(.bottom, 26)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }

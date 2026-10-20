@@ -12,7 +12,7 @@ set -euo pipefail
 #   ICLOUD_PROVISIONING_PROFILE  Developer ID provisioning profile with the production iCloud container
 #   SPARKLE_PUBLIC_KEY    base64 EdDSA public key -> baked into Info.plist (SUPublicEDKey). generate_appcast
 #                         only signs the DMG if this matches the private key it signs with.
-#   OPENUSAGE_VERSION     human version, e.g. 0.7.0 (CFBundleShortVersionString)
+#   OPENUSAGE_VERSION     human version, e.g. 0.1.0 (CFBundleShortVersionString)
 # Optional env:
 #   OPENUSAGE_BUILD       CFBundleVersion (monotonic). Default: git commit count.
 #   FEED_URL              appcast URL baked into the app. Default: GitHub Pages project URL.
@@ -27,14 +27,14 @@ cd "$ROOT_DIR"
 : "${CODESIGN_IDENTITY:?set CODESIGN_IDENTITY to your Developer ID Application identity}"
 : "${ICLOUD_PROVISIONING_PROFILE:?set ICLOUD_PROVISIONING_PROFILE to the iCloud provisioning profile path}"
 : "${SPARKLE_PUBLIC_KEY:?set SPARKLE_PUBLIC_KEY to your base64 EdDSA public key}"
-: "${OPENUSAGE_VERSION:?set OPENUSAGE_VERSION, e.g. 0.7.0}"
+: "${OPENUSAGE_VERSION:?set OPENUSAGE_VERSION, e.g. 0.1.0}"
 
 APP_NAME="OpenUsage"
 BUNDLE_ID="com.robinebers.openusage"
 MIN_SYSTEM_VERSION="15.0"
 VERSION="$OPENUSAGE_VERSION"
 # CFBundleShortVersionString carries the full version, including any pre-release suffix (e.g.
-# "0.7.0-beta.1"). This is the human-readable string Sparkle shows in its update prompt and the app
+# "0.1.0-beta.1"). This is the human-readable string Sparkle shows in its update prompt and the app
 # shows in its footer/About, so they always match. Sparkle compares builds by CFBundleVersion (the
 # monotonic commit count below), not this string, and Developer ID notarization does not require it to
 # be numeric. (Sparkle's own docs use a beta short version, e.g. "2.0b1".)

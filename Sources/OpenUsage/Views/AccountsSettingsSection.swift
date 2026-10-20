@@ -30,7 +30,8 @@ struct AccountsSettingsSection: View {
                 Label("Add Account", systemImage: "plus")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .glassButtonStyle(prominent: true)
+            .controlSize(.small)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
         }
@@ -106,12 +107,11 @@ struct AccountsSettingsSection: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
             VStack(spacing: 0, content: rows)
-                .cardSurface()
         }
     }
 }
 
-private struct AddAccountSheet: View {
+struct AddAccountSheet: View {
     let store: AccountStore
     let onAdded: () -> Void
 
@@ -133,6 +133,8 @@ private struct AddAccountSheet: View {
                     .font(.headline)
                 Spacer()
                 Button("Cancel") { cancel() }
+                    .glassButtonStyle()
+                    .controlSize(.small)
                     .keyboardShortcut(.cancelAction)
             }
             if let kind {
@@ -173,8 +175,8 @@ private struct AddAccountSheet: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .padding(.vertical, 5)
+                .glassButtonStyle()
+                .controlSize(.small)
             }
         }
     }
@@ -191,7 +193,8 @@ private struct AddAccountSheet: View {
                 TextField("Account Name (Optional)", text: $label)
                     .textFieldStyle(.roundedBorder)
                 Button("Add Account") { addAPIKey(kind) }
-                    .buttonStyle(.borderedProminent)
+                    .glassButtonStyle(prominent: true)
+                    .controlSize(.small)
                     .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         } else {
@@ -207,7 +210,8 @@ private struct AddAccountSheet: View {
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { submitCode() }
                     Button("Continue") { submitCode() }
-                        .buttonStyle(.borderedProminent)
+                        .glassButtonStyle(prominent: true)
+                        .controlSize(.small)
                         .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
@@ -219,10 +223,20 @@ private struct AddAccountSheet: View {
         switch promptValue {
         case .browser(let url, _):
             VStack(alignment: .leading, spacing: 8) {
-                Text("Waiting for browser sign-in…")
+                Text("Sign in with your browser.")
                     .foregroundStyle(.secondary)
-                Button("Open Sign-In Page") { openURL(url) }
-                    .buttonStyle(.borderedProminent)
+                HStack(spacing: 8) {
+                    Button("Open in Browser") { openURL(url) }
+                        .glassButtonStyle(prominent: true)
+                        .controlSize(.small)
+                    Button("Copy Link") {
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.setString(url.absoluteString, forType: .string)
+                    }
+                    .glassButtonStyle()
+                    .controlSize(.small)
+                }
             }
         case .deviceCode(let userCode, let url):
             VStack(alignment: .leading, spacing: 10) {
@@ -231,11 +245,19 @@ private struct AddAccountSheet: View {
                 HStack {
                     Text(userCode)
                         .font(.system(.title3, design: .monospaced).weight(.semibold))
-                    Spacer()
-                    Button("Copy") { NSPasteboard.general.setString(userCode, forType: .string) }
                 }
-                Button("Open Verification Page") { openURL(url) }
-                    .buttonStyle(.borderedProminent)
+                HStack(spacing: 8) {
+                    Button("Copy") {
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.setString(userCode, forType: .string)
+                    }
+                    .glassButtonStyle()
+                    .controlSize(.small)
+                    Button("Open Verification Page") { openURL(url) }
+                        .glassButtonStyle(prominent: true)
+                        .controlSize(.small)
+                }
                 Text("This window will finish when sign-in completes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -256,7 +278,6 @@ private struct AddAccountSheet: View {
                     prompt: { prompt in
                         await MainActor.run {
                             promptValue = prompt
-                            if case .browser(let url, _) = prompt { openURL(url) }
                         }
                     },
                     pastedCode: stream

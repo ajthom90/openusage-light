@@ -13,6 +13,8 @@ struct DashboardContentView: View {
     @Binding var scrollPosition: ScrollPosition
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
+    @State private var isAddingAccount = false
+
     var body: some View {
         PopoverScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -24,14 +26,15 @@ struct DashboardContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollPosition($scrollPosition)
+        .sheet(isPresented: $isAddingAccount) {
+            AddAccountSheet(store: container.accounts, onAdded: container.rebuildAfterAccountChange)
+        }
     }
 
     @ViewBuilder
     private var widgetContent: some View {
         if layout.displayGroups.isEmpty {
-            EmptyDashboardView {
-                withAnimation(Motion.modeSwitch) { layout.screen = .settings }
-            }
+            EmptyDashboardView { isAddingAccount = true }
         } else {
             WidgetGroupedListView(
                 reorderSpaceName: reorderSpaceName,
