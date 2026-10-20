@@ -1,10 +1,12 @@
-# OpenUsage Light
+# OpenUsage Light [WIP]
+
+> **Work in progress (0.1.0).** Sign-in has only been tested up to the provider's login page; no real account has been signed in end to end yet. Expect bugs.
 
 OpenUsage Light is a native macOS menu-bar app for seeing usage limits across AI providers. It has no machine-local credential discovery, log scanning, or spend estimates: you add each account in the app, and it shows limits and dollar values returned by the provider's API.
 
 ## Accounts
 
-Open Settings → Accounts → Add Account, choose a provider, then complete its browser, device-code, or API-key sign-in. You can add multiple accounts for the same provider, rename them, and remove them independently.
+Click Add Account in the menu-bar panel (or Settings → Accounts → Add Account), choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open in Browser and Copy Link, so you can pick which browser to use. You can add multiple accounts for the same provider, rename them, and remove them independently.
 
 Account metadata is stored in the app's UserDefaults domain. OAuth tokens and API keys are stored in this app's own Keychain service. OpenUsage Light does not read credentials, files, Keychain items, databases, or environment variables belonging to other tools.
 
