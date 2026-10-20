@@ -18,7 +18,7 @@ struct GrokCreditsConfig: Equatable, Sendable {
 }
 
 /// Shape observed live from `cli-chat-proxy.grok.com/v1/billing?format=credits` (2026-07-06),
-/// matching what the Grok CLI logs as "billing: fetched credits config":
+/// matching the provider's credits-config payload:
 ///
 ///     { "config": {
 ///         "creditUsagePercent": 99.0,          // proto-JSON: omitted entirely when 0

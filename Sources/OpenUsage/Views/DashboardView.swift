@@ -21,7 +21,6 @@ struct DashboardView: View {
     @Environment(LayoutStore.self) private var layout
     @Environment(WidgetDataStore.self) private var dataStore
     @Environment(PopoverTransparencyStore.self) private var transparency
-    @Environment(UpdaterController.self) private var updater
     @Environment(\.reduceAnimations) private var reduceAnimations
     @State private var reorderLift: ReorderLift?
     /// The panel height SwiftUI drives — the single animation clock. `PanelHeightModifier` follows it
@@ -49,9 +48,6 @@ struct DashboardView: View {
     /// Settings is expensive to mount because each menu picker creates an `NSPopUpButton`. Keep its
     /// view tree alive after the first visit so later screen switches don't rebuild those controls.
     @State private var hasVisitedSettings = false
-    /// Drives the macOS-native confirmation sheet for the Customize "reset all" button. The alert
-    /// attaches to this panel as a sheet (see `StatusItemController`'s attached-sheet guard), so a
-    /// click on its buttons can't be misread as an outside click that dismisses the popover.
     @State private var isPresentingResetAllConfirm = false
     /// Shared horizontal inset for dashboard content and fixed chrome.
     private static let outerPadding: CGFloat = 14
@@ -431,10 +427,7 @@ struct DashboardView: View {
                         screen: screen,
                         height: Self.topBarHeight,
                         horizontalPadding: Self.footerHorizontalPadding,
-                        onResetAll: {
-                            layout.resetToDefault()
-                            container.reseedEnabledProviders()
-                        },
+                        onResetAll: { layout.resetToDefault() },
                         isPresentingResetAllConfirm: $isPresentingResetAllConfirm
                     )
                 }
@@ -462,7 +455,6 @@ struct DashboardView: View {
             DashboardContentView(
                 container: container,
                 layout: layout,
-                updater: updater,
                 reorderSpaceName: Self.reorderSpace,
                 horizontalPadding: Self.outerPadding,
                 bottomGap: Self.contentBottomGap,

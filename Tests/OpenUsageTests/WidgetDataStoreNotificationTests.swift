@@ -1,7 +1,7 @@
 import XCTest
 @testable import OpenUsage
 
-/// End-to-end coverage of `WidgetDataStore.evaluateNotifications`: it resolves each enabled, visible
+/// End-to-end coverage of `WidgetDataStore.evaluateNotifications`: it resolves each visible
 /// bounded metric, runs the pure milestone logic, gates on the per-trigger settings, dedups per metric
 /// per window, and posts one notification per fired milestone. A recording sink stands in for
 /// `AppNotifications`; pace worsens by raising the metric's `used` between refreshes (real-world
@@ -16,13 +16,6 @@ final class WidgetDataStoreNotificationTests: XCTestCase {
     /// A recording sink for posted notifications: each entry is `(idPrefix, title, subtitle, body)`.
     private final class Recorder {
         var posts: [(String, String, String, String)] = []
-    }
-
-    /// A mutable enablement flag the store reads through its injected closure (so a test can flip it
-    /// without a "mutated after capture" warning on a captured local var).
-    private final class EnabledFlag {
-        var value: Bool
-        init(_ value: Bool) { self.value = value }
     }
 
     /// A provider whose snapshot can be swapped between refreshes to simulate rising usage.
@@ -70,7 +63,6 @@ final class WidgetDataStoreNotificationTests: XCTestCase {
         settings: NotificationSettingsStore,
         recorder: Recorder,
         defaultsName: String,
-        isEnabled: @escaping @MainActor (String) -> Bool = { _ in true },
         delivered: @escaping @MainActor () -> Bool = { true }
     ) -> (WidgetDataStore, MutableRuntime, WidgetDescriptor) {
         let descriptor = Self.descriptor()
@@ -81,7 +73,6 @@ final class WidgetDataStoreNotificationTests: XCTestCase {
             providers: [runtime],
             cache: ProviderSnapshotCache(userDefaults: defaults, storageKey: "snapshots", ttl: 600, now: { Date() }),
             defaults: defaults,
-            isProviderEnabled: isEnabled,
             orderedDescriptors: { [descriptor] },
             notificationSettings: { settings },
             postNotification: { idPrefix, title, subtitle, body in
@@ -187,26 +178,6 @@ final class WidgetDataStoreNotificationTests: XCTestCase {
         // The critical trigger is still on: pushing to red fires it.
         await evaluate(store, runtime: runtime, used: 95)
         XCTAssertTrue(recorder.posts.contains { $0.0 == "test.closeToRunningOut" })
-    }
-
-    func testDisablingProviderDropsItsNotificationState() async {
-        let settings = NotificationSettingsStore(defaults: makeUserDefaults("disable-settings"))
-        allOn(settings)
-        let recorder = Recorder()
-        let enabled = EnabledFlag(true)
-        // Prime from healthy, then worsen to red so a milestone fires before the disable.
-        let (store, runtime, _) = makeStore(used: 80, settings: settings, recorder: recorder,
-                                            defaultsName: "disable", isEnabled: { _ in enabled.value })
-        await evaluate(store, runtime: runtime)
-        XCTAssertEqual(recorder.posts.count, 0)
-        await evaluate(store, runtime: runtime, used: 95)
-        let firstCount = recorder.posts.count
-        XCTAssertGreaterThan(firstCount, 0)
-
-        // Disable the provider: evaluation skips it (and prunes its state), so nothing new fires.
-        enabled.value = false
-        await store.evaluateNotifications(now: base)
-        XCTAssertEqual(recorder.posts.count, firstCount)
     }
 
     func testLowRemainingFiresInUsedDisplayMode() async {

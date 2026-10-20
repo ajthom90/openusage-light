@@ -16,7 +16,6 @@ import SwiftUI
 /// publishes its own frame so the container gesture can tell which row a drag started on.
 struct CustomizeProviderDetailView: View {
     @Environment(LayoutStore.self) private var layout
-    @Environment(AppContainer.self) private var container
     let providerID: String
     let reorderSpaceName: String
     @Binding var reorderLift: ReorderLift?
@@ -30,14 +29,6 @@ struct CustomizeProviderDetailView: View {
             VStack(alignment: .leading, spacing: density.sectionSpacing) {
                 metricSections(group)
                     .simultaneousGesture(metricDragGesture())
-                if let keyProvider = container.apiKeyProviders.first(where: { $0.provider.id == providerID }) {
-                    APIKeysSection(provider: keyProvider)
-                }
-                if ProviderAccountID.family(of: providerID) == "codex" {
-                    CodexPricingSection(providerIDs: container.registry.providers
-                        .map(\.id)
-                        .filter { ProviderAccountID.family(of: $0) == "codex" })
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .animation(Motion.spring, value: layout.expandedMetricIDs)

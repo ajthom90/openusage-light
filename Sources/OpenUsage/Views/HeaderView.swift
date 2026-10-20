@@ -25,7 +25,6 @@ import SwiftUI
 struct HeaderView: View {
     @Environment(LayoutStore.self) private var layout
     @Environment(WidgetDataStore.self) private var dataStore
-    @Environment(UpdaterController.self) private var updater
     @Environment(PopoverTransparencyStore.self) private var transparency
     @Environment(\.colorScheme) private var colorScheme
     /// The screen this footer belongs to — each page carries its own — so the control shows on the
@@ -98,13 +97,6 @@ struct HeaderView: View {
         Divider()
 
         shareScreenshotMenu
-
-        Button { updater.checkForUpdates() } label: {
-            Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath")
-        }
-        .disabled(!updater.canCheckForUpdates)
-
-        Divider()
 
         Link(destination: URL(string: "https://github.com/robinebers/openusage/issues/new/choose")!) {
             Label("Report an Issue…", systemImage: "ladybug")

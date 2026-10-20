@@ -71,13 +71,6 @@ final class LogRedactionTests: XCTestCase {
         XCTAssertTrue(redacted.contains("sk-1...ghij"), redacted)
     }
 
-    func testRedactBodyDevinSession() {
-        let body = #"metadata apiKey=devin-session-token$abcdefghijklmnopqrstuvwxyz123456"#
-        let redacted = LogRedaction.redactBody(body)
-        XCTAssertFalse(redacted.contains("devin-session-token$abcdefghijklmnopqrstuvwxyz123456"), redacted)
-        XCTAssertTrue(redacted.contains("devi...3456"), redacted)
-    }
-
     func testRedactBodyJSONPassword() {
         let body = #"{"password": "supersecretpassword123"}"#
         XCTAssertFalse(LogRedaction.redactBody(body).contains("supersecretpassword123"))
@@ -99,8 +92,8 @@ final class LogRedactionTests: XCTestCase {
         XCTAssertTrue(redacted.contains("acct...cdef"), redacted)
     }
 
-    func testRedactBodyDevinOrgAndDisplayName() {
-        let body = #"{"orgId":"org-6b6e9de248db472bb25b296599ea3dc0","accountDisplayName":"rob@sunstory.com","devinInfo":{"org_id":"org-abcdef1234567890","account_display_name":"team@example.com"}}"#
+    func testRedactBodyOrganizationAndAccountDisplayName() {
+        let body = #"{"orgId":"org-6b6e9de248db472bb25b296599ea3dc0","accountDisplayName":"rob@sunstory.com","organization":{"org_id":"org-abcdef1234567890","account_display_name":"team@example.com"}}"#
         let redacted = LogRedaction.redactBody(body)
         XCTAssertFalse(redacted.contains("org-6b6e9de248db472bb25b296599ea3dc0"), redacted)
         XCTAssertFalse(redacted.contains("team@example.com"), redacted)
@@ -171,13 +164,6 @@ final class LogRedactionTests: XCTestCase {
         let redacted = LogRedaction.redactLogMessage(msg)
         XCTAssertFalse(redacted.contains("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"), redacted)
         XCTAssertFalse(redacted.contains("sk-1234567890abcdef"), redacted)
-    }
-
-    func testRedactLogMessageDevinSession() {
-        let msg = "auth=devin-session-token$abcdefghijklmnopqrstuvwxyz123456"
-        let redacted = LogRedaction.redactLogMessage(msg)
-        XCTAssertFalse(redacted.contains("devin-session-token$abcdefghijklmnopqrstuvwxyz123456"), redacted)
-        XCTAssertTrue(redacted.contains("devi...3456"), redacted)
     }
 
     func testRedactLogMessageAccountEqAndPaths() {

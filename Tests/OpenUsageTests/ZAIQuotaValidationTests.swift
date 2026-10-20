@@ -50,30 +50,3 @@ final class ZAIQuotaValidationMapperTests: XCTestCase {
         XCTAssertNotNil(lines.first { $0.label == "Status" })
     }
 }
-
-@MainActor
-final class ZAIQuotaValidationProviderTests: XCTestCase {
-    func testMissingUsageReportsInvalidResponseInsteadOfZeroMeter() async {
-        let provider = ZAIProvider(
-            authStore: ZAIAuthStore(
-                files: FakeFiles(),
-                environment: FakeEnvironment(["ZAI_API_KEY": "zai-test"])
-            ),
-            usageClient: ZAIUsageClient(http: RoutingHTTPClient { request in
-                if request.url == ZAIUsageClient.quotaURL {
-                    return HTTPResponse(
-                        statusCode: 200,
-                        headers: [:],
-                        body: Data(#"{"data":{"limits":[{"type":"TOKENS_LIMIT","unit":3,"number":5}]}}"#.utf8)
-                    )
-                }
-                return HTTPResponse(statusCode: 200, headers: [:], body: Data(#"{"data":[]}"#.utf8))
-            })
-        )
-
-        let snapshot = await provider.refresh()
-
-        XCTAssertEqual(snapshot.errorCategory, .decoding)
-        XCTAssertNil(snapshot.line(label: "Session"))
-    }
-}

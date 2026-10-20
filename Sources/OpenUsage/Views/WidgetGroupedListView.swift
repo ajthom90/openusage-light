@@ -10,7 +10,6 @@ import SwiftUI
 /// obvious place to do the same plus toggle metrics on/off. Both surfaces use the same local gesture/geometry
 /// helper so they work inside the menu-bar popover without a system drag/drop session.
 struct WidgetGroupedListView: View {
-    @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
     @Environment(WidgetDataStore.self) private var dataStore
     @Environment(\.colorScheme) private var colorScheme
@@ -21,8 +20,6 @@ struct WidgetGroupedListView: View {
     @State private var activeProviderID: String?
     @State private var activeMetricID: String?
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
-
-    @Environment(\.resetClaims) private var resetClaims
 
     var body: some View {
         // Provider-section spacing is noticeably wider than the in-card row rhythm (so groups
@@ -59,12 +56,6 @@ struct WidgetGroupedListView: View {
         .padding(.horizontal, 8)
         .highPriorityGesture(providerDragGesture(for: group))
         .contextMenu {
-            // Hides the whole provider section (the Customize provider list brings it back). Mirrors
-            // the per-metric "Hide" but one level up, so the verb order reads the same on a header as a row.
-            Button("Hide \(group.provider.displayName)") {
-                container.enablement.setEnabled(false, for: group.provider.id)
-            }
-            Divider()
             Button("Refresh \(group.provider.displayName)") {
                 Task { await dataStore.refreshOnUserRequest(providerID: group.provider.id) }
             }
@@ -234,7 +225,6 @@ struct WidgetGroupedListView: View {
             onToggleMeterStyle: { dataStore.meterStyle.toggle() },
             condensedTop: condensedTop
         )
-            .environment(\.resetClaim, resetClaims[providerID])
             .contentShape(Rectangle())
             .opacity(activeMetricID == descriptor.id ? 0 : 1)
             .highPriorityGesture(metricDragGesture(for: descriptor, providerID: providerID))

@@ -5,6 +5,7 @@ import XCTest
 @MainActor
 final class ProviderHeaderLayoutTests: XCTestCase {
     private let longPlan = String(repeating: "Future Enterprise Entitlement ", count: 12)
+    private let codexProvider = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
 
     func testDashboardHeaderFitsOversizedPlanInBothDensities() throws {
         for density in DensitySetting.allCases {
@@ -14,7 +15,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
             defer { defaults.removePersistentDomain(forName: suite) }
 
             let header = ProviderSectionHeader(
-                provider: CodexProvider.makeProvider(),
+                provider: codexProvider,
                 plan: longPlan,
                 warning: "Refresh failed",
                 staleness: StalenessHint(label: "Outdated", tooltip: "Last updated 2h ago"),
@@ -30,7 +31,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
 
     func testShareHeaderFitsOversizedPlan() throws {
         let card = ShareCardView(
-            provider: CodexProvider.makeProvider(), plan: longPlan, rows: [], appearance: .light
+            provider: codexProvider, plan: longPlan, rows: [], appearance: .light
         )
         // Test the header itself: the card's outer fixed frame would hide child overflow.
         try assertFits(card.headerRow, width: ShareCardView.width - 32)

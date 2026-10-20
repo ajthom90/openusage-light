@@ -12,7 +12,7 @@ set -euo pipefail
 #   ICLOUD_PROVISIONING_PROFILE  Developer ID provisioning profile with the production iCloud container
 #   SPARKLE_PUBLIC_KEY    base64 EdDSA public key -> baked into Info.plist (SUPublicEDKey). generate_appcast
 #                         only signs the DMG if this matches the private key it signs with.
-#   OPENUSAGE_VERSION     human version, e.g. 0.7.0 (CFBundleShortVersionString)
+#   OPENUSAGE_VERSION     human version, e.g. 0.1.0 (CFBundleShortVersionString)
 # Optional env:
 #   OPENUSAGE_BUILD       CFBundleVersion (monotonic). Default: git commit count.
 #   FEED_URL              appcast URL baked into the app. Default: GitHub Pages project URL.
@@ -27,14 +27,14 @@ cd "$ROOT_DIR"
 : "${CODESIGN_IDENTITY:?set CODESIGN_IDENTITY to your Developer ID Application identity}"
 : "${ICLOUD_PROVISIONING_PROFILE:?set ICLOUD_PROVISIONING_PROFILE to the iCloud provisioning profile path}"
 : "${SPARKLE_PUBLIC_KEY:?set SPARKLE_PUBLIC_KEY to your base64 EdDSA public key}"
-: "${OPENUSAGE_VERSION:?set OPENUSAGE_VERSION, e.g. 0.7.0}"
+: "${OPENUSAGE_VERSION:?set OPENUSAGE_VERSION, e.g. 0.1.0}"
 
 APP_NAME="OpenUsage"
 BUNDLE_ID="com.robinebers.openusage"
 MIN_SYSTEM_VERSION="15.0"
 VERSION="$OPENUSAGE_VERSION"
 # CFBundleShortVersionString carries the full version, including any pre-release suffix (e.g.
-# "0.7.0-beta.1"). This is the human-readable string Sparkle shows in its update prompt and the app
+# "0.1.0-beta.1"). This is the human-readable string Sparkle shows in its update prompt and the app
 # shows in its footer/About, so they always match. Sparkle compares builds by CFBundleVersion (the
 # monotonic commit count below), not this string, and Developer ID notarization does not require it to
 # be numeric. (Sparkle's own docs use a beta short version, e.g. "2.0b1".)
@@ -46,10 +46,8 @@ DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
-APP_HELPERS="$APP_CONTENTS/Helpers"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
-CLI_BINARY="$APP_HELPERS/openusage"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
 # dSYMs for crash symbolication (uploaded to PostHog by release.yml). A folder, since posthog-cli's
 # `dsym upload --directory` and Sparkle both want a directory of bundles, not a single path.
@@ -85,27 +83,19 @@ echo "==> building $APP_NAME $VERSION ($BUILD) — universal (arm64 + x86_64)"
 # This does NOT grow the shipped binary: Mach-O keeps DWARF in the .o files (referenced by the binary's
 # debug map) and dsymutil extracts it into the .dSYM — the executable only carries the symbol table.
 swift build -c release --arch arm64 --arch x86_64 -Xswiftc -g --product OpenUsage
-swift build -c release --arch arm64 --arch x86_64 -Xswiftc -g --product openusage-cli
 BUILD_DIR="$(swift build -c release --arch arm64 --arch x86_64 -Xswiftc -g --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
-BUILD_CLI_BINARY="$BUILD_DIR/openusage-cli"
 [ -x "$BUILD_BINARY" ] || { echo "missing built binary: $BUILD_BINARY" >&2; exit 1; }
-[ -x "$BUILD_CLI_BINARY" ] || { echo "missing built CLI: $BUILD_CLI_BINARY" >&2; exit 1; }
 
 echo "==> staging $APP_BUNDLE"
 rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_MACOS" "$APP_HELPERS" "$APP_RESOURCES"
+mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
-cp "$BUILD_CLI_BINARY" "$CLI_BINARY"
 chmod +x "$APP_BINARY"
-chmod +x "$CLI_BINARY"
-install_name_tool -add_rpath "@executable_path/../Frameworks" "$CLI_BINARY"
 # Fail loudly if the build ever silently regresses to a single arch (e.g. a dropped --arch flag): a
 # fat binary is the whole point, and generate_appcast derives Sparkle's hardwareRequirements from it.
 lipo -archs "$APP_BINARY" | grep -q "x86_64" && lipo -archs "$APP_BINARY" | grep -q "arm64" \
   || { echo "Expected a universal (arm64 + x86_64) binary, got: $(lipo -archs "$APP_BINARY")" >&2; exit 1; }
-lipo -archs "$CLI_BINARY" | grep -q "x86_64" && lipo -archs "$CLI_BINARY" | grep -q "arm64" \
-  || { echo "Expected a universal CLI, got: $(lipo -archs "$CLI_BINARY")" >&2; exit 1; }
 
 # SwiftPM stamps LC_BUILD_VERSION's `sdk` field with the deployment target (macOS 15), not the real
 # SDK it compiled against. macOS gates the modern Liquid Glass control appearance (pop-up buttons,
@@ -204,8 +194,6 @@ cp "$ICLOUD_PROVISIONING_PROFILE" "$APP_CONTENTS/embedded.provisionprofile"
 
 # Embed + sign Sparkle (Developer ID, hardened runtime, secure timestamp).
 "$ROOT_DIR/script/embed_sparkle.sh" "$APP_BUNDLE" "$APP_BINARY" "$CODESIGN_IDENTITY" "--options runtime --timestamp"
-codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$CLI_BINARY"
-
 echo "==> signing app (Developer ID, hardened runtime)"
 # Not --deep: the Sparkle framework is signed above and must keep that signature.
 codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" \

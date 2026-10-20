@@ -3,15 +3,12 @@ import SwiftUI
 /// One row in the Customize provider list (L1). The drag grip leads (drag-only — a tap on it does
 /// nothing); the middle content (mark + name + count) is tappable to open the provider's detail (L2)
 /// and expands to fill, so the empty space between the name and the toggle is tappable too; the
-/// trailing on/off toggle toggles; the caret after the toggle also opens L2. So: tap anything except
-/// the grip or the toggle to open L2, drag the grip to reorder. The secondary line shows the
-/// provider's total metric count. Disabled providers render greyed but stay openable.
+/// trailing caret opens L2. So: tap anything except the grip to open L2, drag the grip to reorder.
+/// The secondary line shows the provider's metric count.
 struct ProviderListRow<Handle: View>: View {
     let provider: Provider
-    let isEnabled: Bool
     let metricCount: Int
     let handle: (AnyView) -> Handle
-    var onToggle: ((Bool) -> Void) = { _ in }
     var onOpen: () -> Void = {}
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
@@ -43,9 +40,6 @@ struct ProviderListRow<Handle: View>: View {
             .contentShape(Rectangle())
             .onTapGesture { onOpen() }
 
-            Toggle("", isOn: Binding(get: { isEnabled }, set: { onToggle($0) }))
-                .settingsSwitchStyle()
-
             Button(action: onOpen) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
@@ -58,6 +52,5 @@ struct ProviderListRow<Handle: View>: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, density.controlRowPadding)
-        .opacity(isEnabled ? 1 : 0.55)
     }
 }

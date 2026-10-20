@@ -108,7 +108,6 @@ final class LayoutStore {
     private let defaultPinnedMetricIDs: [String]
     private let defaultExpandedMetricIDs: [String]
     var defaultExpandedOnEnableIDs: Set<String>
-    let isProviderEnabled: @MainActor (String) -> Bool
 
     init(
         registry: WidgetRegistry,
@@ -117,8 +116,7 @@ final class LayoutStore {
         defaultMetricIDs: [String] = DefaultLayout.metricIDs,
         migrationBaselineMetricIDs: [String] = DefaultLayout.migrationBaselineMetricIDs,
         defaultPinnedMetricIDs: [String] = DefaultLayout.pinnedMetricIDs,
-        defaultExpandedMetricIDs: [String] = DefaultLayout.expandedMetricIDs,
-        isProviderEnabled: @escaping @MainActor (String) -> Bool = { _ in true }
+        defaultExpandedMetricIDs: [String] = DefaultLayout.expandedMetricIDs
     ) {
         self.registry = registry
         let persistence = LayoutPersistence(defaults: defaults, storageKey: storageKey)
@@ -126,7 +124,6 @@ final class LayoutStore {
         self.defaultMetricIDs = defaultMetricIDs
         self.defaultPinnedMetricIDs = defaultPinnedMetricIDs
         self.defaultExpandedMetricIDs = defaultExpandedMetricIDs
-        self.isProviderEnabled = isProviderEnabled
 
         let initial = LayoutBootstrap.load(
             registry: registry,

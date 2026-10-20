@@ -3,7 +3,7 @@ import XCTest
 
 /// Verifies the Swift mapper against a captured live Z.ai API response. Both endpoints are
 /// undocumented internal APIs, so this guards the mapping against the real shape — not just the
-/// fixtures in `ZAIProviderTests`. Anonymized: the key, customer id, and agreement number are gone;
+/// Fixtures are anonymized: the key, customer id, and agreement number are gone;
 /// only the structural fields the mapper reads remain. Run locally with `swift test --filter ZAILive`.
 final class ZAILiveResponseMappingTests: XCTestCase {
     // Captured from a GLM Coding Pro plan on 2026-06-29. Strips PII; keeps the fields the mapper reads.

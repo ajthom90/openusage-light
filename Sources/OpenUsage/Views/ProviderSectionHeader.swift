@@ -65,6 +65,12 @@ struct ProviderSectionHeader: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .layoutPriority(1)
+                if let accountLabel = provider.accountLabel {
+                    Text(accountLabel)
+                        .font(.system(size: density.headerPointSize))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 if let plan {
                     ProviderPlanBadge(plan: plan)
                         .layoutPriority(2)

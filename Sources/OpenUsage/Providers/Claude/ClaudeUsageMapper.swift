@@ -36,47 +36,9 @@ enum ClaudeUsageMapper {
         )
     }
 
-    /// The Rate Limit Resets row from the reset-grants request; `nil` when the account is outside the
-    /// program (no `cedar_ember` block).
-    static func mapResetGrantsResponse(_ response: HTTPResponse, now: Date = Date()) throws -> MetricLine? {
-        try mapResetGrantStatus(response)?.line(now: now)
-    }
-
-    static func mapResetGrantStatus(_ response: HTTPResponse) throws -> ClaudeResetGrantStatus? {
-        try ProviderAuthRetry.requireSuccess(
-            response,
-            authExpired: ClaudeAuthError.tokenExpired,
-            requestFailed: { ClaudeUsageError.requestFailed($0) }
-        )
-        guard let body = ProviderParse.jsonObject(response.body) else {
-            throw ClaudeUsageError.invalidResponse
-        }
-        return ClaudeResetGrantStatus.parse(body["cedar_ember"])
-    }
-
-    /// A Rate Limit Resets line held between fetches, minus every reset whose deadline has passed. Other
-    /// lines pass through unchanged.
-    static func droppingElapsedResetGrants(_ line: MetricLine, now: Date) -> MetricLine {
-        guard case .values(let label, let values, let colorHex, let expiriesAt, let unknownModels, let breakdown) = line,
-              expiriesAt.contains(where: { $0 <= now })
-        else { return line }
-        let elapsed = expiriesAt.filter { $0 <= now }.count
-        let remaining = values.map { value in
-            var value = value
-            if value.kind == .count { value.number = max(0, value.number - Double(elapsed)) }
-            return value
-        }
-        return .values(
-            label: label, values: remaining, colorHex: colorHex,
-            expiriesAt: expiriesAt.filter { $0 > now },
-            unknownModels: unknownModels, modelBreakdown: breakdown
-        )
-    }
-
-    /// Labels of the lines `mapUsageResponse` produces from the live usage endpoint (everything else on a
-    /// Claude snapshot is recomputed locally or is a rate-limit notice).
+    /// Labels returned directly by Anthropic's live usage endpoint.
     static let liveLimitLabels: Set<String> = [
-        "Session", "Weekly", "Sonnet", "Fable", "Extra usage spent", "Rate Limit Resets"
+        "Session", "Weekly", "Sonnet", "Fable", "Extra usage spent"
     ]
 
     /// Snapshot shown when the usage endpoint rate-limits us and there is no last-good usage to fall back
@@ -104,12 +66,7 @@ enum ClaudeUsageMapper {
         return "\(base) Retrying in ~\(retryText)."
     }
 
-    /// Provider warning shown on the Claude header (the amber triangle + tooltip, like Z.ai's "no coding
-    /// plan" notice) when the stored login can't read live usage because it lacks the `user:profile` scope
-    /// (an inference-only token, e.g. from `claude setup-token`). Without it the Session / Weekly bars just
-    /// read "No data" with no hint that a re-login restores them. The scanned spend tiles are unaffected
-    /// and still load.
-    static let missingProfileScopeWarning = "Re-login for live usage. Run `claude` and sign in again to restore session and weekly limits."
+    static let missingProfileScopeWarning = "Re-login to restore session and weekly limits."
 
     /// The "live usage is rate limited" note appended to a last-good snapshot so the still-shown bars are
     /// flagged as possibly stale. Shared with `rateLimitedUsage` so the wording stays in one place.
@@ -260,4 +217,3 @@ private enum HTTPDateFormatter {
         return formatter.date(from: value)
     }
 }
-

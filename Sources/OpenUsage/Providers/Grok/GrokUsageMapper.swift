@@ -50,11 +50,9 @@ enum GrokUsageMapper {
         return error.localizedCaseInsensitiveContains("no personal team")
     }
 
-    /// Provider header warning when the credits endpoint refuses a team principal. This is an
-    /// account shape, not a transient failure — Weekly / Extra Usage stay "No data"; local
-    /// spend tiles still load.
+    /// Provider header warning when the credits endpoint refuses a team principal.
     static let teamBillingUnavailableWarning =
-        "Team accounts have no personal quota. Spend below is still from your Grok logs."
+        "Team accounts do not have personal usage quotas."
 
     static func planName(from response: HTTPResponse) -> String? {
         guard (200..<300).contains(response.statusCode),
