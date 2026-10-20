@@ -35,7 +35,7 @@ struct ProviderIcon: View {
 ///
 /// It normalizes by the artwork's **true bounding box** (not the declared `viewBox`): some source SVGs
 /// bake whitespace into their viewBox (Claude/Codex/Cursor sit ~10% inside a 100×100 box) while others
-/// run edge-to-edge (Devin, Grok). Fitting the real path bounds gives every provider mark the same
+/// run edge-to-edge (Grok). Fitting the real path bounds gives every provider mark the same
 /// optical weight, then a single shared `inset` adds consistent breathing room so none touch the edge.
 struct ProviderIconShape: Shape {
     let mark: ProviderMark

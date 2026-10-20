@@ -6,7 +6,7 @@ struct ProviderSnapshotCache {
         var snapshots: [String: ProviderSnapshot]
         /// Card id → the account identity key that produced the stored snapshot. A sidecar map rather
         /// than a field on `ProviderSnapshot` because that model is serialized verbatim to the local
-        /// HTTP API (`LocalUsageAPI`) — the stamp is cache bookkeeping, not wire data. Absent for
+        /// an API response — the stamp is cache bookkeeping, not provider data. Absent for
         /// providers without an account identity (everything outside the claude/codex families).
         var producedByIdentityKeys: [String: String]
     }
@@ -34,43 +34,19 @@ struct ProviderSnapshotCache {
     /// fresh regardless of its `refreshedAt` — see `sessionWrites`. Tests inject a fixed TTL for a
     /// deterministic freshness window.
     private let ttl: TimeInterval
-    /// The menu-bar app deliberately refreshes once per launch, even when its persisted snapshot is
-    /// young. A one-shot reader has no meaningful session, so it opts into timestamp-only freshness.
-    private let allowsPersistedFreshness: Bool
     private let now: () -> Date
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
     init(
         userDefaults: UserDefaults = .standard,
-        // v3: spend / Codex credits / rate-limit-resets rows moved from `.text` (a parsed display string)
-        // to `.values` (raw numbers). Bumping the key drops pre-upgrade caches so the new `.values`-based
-        // widgets never try to resolve a stale `.text` line — which would misread the fused string
-        // (tokens tile showing the dollar amount, combined dropping tokens) until the first refresh.
-        // v4/v5: `.values` rows gained Codex reset-credit expiry data — v4 carried a single `resetsAt`,
-        // v5 replaced it with an `expiriesAt` list (one per available credit, shown in the row's
-        // tooltip). Old payloads decode cleanly (the absent key → empty list), but the bump refetches
-        // once so the expiries show immediately on upgrade instead of after the cached snapshot expires.
-        // v6: `.values` rows gained `unknownModels` (Cursor spend tiles list the unpriced models behind a
-        // warning triangle). Same story — old payloads decode with an empty list, the bump just refetches
-        // once so the warning shows immediately instead of after the cached snapshot expires.
-        // v7: spend `.values` rows gained `modelBreakdown` for the per-model hover panel. Old payloads
-        // decode cleanly without it, but the bump fetches fresh snapshots so hover panels appear right away.
-        // v8: provider snapshots gained normalized daily history for iCloud aggregation. Refetch on
-        // upgrade so enabling sync can publish a complete first document immediately.
-        // v9: entries gained a `producedByIdentityKeys` sidecar (which account produced each snapshot),
-        // so a launch after an account swap at the same home can discard the previous account's cached
-        // limits/plan instead of painting them under the new account's card. Refetch on upgrade so every
-        // retained entry carries a stamp from its first write.
-        storageKey: String = "openusage.providerSnapshots.v9",
+        storageKey: String = "openusage-light.providerSnapshots.v1",
         ttl: TimeInterval = RefreshSetting.interval,
-        allowsPersistedFreshness: Bool = false,
         now: @escaping () -> Date = Date.init
     ) {
         self.userDefaults = userDefaults
         self.storageKey = storageKey
         self.ttl = ttl
-        self.allowsPersistedFreshness = allowsPersistedFreshness
         self.now = now
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -101,9 +77,8 @@ struct ProviderSnapshotCache {
         // promptly instead of waiting out the previous session's remaining interval (#697).
         let writtenThisSession = sessionWrites.withLock { $0.contains(providerID) }
         let age = now().timeIntervalSince(snapshot.refreshedAt)
-        let trusted = allowsPersistedFreshness || writtenThisSession
-        let fresh = trusted && age < ttl
-        let reason = !trusted ? "stale (not written this session)"
+        let fresh = writtenThisSession && age < ttl
+        let reason = !writtenThisSession ? "stale (not written this session)"
             : fresh ? "fresh" : "stale"
         AppLog.debug(.cache, "\(providerID) staleness \(Int(age))s vs ttl \(Int(ttl))s -> \(reason)")
         return fresh ? snapshot : nil
@@ -153,10 +128,9 @@ struct ProviderSnapshotCache {
     /// Whether this provider's stored entry cannot be attributed to `currentIdentityKey`: the entry
     /// exists, the card's current identity is known, and the stamp is missing or names another
     /// account. Every read path must treat such an entry as absent — the launch paint filter
-    /// (`WidgetDataStore.init`), the refresh cache-hit gate (`WidgetDataStore.refresh`), and the
-    /// one-shot CLI's persisted-freshness reads (`UsageReader`) — or a swap at the same home would
-    /// serve the previous account's data. `false` when the identity is unresolved (`nil`): an
-    /// unverifiable entry keeps painting exactly as it did before account stamps existed.
+    /// (`WidgetDataStore.init`) and the refresh cache-hit gate (`WidgetDataStore.refresh`) — or a
+    /// swap at the same card would serve the previous account's data. `false` when the identity is
+    /// unresolved (`nil`): an unverifiable entry keeps painting exactly as it did before account stamps existed.
     func hasStaleAccountStamp(providerID: String, currentIdentityKey: String?) -> Bool {
         guard let currentIdentityKey else { return false }
         let payload = loadPayload()

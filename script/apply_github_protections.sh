@@ -7,7 +7,7 @@ set -euo pipefail
 #
 #   ./script/apply_github_protections.sh
 #
-# Requires: gh CLI authenticated as a repo admin.
+# Requires: gh authenticated as a repo admin.
 
 REPO="${REPO:-robinebers/openusage}"
 

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shared chrome for the branded, off-screen share-card PNGs (`ShareCardView`, `TotalSpendShareCardView`):
+/// Shared chrome for the branded, off-screen share-card PNG:
 /// the authored width, opaque tray background (an `ImageRenderer` has no window backdrop), forced
 /// appearance, tooltip suppression (the tooltips' AppKit anchors rasterize as yellow boxes otherwise),
 /// and the centered watermark footer. Callers supply just their header + body; wrapping them here keeps

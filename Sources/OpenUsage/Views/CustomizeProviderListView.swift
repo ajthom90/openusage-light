@@ -1,13 +1,8 @@
 import SwiftUI
 
-/// The Customize provider list (L1): every known provider as a row, in the user's saved order —
-/// including disabled ones (greyed), so the user can re-enable them or open their detail. Each row
-/// carries an on/off toggle, a metric-count label, and a chevron into the provider's detail (L2).
-/// Enabled providers drag-reorder by the leading grip; tapping a row opens
-/// L2 (`layout.customizeProviderID = id`).
+/// The Customize provider list (L1): every account as a row, in the user's saved order.
 struct CustomizeProviderListView: View {
     @Environment(LayoutStore.self) private var layout
-    @Environment(AppContainer.self) private var container
     let reorderSpaceName: String
     @Binding var reorderLift: ReorderLift?
     let frameStore: ReorderFrameStore
@@ -40,19 +35,8 @@ struct CustomizeProviderListView: View {
     private func providerRow(_ row: ProviderRow) -> some View {
         ProviderListRow(
             provider: row.provider,
-            isEnabled: row.isEnabled,
             metricCount: row.metricCount,
-            // The grip leads the tappable bar; a tap opens L2, a drag reorders. Drag-reorder is enabled
-            // only for active providers — `reorderProvider` operates on the enabled set, so a disabled
-            // row's grip stays inert (the row still opens/toggles).
-            handle: { grip in
-                if row.isEnabled {
-                    AnyView(grip.highPriorityGesture(providerDragGesture(for: row)))
-                } else {
-                    grip
-                }
-            },
-            onToggle: { container.enablement.setEnabled($0, for: row.id) },
+            handle: { AnyView($0.highPriorityGesture(providerDragGesture(for: row))) },
             onOpen: { withAnimation(Motion.spring) { layout.customizeProviderID = row.id } }
         )
         .opacity(activeProviderID == row.id ? 0 : 1)
@@ -77,7 +61,7 @@ struct CustomizeProviderListView: View {
     private func makeProviderLift(for row: ProviderRow, value: DragGesture.Value) -> ReorderLift? {
         ReorderLift.make(
             id: row.id,
-            payload: .customizeProviderRow(provider: row.provider, isEnabled: row.isEnabled, metricCount: row.metricCount),
+            payload: .customizeProviderRow(provider: row.provider, metricCount: row.metricCount),
             value: value,
             frames: frameStore.frames
         )

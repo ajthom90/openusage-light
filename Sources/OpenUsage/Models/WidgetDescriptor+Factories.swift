@@ -56,10 +56,7 @@ extension WidgetDescriptor {
                                 periodDurationMs: periodDurationMs))
     }
 
-    /// Unbounded numeric row backed by a provider `.values` line. `selection` decides which of the
-    /// row's values this tile renders (cost-only, tokens-only, or the combined `.all`); `valueWord` is
-    /// the trailing word for a lone dollar value ("spent", "left"). The ⓘ for a locally-estimated
-    /// dollar amount is data-driven (set when a shown value is `estimated`), so it isn't a parameter.
+    /// Unbounded numeric row backed by a provider `.values` line.
     static func values(
         id: String,
         provider: Provider,
@@ -67,7 +64,6 @@ extension WidgetDescriptor {
         metricLabel: String? = nil,
         selection: ValueSelection = .all,
         valueWord: String? = nil,
-        isUsagePeriod: Bool = false,
         traySuffix: String? = nil,
         showsResetExpiries: Bool = false
     ) -> WidgetDescriptor {
@@ -77,50 +73,19 @@ extension WidgetDescriptor {
         var sample = WidgetData(title: title, icon: provider.icon, kind: kind, used: 0, limit: nil,
                                 unboundedValueWord: valueWord)
         sample.selection = selection
-        sample.isUsagePeriod = isUsagePeriod
         sample.traySuffix = traySuffix
         sample.showsResetExpiries = showsResetExpiries
         return make(id: id, provider: provider, metricLabel: metricLabel ?? title, sample: sample)
     }
 
-    /// Combined tile reading "$4.08 · 1.2M tokens" (spend) or "$32.84 · 821 credits" (Codex credits) —
-    /// every value of a `.values` row, joined.
+    /// Combined tile showing every value in a `.values` row.
     static func combined(
         id: String,
         provider: Provider,
         title: String,
-        metricLabel: String? = nil,
-        isUsagePeriod: Bool = false
+        metricLabel: String? = nil
     ) -> WidgetDescriptor {
-        values(id: id, provider: provider, title: title, metricLabel: metricLabel, selection: .all,
-               isUsagePeriod: isUsagePeriod)
-    }
-
-    /// The three local-spend tiles every spend-tracking provider exposes — Today / Yesterday / Last 30
-    /// Days — each a combined "cost · tokens" row, backed by `SpendTileMapper`. Ids are
-    /// `<provider>.today|yesterday|last30`, so the set is identical across Claude / Codex / Cursor / Grok.
-    static func spendTiles(provider: Provider, valueTooltipNote: String? = nil) -> [WidgetDescriptor] {
-        let descriptors: [WidgetDescriptor] = [
-            .combined(id: "\(provider.id).today", provider: provider, title: "Today", isUsagePeriod: true),
-            .combined(id: "\(provider.id).yesterday", provider: provider, title: "Yesterday", isUsagePeriod: true),
-            .combined(id: "\(provider.id).last30", provider: provider, title: "Last 30 Days", isUsagePeriod: true)
-        ]
-        // Mark the whole set as the local spend tiles — the Total Spend card's capability and
-        // contribution signal.
-        return descriptors.map { descriptor in
-            var sample = descriptor.sample
-            sample.valueTooltipNote = valueTooltipNote
-            return WidgetDescriptor(
-                id: descriptor.id,
-                providerID: descriptor.providerID,
-                metricLabel: descriptor.metricLabel,
-                sample: sample,
-                pinnable: descriptor.pinnable,
-                isSpendTile: true,
-                limitResources: descriptor.limitResources,
-                historyResource: descriptor.historyResource
-            )
-        }
+        values(id: id, provider: provider, title: title, metricLabel: metricLabel, selection: .all)
     }
 
     /// Unbounded dollar balance with a custom trailing word (e.g. "$1,503.00 left").
@@ -147,16 +112,6 @@ extension WidgetDescriptor {
         make(id: id, provider: provider, metricLabel: metricLabel ?? title,
              sample: WidgetData(title: title, icon: provider.icon,
                                 kind: .count, used: 0, limit: nil))
-    }
-
-    /// The Usage Trend row: a day-by-day token sparkline backed by a provider `.chart` line. Not
-    /// pinnable — the tray can't draw a chart — but otherwise a normal Customize metric (toggle,
-    /// reorder, hide). `isChart` tells the dashboard how to render live chart points.
-    static func usageTrend(provider: Provider) -> WidgetDescriptor {
-        var sample = WidgetData(title: "Usage Trend", icon: provider.icon, kind: .count, used: 0, limit: nil)
-        sample.isChart = true
-        return make(id: "\(provider.id).trend", provider: provider, metricLabel: "Usage Trend",
-                    sample: sample, pinnable: false)
     }
 
     private static func make(

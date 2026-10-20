@@ -81,7 +81,7 @@ private struct AnimationReductionModifier: ViewModifier {
 }
 
 /// Keeps an in-flight status visible without mounting an indeterminate spinner clock when motion is
-/// reduced. The static symbol deliberately matches the existing iCloud sync affordance.
+/// reduced. The static symbol matches the app's static status treatment.
 struct MotionAwareProgressView: View {
     var controlSize: ControlSize = .small
 

@@ -5,36 +5,14 @@ extension LayoutStore {
         registry.descriptor(id: widget.descriptorID)
     }
 
+    var visiblePlaced: [PlacedWidget] { placed }
+
     private func providerID(of widget: PlacedWidget) -> String? {
         registry.descriptor(id: widget.descriptorID)?.providerID
     }
 
-    var visiblePlaced: [PlacedWidget] {
-        placed.filter { widget in
-            guard let providerID = providerID(of: widget) else { return true }
-            return isProviderEnabled(providerID)
-        }
-    }
-
     func isMetricEnabled(_ descriptorID: String) -> Bool {
         placed.contains { $0.descriptorID == descriptorID }
-    }
-
-    /// Whether any enabled provider ships the local spend tiles — the capability gate for the
-    /// Total Spend card. Keyed off the registry's descriptors, not off refreshed data, so the card
-    /// can show its "No spend data" state on a fresh morning instead of vanishing.
-    var hasSpendCapableProvider: Bool {
-        !spendCapableProviders.isEmpty
-    }
-
-    /// Enabled providers that ship the local spend tiles (`WidgetDescriptor.spendTiles`), in the
-    /// user's provider order — the exact set the Total Spend card aggregates. Deliberately *not*
-    /// `displayGroups`: a provider whose every metric is hidden in Customize still spends money and
-    /// must still count, and look-alike dollar rows from other providers (OpenRouter's API-spend
-    /// "Today") must not.
-    var spendCapableProviders: [Provider] {
-        let capableIDs = Set(registry.descriptors.filter(\.isSpendTile).map(\.providerID))
-        return orderedProviders().filter { capableIDs.contains($0.id) && isProviderEnabled($0.id) }
     }
 
     // MARK: - Provider grouping
@@ -49,7 +27,7 @@ extension LayoutStore {
         orderedProviderIDs().compactMap { registry.provider(id: $0) }
     }
 
-    /// Enabled (and provider-enabled) widgets grouped by provider, in the user's provider order, each
+    /// Enabled widgets grouped by provider, in the user's provider order, each
     /// provider's metrics kept in the provider's custom metric order. Drives the grouped dashboard list; providers with
     /// no visible metric are dropped so the dashboard only shows groups that have something to show.
     var displayGroups: [ProviderGroup] {
@@ -73,11 +51,9 @@ extension LayoutStore {
         }
     }
 
-    /// Every enabled provider with *all* the metrics it supports, in its saved metric order. Enabled and
-    /// disabled rows stay in-place; the switch only controls visibility.
+    /// Every provider with all supported metrics, in its saved metric order.
     var customizeGroups: [ProviderMetrics] {
         orderedProviders().compactMap { provider in
-            guard isProviderEnabled(provider.id) else { return nil }
             let metrics = orderedSupportedMetrics(for: provider.id)
             guard !metrics.isEmpty else { return nil }
             return ProviderMetrics(
@@ -88,15 +64,11 @@ extension LayoutStore {
         }
     }
 
-    /// The L1 Customize list: every known provider in the user's saved order, regardless of enablement.
-    /// Disabled providers appear here (greyed in the UI) so the user can re-enable them or open their
-    /// detail — unlike the enabled-provider reorder list exposed by `customizeGroups`, which filters them
-    /// out. Each row carries the enablement flag and total metric count shown by the list.
+    /// The L1 Customize list: every account in the user's saved order with its metric count.
     var customizeProviderRows: [ProviderRow] {
         orderedProviders().map { provider in
             ProviderRow(
                 provider: provider,
-                isEnabled: isProviderEnabled(provider.id),
                 metricCount: metricCount(for: provider.id)
             )
         }
@@ -109,9 +81,8 @@ extension LayoutStore {
     }
 
     /// The L2 Customize detail for one provider: every metric it supports, split across the
-    /// "Always Visible" / "On Demand" divider, in its saved metric order. Available even when the
-    /// provider is disabled so L2 can render dimmed-but-editable. nil for an unknown provider or one
-    /// with no metrics — the per-provider slice of `customizeGroups` without the enablement guard.
+    /// "Always Visible" / "On Demand" divider, in its saved metric order. Nil for an unknown provider
+    /// or one with no metrics.
     func customizeDetail(for providerID: String) -> ProviderMetrics? {
         guard let provider = registry.provider(id: providerID) else { return nil }
         let metrics = orderedSupportedMetrics(for: providerID)
@@ -140,7 +111,6 @@ extension LayoutStore {
     /// but keeps its pins. Drives the menu-bar strip.
     var pinnedGroups: [ProviderMetrics] {
         orderedProviders().compactMap { provider in
-            guard isProviderEnabled(provider.id) else { return nil }
             // Keep the strip order matching Customize: always-shown pins first, then expanded ones.
             let metrics = orderedSupportedMetrics(for: provider.id).filter { pinnedMetricIDs.contains($0.id) }
             return metrics.isEmpty ? nil : ProviderMetrics(
@@ -151,16 +121,14 @@ extension LayoutStore {
         }
     }
 
-    /// Reorder whole providers when `dragged`'s header is dropped onto `target`'s. Works on the currently
-    /// shown (enabled) provider order; disabled providers keep their relative tail position.
+    /// Reorder whole providers when `dragged`'s header is dropped onto `target`'s.
     /// Returns whether the order actually changed — the drag gestures key haptics off it.
     @discardableResult
     func reorderProvider(dragged: String, target: String) -> Bool {
         recordingUndoStep {
-            let shown = customizeGroups.map(\.provider.id)
-            guard let next = Self.reordered(shown, dragged: dragged, target: target) else { return false }
-            let rest = orderedProviderIDs().filter { !next.contains($0) }
-            providerOrder = next + rest
+            let ordered = orderedProviderIDs()
+            guard let next = Self.reordered(ordered, dragged: dragged, target: target) else { return false }
+            providerOrder = next
             persistProviderOrder()
             syncPlacedOrder()
             return true

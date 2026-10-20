@@ -36,10 +36,8 @@ struct GrokUsageClient: Sendable {
     static let refreshURL = URL(string: "https://auth.x.ai/oauth2/token")!
     static let tokenAuthHeader = "xai-grok-cli"
 
-    /// The weekly shared-pool data: the same billing endpoint with `?format=credits`, which returns
-    /// the `GetGrokCreditsConfig` message as JSON. This is exactly what the Grok CLI itself calls
-    /// (its `billing.rs` appends `/billing?format=credits` to the same proxy base URL), so it shares
-    /// the CLI's stability guarantees, auth headers, and token-refresh path.
+    /// The weekly shared-pool data: the billing endpoint with `?format=credits`, which returns
+    /// the `GetGrokCreditsConfig` message as JSON.
     static let creditsConfigURL = URL(string: "https://cli-chat-proxy.grok.com/v1/billing?format=credits")!
 
     var httpClient: HTTPClient
@@ -94,4 +92,3 @@ struct GrokUsageClient: Sendable {
         ]
     }
 }
-

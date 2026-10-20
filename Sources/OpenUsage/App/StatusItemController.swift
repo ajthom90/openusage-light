@@ -48,7 +48,7 @@ final class StatusItemController: NSObject {
     /// Corner radius of the panel surface; tuned to read like a system menu-bar popover.
     private static let cornerRadius: CGFloat = 13
 
-    init(container: AppContainer, updater: UpdaterController) {
+    init(container: AppContainer) {
         self.container = container
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.statusItem = statusItem
@@ -69,8 +69,6 @@ final class StatusItemController: NSObject {
                     .environment(container.layout)
                     .environment(container.dataStore)
                     .environment(container.transparency)
-                    .environment(updater)
-                    .environment(\.resetClaims, container.resetClaims)
             )
         )
         // The host view fills the panel. SwiftUI measures each screen and drives the panel height;
@@ -334,10 +332,9 @@ final class StatusItemController: NSObject {
     private func hidePanel() {
         // The popover's SwiftUI tree survives `orderOut`, so a tooltip the cursor was resting on gets
         // no hover-exit and would orphan on screen — clear it here, the one chokepoint every close hits.
-        // The Usage Trend hover popover is on the same survives-orderOut footing, so dismiss it too.
+        // Dismiss any auxiliary popover that would otherwise survive closing this panel.
         HoverTooltips.dismissAll()
         HoverPopoverState.dismissAll()
-        ReducedMotionPopoverController.dismissAll()
         // Same survival problem for keyboard focus: a clicked plain-styled control (a row's Used/Left
         // or reset toggle) stays first responder, so its focus ring would reopen with the popover as a
         // stray blue outline. Drop it on close so every reopen starts unfocused.

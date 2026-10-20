@@ -5,11 +5,6 @@ import Foundation
 /// A metric with a `limit` has a beginning and an end, so it renders as a capsule meter row.
 /// Without a `limit` it's an unbounded amount → a single right-aligned text line.
 struct WidgetData: Hashable {
-    /// Hover note for locally-estimated spend tiles (Codex/Claude/Grok Today / Yesterday / Last 30
-    /// Days), whose dollars are imputed from token counts rather than billed.
-    static let localEstimateNote = "Estimated locally, so it may be off"
-    /// Hover note for Cursor spend tiles, whose spend comes from Cursor's usage-history export.
-    static let cursorUsageHistoryNote = "From your Cursor usage history."
     /// Headline shown on a placed tile with no real backing metric (em dash, U+2014).
     static let noDataHeadline = "—"
     /// Subtitle shown on a placed tile with no real backing metric. Copy is intentionally exact.
@@ -39,25 +34,12 @@ struct WidgetData: Hashable {
     /// state when none are available) and lights up like the spend rows — so it stays reachable even
     /// at "0 available", where `expiriesAt` is empty. Off for every other row.
     var showsResetExpiries: Bool = false
-    /// Names of models this period's spend used that have no known price. Their usage is excluded
-    /// unless a fallback estimate is enabled; either way the missing-price warning stays visible.
-    /// Drives the label warning triangle and its hover list. Empty for every other row.
-    var unknownModels: [String] = []
-    /// Period-scoped model spend/tokens for the Today / Yesterday / Last 30 Days hover popover. Nil for
-    /// non-spend rows and for periods where the provider has no model-level data.
-    var modelBreakdown: ModelUsageBreakdown?
     var periodDurationMs: Int?
     var valueTextOverride: String?
     var subtitleOverride: String?
     var limitNoun: String?     // word after a dollar limit, e.g. "$100 limit" (defaults to "limit")
-    /// Fixed trailing word for an unbounded row, e.g. "left" for an extra balance or "spent" for a
-    /// spend estimate. When set it replaces the global left/used mode word.
+    /// Fixed trailing word for an unbounded row, e.g. "left" for an extra balance.
     var unboundedValueWord: String?
-    /// Optional source/disclaimer note for locally-estimated tiles. Rendered on the value-side hover,
-    /// not beside the left label, so labels stay inert.
-    var infoNote: String?
-    /// Optional source note for value rows such as Cursor spend history.
-    var valueTooltipNote: String?
     /// False when no real provider metric backs this tile. The view then shows a "No data" state
     /// instead of the descriptor's placeholder template numbers. True for real data and direct fixtures.
     var hasData: Bool = true
@@ -67,12 +49,6 @@ struct WidgetData: Hashable {
     /// Which of `values` this widget renders — cost-only, tokens-only, or the combined `.all`. Set by
     /// the descriptor factory, so one provider row can back several tiles and the mapper stays oblivious.
     var selection: ValueSelection = .all
-    /// True only for the Today / Yesterday / Last 30 Days spend tiles, where the row's values accumulate
-    /// over a time window so an all-zero reading means "nothing was used." Balance/availability rows
-    /// (Codex Rate Limit Resets, an exhausted Extra Usage credit) read zero when *depleted*, not idle, so
-    /// they leave this false and never get the "No usage in this period" note. Set by the spend-tile
-    /// factory; rides the descriptor sample through `WidgetDataStore.resolve`.
-    var isUsagePeriod: Bool = false
     /// A tray-only unit word appended after this tile's menu-bar value for an unbounded count (e.g. Codex
     /// Rate Limit Resets → "2 resets"). Set by the descriptor, so renaming the tile can't silently drop
     /// the suffix — replaces matching on the tile's title. `nil` for tiles that show the bare value.
@@ -98,18 +74,7 @@ struct WidgetData: Hashable {
         /// 0 (#1160) — the reset date is what tells the two apart.
         case missingResetDate
     }
-    /// Per-day points for a Usage Trend row (empty for every other tile). Set true `isChart` flags the
-    /// row so the view draws the sparkline instead of the value layout; `chartNote` is the source line
-    /// shown on hover (e.g. "From your Claude usage history (estimated)").
-    var isChart: Bool = false
-    var chartPoints: [MetricChartPoint] = []
-    var chartNote: String?
-
     var isBounded: Bool { limit != nil }
-
-    var hasModelBreakdown: Bool {
-        hasData && isUsagePeriod && !(modelBreakdown?.models.isEmpty ?? true)
-    }
 
     /// `values` projected through `selection` — exactly what this tile shows.
     var selectedValues: [MetricValue] { selection.apply(to: values) }
@@ -393,67 +358,24 @@ struct WidgetData: Hashable {
         return ([header] + entries).joined(separator: "\n")
     }
 
-    /// True when this period used at least one model without known pricing, even if its cost was
-    /// estimated with a fallback. Drives the spend tile's label warning triangle.
-    var hasUnknownModels: Bool {
-        hasData && !unknownModels.isEmpty
-    }
-
-    /// Hover copy for the unknown-model warning triangle: a header naming the problem, then each unpriced
-    /// model on its own line. Singular/plural header to read naturally. `nil` when every model has
-    /// known pricing, so the triangle and its tooltip stay off.
-    var unknownModelTooltip: String? {
-        guard hasUnknownModels else { return nil }
-        let header = unknownModels.count == 1 ? "Unknown model found" : "Unknown models found"
-        return ([header] + unknownModels.map { "- \($0)" }).joined(separator: "\n")
-    }
-
-    /// Secondary line under an unbounded row's detail (e.g. "on-device estimate"); nil with no real data.
+    /// Secondary line under an unbounded row's detail.
     var unboundedSubtitle: String? {
         guard hasData else { return nil }
         return subtitleOverride
     }
 
-    /// Full, un-abbreviated values for the row's hover tooltip — the exact numbers the compact row
-    /// shortens (e.g. "$2,059.07 · 1,506,025,363"). `nil` when nothing is abbreviated and there is no
-    /// source note, so a row like "2" or "$30.88 · 772 credits" gets no redundant tooltip.
+    /// Full, un-abbreviated values for the row's hover tooltip when the compact value shortens them.
     var unboundedTooltip: String? {
         guard hasData else { return nil }
         let selected = selectedValues
-        guard selected.contains(where: { abs($0.number) >= 1000 }) || unboundedTooltipNote != nil else { return nil }
+        guard selected.contains(where: { abs($0.number) >= 1000 }) else { return nil }
         return selected.map { MetricFormatter.string(for: $0, style: .full) }.joined(separator: " · ")
     }
 
-    /// Hover text for an unbounded row's **value** (and the expiry-warning icon): the per-credit expiry
-    /// breakdown on a reset-credit row, else the exact figures the compact value shortens plus any
-    /// source note. `nil` for a small, already-full, non-zero row with no note.
+    /// Hover text for an unbounded row's value when the compact value abbreviates it.
     var unboundedValueTooltip: String? {
-        // The reset-credit row's per-credit expiry breakdown takes precedence (it's the whole point of
-        // hovering "2 available"); its tiny count never has a figures tooltip anyway.
         if let expiry = expiryTooltip { return expiry }
-        if isZeroUsage && isUsagePeriod {
-            return (["No usage in this period"] + [unboundedTooltipNote].compactMap { $0 }).joined(separator: "\n")
-        }
-        if let figures = unboundedTooltip {
-            return ([figures] + [unboundedTooltipNote].compactMap { $0 }).joined(separator: "\n")
-        }
-        // The "no usage" note only fits a spend period (Today / Yesterday / Last 30 Days), where a zero
-        // genuinely means nothing was used. A balance row that reads 0 (Codex Rate Limit Resets, an
-        // exhausted Extra Usage credit) is depleted, not idle, so it gets no note.
-        return nil
-    }
-
-    private var unboundedTooltipNote: String? {
-        infoNote ?? valueTooltipNote
-    }
-
-    /// True for a zero-usage period — has data, but every selected value is zero (a row reading
-    /// "$0.00 · 0 tokens"). Distinct from "no data" and from small non-zero usage, so the row can show
-    /// a "no usage" note rather than a figures reveal.
-    var isZeroUsage: Bool {
-        guard hasData else { return false }
-        let selected = selectedValues
-        return !selected.isEmpty && selected.allSatisfy { $0.number == 0 }
+        return unboundedTooltip
     }
 
     var resetLabel: String? {

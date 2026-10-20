@@ -70,8 +70,8 @@ enum LogRedaction {
         "profileArn", "email", "login", "analytics_tracking_id"
     ]
 
-    /// Redact sensitive patterns in a response body for logging. Five ordered passes, matching the
-    /// Rust `redact_body`: JWT, quoted api-key, devin-session, the 36 JSON keys, then filesystem
+    /// Redact sensitive patterns in a response body for logging. Four ordered passes: JWT, quoted
+    /// API key, sensitive JSON keys, then filesystem
     /// paths. Redact BEFORE any truncation so a secret straddling the cut is still caught intact.
     static func redactBody(_ body: String) -> String {
         var result = body
@@ -80,7 +80,6 @@ enum LogRedaction {
             let key = match.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
             return redactValue(key)
         }
-        result = replaceAll(devinRegex, in: result) { redactValue($0) }
         for key in jsonSensitiveKeys {
             // Match "key": "value" or "key":"value" — capture group 1 is the value.
             guard let regex = jsonKeyRegexCache[key] else { continue }
@@ -114,14 +113,11 @@ enum LogRedaction {
 
     // MARK: - Log message
 
-    /// Lightweight redaction for free-form log messages. Five ordered passes matching the Rust
-    /// `redact_log_message`: JWT, the NO-QUOTE api-key variant, devin-session, the unique `account=`
-    /// pass, then filesystem paths.
+    /// Lightweight redaction for free-form log messages: JWT, API keys, account values, then paths.
     static func redactLogMessage(_ message: String) -> String {
         var result = message
         result = replaceAll(jwtRegex, in: result) { redactValue($0) }
         result = replaceAll(apiKeyBareRegex, in: result) { redactValue($0) }
-        result = replaceAll(devinRegex, in: result) { redactValue($0) }
         result = replaceAccountEq(in: result)
         result = pathRegex.stringByReplacingMatches(
             in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "[PATH]"
@@ -134,7 +130,6 @@ enum LogRedaction {
     private static let jwtRegex = makeRegex(#"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"#)
     private static let apiKeyQuotedRegex = makeRegex(#"["']?(sk-|pk-|api_|key_|secret_)[A-Za-z0-9_-]{12,}["']?"#)
     private static let apiKeyBareRegex = makeRegex(#"(sk-|pk-|api_|key_|secret_)[A-Za-z0-9_-]{12,}"#)
-    private static let devinRegex = makeRegex(#"devin-session-token\$[^\s"',}\]]+"#)
     private static let accountRegex = makeRegex(#"(account=)([^,\s]+)"#)
     private static let pathRegex = makeRegex(#"(/(?:Users|home|opt|private|var|tmp|Applications)/[^\s"')]+)"#)
 

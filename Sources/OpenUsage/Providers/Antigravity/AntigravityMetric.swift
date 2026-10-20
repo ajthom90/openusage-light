@@ -1,6 +1,6 @@
 import Foundation
 
-/// Antigravity quota widget IDs and metric labels, shared by `AntigravityProvider.widgetDescriptors`
+/// Antigravity quota widget IDs and metric labels, shared by account runtimes
 /// and `AntigravityUsageMapper` so both sides of the exact-string label binding
 /// (`WidgetDescriptor.metricLabel` == `MetricLine.label`, resolved in `WidgetDataStore.data(for:)`)
 /// come from one place — label drift there is a silent "No data" failure.

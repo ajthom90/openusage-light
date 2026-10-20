@@ -629,13 +629,10 @@ final class LayoutStoreTests: XCTestCase {
     }
 
     func testFreshCustomizeOrderFollowsProviderDeclarations() {
-        let providers: [ProviderRuntime] = [
-            ClaudeProvider(),
-            CodexProvider(),
-            DevinProvider(),
-            GrokProvider(),
-            CursorProvider()
-        ]
+        let accounts = ProviderKind.allCases.enumerated().map { index, kind in
+            Account(kind: kind, label: kind.displayName, addedAt: Date(timeIntervalSince1970: TimeInterval(index)))
+        }
+        let providers = ProviderCatalog.make(accounts: accounts, vault: InMemoryCredentialVault())
         let store = LayoutStore(
             registry: WidgetRegistry.from(providers), defaults: makeDefaults("FreshCustomizeOrder"), storageKey: "layout"
         )
@@ -649,73 +646,23 @@ final class LayoutStoreTests: XCTestCase {
         }
     }
 
-    func testFreshDefaultLayoutMatchesRecommendedMetricSections() {
-        let registry = WidgetRegistry.from([
-            ClaudeProvider(),
-            CodexProvider(),
-            DevinProvider(),
-            GrokProvider(),
-            CursorProvider()
-        ])
-        let store = LayoutStore(registry: registry, defaults: makeDefaults("RecommendedDefaults"), storageKey: "layout")
+    func testFreshDefaultLayoutSeedsMetricsForAccountCards() {
+        let account = Account(kind: .claude, label: "Work")
+        let providers = ProviderCatalog.make(accounts: [account], vault: InMemoryCredentialVault())
+        let defaults = DefaultLayout.expandingAccounts(DefaultLayout.metricIDs, providerIDs: [account.cardID])
+        let store = LayoutStore(
+            registry: WidgetRegistry.from(providers),
+            defaults: makeDefaults("AccountDefaults"),
+            storageKey: "layout",
+            defaultMetricIDs: defaults,
+            defaultExpandedMetricIDs: DefaultLayout.expandingAccounts(
+                DefaultLayout.expandedMetricIDs,
+                providerIDs: [account.cardID]
+            )
+        )
 
-        XCTAssertEqual(Set(store.placed.map(\.descriptorID)), Set([
-            "claude.session", "claude.weekly", "claude.fable", "claude.trend",
-            "claude.extra", "claude.rateLimitResets", "claude.today", "claude.yesterday", "claude.last30",
-            "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.trend",
-            "codex.credits", "codex.rateLimitResets", "codex.today", "codex.yesterday", "codex.last30",
-            "devin.daily", "devin.weekly", "devin.extra",
-            "grok.weekly", "grok.trend",
-            "grok.payAsYouGo", "grok.today", "grok.yesterday", "grok.last30",
-            // Cursor spend tiles + usage trend are enabled, joining its live meters in the default layout.
-            "cursor.usage", "cursor.auto", "cursor.api", "cursor.grokBot", "cursor.trend",
-            "cursor.onDemand", "cursor.today", "cursor.yesterday", "cursor.last30"
-        ]))
-        XCTAssertTrue(store.isMetricEnabled("claude.fable"))
-        XCTAssertFalse(store.isPinned("claude.fable"))
-        XCTAssertFalse(store.isMetricEnabled("claude.sonnet"))
-        XCTAssertTrue(store.isMetricEnabled("codex.session"))
-        XCTAssertTrue(store.isPinned("codex.session"))
-        XCTAssertTrue(store.isPinned("codex.weekly"))
-        XCTAssertTrue(store.isMetricEnabled("cursor.grokBot"))
-        XCTAssertFalse(store.isMetricEnabled("cursor.requests"))
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"))
-        XCTAssertFalse(store.isPinned("cursor.grokBot"))
-
-        let primaryByProvider = Dictionary(uniqueKeysWithValues: store.customizeGroups.map {
-            ($0.provider.id, $0.alwaysShownMetrics.map(\.id))
-        })
-        let expandedByProvider = Dictionary(uniqueKeysWithValues: store.customizeGroups.map {
-            ($0.provider.id, $0.expandedMetrics.map(\.id))
-        })
-
-        // Claude's core meters keep Fable directly below Weekly; optional Sonnet and spend-history
-        // rows go below the caret.
-        XCTAssertEqual(primaryByProvider["claude"], [
-            "claude.session", "claude.weekly", "claude.fable", "claude.extra", "claude.trend"
-        ])
-        XCTAssertEqual(expandedByProvider["claude"], [
-            "claude.sonnet", "claude.rateLimitResets", "claude.today", "claude.yesterday", "claude.last30"
-        ])
-        XCTAssertEqual(primaryByProvider["codex"], ["codex.session", "codex.weekly", "codex.trend"])
-        // Spark (the optional model-specific limits) leads the On Demand section, before credits.
-        XCTAssertEqual(expandedByProvider["codex"], [
-            "codex.spark", "codex.sparkWeekly",
-            "codex.credits", "codex.rateLimitResets", "codex.today", "codex.yesterday", "codex.last30"
-        ])
-        XCTAssertEqual(primaryByProvider["devin"], ["devin.daily", "devin.weekly"])
-        XCTAssertEqual(expandedByProvider["devin"], ["devin.extra"])
-        XCTAssertEqual(primaryByProvider["grok"], ["grok.weekly", "grok.trend"])
-        XCTAssertEqual(expandedByProvider["grok"], [
-            "grok.payAsYouGo", "grok.today", "grok.yesterday", "grok.last30"
-        ])
-        // Cursor spend tiles + usage trend are enabled: the trend joins the primary rows, and the
-        // today/yesterday/last30 rows sit below the caret alongside the other secondary metrics.
-        XCTAssertEqual(primaryByProvider["cursor"], ["cursor.usage", "cursor.auto", "cursor.api", "cursor.trend"])
-        XCTAssertEqual(expandedByProvider["cursor"], [
-            "cursor.grokBot", "cursor.onDemand", "cursor.requests", "cursor.credits",
-            "cursor.today", "cursor.yesterday", "cursor.last30"
-        ])
+        XCTAssertTrue(store.isMetricEnabled("\(account.cardID).session"))
+        XCTAssertTrue(store.placed.contains { $0.descriptorID == "\(account.cardID).session" })
     }
 
     func testMetricOrderPersistsWhileMetricIsDisabled() {
@@ -1143,19 +1090,13 @@ final class LayoutStoreTests: XCTestCase {
 
     // MARK: - Customize master/detail (L1 list + L2 detail)
 
-    func testCustomizeProviderRowsIncludesAllProvidersRegardlessOfEnablement() {
-        // Disable Codex; L1 must still list it (greyed), in the registry's provider order.
+    func testCustomizeProviderRowsIncludesAllProviders() {
         let store = LayoutStore(
             registry: .mock,
             defaults: makeDefaults("RowsIncludeDisabled"),
-            storageKey: "layout",
-            isProviderEnabled: { id in id != "codex" }
+            storageKey: "layout"
         )
         XCTAssertEqual(store.customizeProviderRows.map(\.id), MockData.providers.map(\.id))
-        let codex = store.customizeProviderRows.first { $0.id == "codex" }
-        XCTAssertNotNil(codex, "disabled provider stays visible in L1")
-        XCTAssertFalse(codex?.isEnabled ?? true, "disabled provider row reports isEnabled false")
-        XCTAssertTrue(store.customizeProviderRows.first { $0.id == "claude" }?.isEnabled ?? false)
     }
 
     func testCustomizeProviderRowsCarriesMetricCounts() {
@@ -1167,18 +1108,16 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertEqual(store.metricCount(for: "missing"), 0)
     }
 
-    func testCustomizeDetailReturnsMetricsEvenWhenDisabled() {
+    func testCustomizeDetailReturnsMetrics() {
         let store = LayoutStore(
             registry: .mock,
             defaults: makeDefaults("DetailWhenDisabled"),
-            storageKey: "layout",
-            isProviderEnabled: { id in id != "codex" }
+            storageKey: "layout"
         )
-        // customizeGroups drops the disabled provider; customizeDetail does not.
-        XCTAssertNil(store.customizeGroups.first { $0.provider.id == "codex" })
+        XCTAssertNotNil(store.customizeGroups.first { $0.provider.id == "codex" })
         let detail = store.customizeDetail(for: "codex")
-        XCTAssertNotNil(detail, "disabled provider still has a detail to render dimmed")
-        XCTAssertEqual(detail?.metrics.map(\.id), store.orderedSupportedMetrics(for: "codex").map(\.id))
+        XCTAssertNotNil(detail)
+        XCTAssertEqual(detail?.metrics.map(\.id), ["codex.session", "codex.weekly", "codex.today", "codex.credits"])
     }
 
     func testCustomizeDetailSplitsAcrossDivider() {

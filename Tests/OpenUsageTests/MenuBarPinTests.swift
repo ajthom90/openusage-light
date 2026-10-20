@@ -2,8 +2,7 @@ import XCTest
 @testable import OpenUsage
 
 /// Covers the menu-bar pin model on `LayoutStore`: the ≤2-per-provider rendering cap, denial
-/// reasons/notices, order derivation from the Customize order,
-/// disabled-provider handling, and persistence across relaunch.
+/// reasons/notices, order derivation from the Customize order, and persistence across relaunch.
 @MainActor
 final class MenuBarPinTests: XCTestCase {
     func testNoPinsByDefault() {
@@ -86,18 +85,17 @@ final class MenuBarPinTests: XCTestCase {
         XCTAssertEqual(store.pinnedGroups.map(\.provider.id), ["a", "b"])
     }
 
-    func testDisabledProviderPinsExcludedFromGroupsButKept() {
+    func testAllProviderPinsAppearInGroups() {
         let store = LayoutStore(
             registry: makeRegistry(),
             defaults: makeDefaults("disabled"),
-            storageKey: "layout",
-            isProviderEnabled: { $0 != "a" }
+            storageKey: "layout"
         )
         store.setPinned(true, for: "a.m1")
         store.setPinned(true, for: "b.m1")
 
-        XCTAssertEqual(store.pinnedGroups.map(\.provider.id), ["b"])
-        XCTAssertTrue(store.isPinned("a.m1"))  // membership preserved while hidden
+        XCTAssertEqual(store.pinnedGroups.map(\.provider.id), ["a", "b"])
+        XCTAssertTrue(store.isPinned("a.m1"))
     }
 
     func testResetToDefaultClearsPins() {
