@@ -16,8 +16,6 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-See [provider endpoints](docs/providers.md) for the sign-in and usage endpoints used by each provider.
-
 ## Building
 
 Requires macOS 15 or later and Swift 6.2.
@@ -34,7 +32,7 @@ The development app is staged as `dist/OpenUsage Light.app` with bundle identifi
 
 This SwiftPM app uses an AppKit status item and panel with SwiftUI content. `AccountStore` persists account metadata; `CredentialVault` stores each account's credential; `ProviderLogin` implements sign-in; and `AccountProviderRuntime` fetches and maps usage for one account. The dashboard is built from those runtimes and the account-specific metric layout.
 
-See [docs/](docs/README.md) for behavior and development notes. `AGENTS.md` describes repository conventions.
+`AGENTS.md` describes repository conventions.
 
 ## License
 

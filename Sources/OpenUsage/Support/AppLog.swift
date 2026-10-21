@@ -36,8 +36,7 @@ enum LogTag: String, Sendable {
 ///
 /// `os.Logger` has no runtime level gate of its own, so the floor is enforced here for both sinks.
 /// Errors (severity 0) always clear any floor, so they are never suppressed. Raising the level to
-/// Debug in Settings is what surfaces debug lines in both the file and `log stream` (see
-/// `docs/debugging.md`) — matching #604's "Debug only when the user opts in".
+/// Debug in Settings is what surfaces debug lines in both the file and `log stream` — matching #604's "Debug only when the user opts in".
 ///
 /// The level is cached (not re-read from `UserDefaults` on every call, which would be wasteful on the
 /// hot `[http]`/`[cache]` paths) and refreshed by `reloadLevel()` from the Settings `.onChange` and at

@@ -26,7 +26,7 @@ The app is long-lived; rebuild and restart it when validating app changes. The d
 
 ## Documentation
 
-Update docs when behavior changes. Keep them plain, brief, and focused on account sign-in and API-reported usage. Remove documentation for features that are no longer present.
+Update `README.md` when behavior changes. Keep it plain, brief, and focused on account sign-in and API-reported usage. Remove documentation for features that are no longer present.
 
 ## Code Conventions
 

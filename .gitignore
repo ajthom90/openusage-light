@@ -25,7 +25,3 @@ node_modules/
 *.xcarchive
 *.xcresult
 .build-test/
-
-# Local appcast / Sparkle feed output
-feed/
-appcast.xml
