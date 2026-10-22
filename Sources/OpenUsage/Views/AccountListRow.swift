@@ -8,8 +8,6 @@ struct AccountListRow<Handle: View>: View {
     let handle: (AnyView) -> Handle
     var onOpen: () -> Void = {}
 
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
-
     var body: some View {
         HStack(spacing: 10) {
             // Drag handle only — outside the open target so a click on the grip doesn't open L2.
@@ -47,6 +45,6 @@ struct AccountListRow<Handle: View>: View {
             .accessibilityLabel("Open \(provider.fullName)")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, density.controlRowPadding)
+        .padding(.vertical, PanelMetrics.controlRowPadding)
     }
 }

@@ -10,7 +10,6 @@ struct DashboardContentView: View {
     @Binding var reorderLift: ReorderLift?
     @Binding var scrollPosition: ScrollPosition
 
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @State private var isAddingAccount = false
 
     var body: some View {
@@ -18,7 +17,7 @@ struct DashboardContentView: View {
             VStack(alignment: .leading, spacing: 0) {
                 widgetContent
             }
-            .padding(density.panelPadding)
+            .padding(PanelMetrics.margin)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollPosition($scrollPosition)

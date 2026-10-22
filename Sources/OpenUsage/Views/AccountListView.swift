@@ -12,11 +12,10 @@ struct AccountListView: View {
 
     @State private var activeProviderID: String?
     @State private var isAddingAccount = false
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
         let providers = layout.orderedProviders()
-        VStack(alignment: .leading, spacing: density.sectionSpacing) {
+        VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
             if !providers.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(providers) { provider in

@@ -20,28 +20,23 @@ struct WidgetRowView: View {
     /// Same supply rules as `onToggleResetDisplay`.
     var onToggleMeterStyle: (() -> Void)?
     /// True when this text-only row sits directly under another text-only row. Rows don't know
-    /// their neighbors — the list supplies it — and both densities use it to pull consecutive
-    /// one-liners into a single cluster (Compact a step harder).
+    /// their neighbors — the list supplies it — and it pulls consecutive one-liners into a single
+    /// cluster.
     var condensedTop: Bool = false
     /// Backs the resets popover's claim flow on a Rate Limit Resets row. `nil` everywhere else (other
     /// rows, share renders, reorder previews), which renders the timeline read-only.
     var resetClaim: ResetClaimService?
 
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @Environment(\.reduceAnimations) private var reduceAnimations
     @State private var resetsHover = HoverPopoverState()
 
-    /// Both row fonts come from the density setting: point sizes — not just padding — are what make
-    /// Compact read as a denser mode. The sizes are explicit because semantic
-    /// `.headline.weight(.regular)` does not match `.headline` on macOS, and `minimumScaleFactor`
-    /// was shrinking only the trailing value.
-    private var labelFont: Font {
-        .system(size: density.labelPointSize, weight: .semibold)
-    }
-
-    private var supportingFont: Font {
-        .system(size: density.supportingPointSize, weight: .regular)
-    }
+    /// The share card's type: a 13 pt semibold label over 12 pt (callout) supporting text.
+    private let labelFont = Font.body.weight(.semibold)
+    private let supportingFont = Font.callout
+    /// Vertical padding of a bar row, a text row, and a text row under another text row.
+    private static let barRowPadding: CGFloat = 10
+    private static let textRowPadding: CGFloat = 6
+    private static let condensedTextRowTopPadding: CGFloat = 2
 
     var body: some View {
         // A row with a concrete reset date derives time-sensitive state (reset countdown, pace marker,
@@ -62,19 +57,18 @@ struct WidgetRowView: View {
         // Bar rows are multi-line and earn breathing room; single-line text rows (Today / Yesterday /
         // Last 30 Days) stay tighter so consecutive ones read as a cluster, not evenly-spaced
         // full-height rows. This differentiation — not the fonts — is what kills the "jumpy" rhythm.
-        // All values come from the global density setting; a text row pulls up against a preceding
-        // text row (`condensedTop`) in both densities.
+        // A text row pulls up against a preceding text row (`condensedTop`).
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
     }
 
     private var topPadding: CGFloat {
-        if data.isBounded { return density.barRowPadding }
-        return condensedTop ? density.condensedTextRowTopPadding : density.textRowPadding
+        if data.isBounded { return Self.barRowPadding }
+        return condensedTop ? Self.condensedTextRowTopPadding : Self.textRowPadding
     }
 
     private var bottomPadding: CGFloat {
-        data.isBounded ? density.barRowPadding : density.textRowPadding
+        data.isBounded ? Self.barRowPadding : Self.textRowPadding
     }
 
     @ViewBuilder
@@ -92,7 +86,7 @@ struct WidgetRowView: View {
     /// neighboring rows.
     private var boundedRow: some View {
         let state = data.meterState()
-        return VStack(alignment: .leading, spacing: density.rowInnerSpacing) {
+        return VStack(alignment: .leading, spacing: 4) {
             boundedLabelRow(state)
             meter(state)
             primaryTextRow
@@ -172,7 +166,7 @@ struct WidgetRowView: View {
         Spacer(minLength: 8)
         let label = HStack(spacing: 3) {
             Image(systemName: "flame.fill")
-                .font(.system(size: density.supportingPointSize - 1))
+                .font(.subheadline)
                 .foregroundStyle(severityColor(state.severity))
                 .accessibilityHidden(true) // the warning text alongside carries the message
             if let text {
@@ -390,7 +384,7 @@ struct WidgetRowView: View {
             Text(data.title)
                 // Same point size as the trailing value so the single-line row reads tight;
                 // semibold alone keeps the name/value hierarchy.
-                .font(.system(size: density.supportingPointSize, weight: .semibold))
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)

@@ -2,10 +2,9 @@ import SwiftUI
 
 struct ReorderLift {
     enum Payload {
-        case dashboardMetric(data: WidgetData)
         case accountRow(provider: Provider)
         case customizeMetric(title: String)
-        /// A dashboard account or provider card, drawn by the dashboard itself.
+        /// A dashboard metric line, account, or provider card, drawn by the dashboard itself.
         case view(AnyView)
     }
 
@@ -38,13 +37,10 @@ struct ReorderLift {
     }
 }
 
+/// The previews are deliberately the same views the live screens render (shared row/card builders), so a
+/// lifted row matches the row it came from.
 struct ReorderLiftPreview: View {
     let lift: ReorderLift
-
-    // The previews are deliberately the same views the live screens render (shared row/card
-    // builders); reading the density here lets the header→card spacing track the live sections too,
-    // so a lifted provider block matches its source block in every density.
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
         preview
@@ -62,8 +58,6 @@ struct ReorderLiftPreview: View {
     @ViewBuilder
     private var preview: some View {
         switch lift.payload {
-        case .dashboardMetric(let data):
-            dashboardMetricPreview(data)
         case .accountRow(let provider):
             accountRowPreview(provider)
         case .customizeMetric(let title):
@@ -71,12 +65,6 @@ struct ReorderLiftPreview: View {
         case .view(let view):
             view
         }
-    }
-
-    private func dashboardMetricPreview(_ data: WidgetData) -> some View {
-        DashboardMetricLine(data: data)
-            .padding(.horizontal, density.panelPadding)
-            .liftedRowSurface()
     }
 
     private func accountRowPreview(_ provider: Provider) -> some View {

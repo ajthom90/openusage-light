@@ -16,11 +16,10 @@ struct AccountDetailView: View {
 
     @State private var activeMetricID: String?
     @State private var isConfirmingRemoval = false
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
         if let group = layout.customizeDetail(for: providerID) {
-            VStack(alignment: .leading, spacing: density.sectionSpacing) {
+            VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
                 VStack(spacing: 0) {
                     ForEach(group.metrics, id: \.id) { metric in
                         metricRow(metric)
@@ -46,7 +45,7 @@ struct AccountDetailView: View {
                 .foregroundStyle(Color(nsColor: .systemRed))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
-                .padding(.vertical, density.controlRowPadding)
+                .padding(.vertical, PanelMetrics.controlRowPadding)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

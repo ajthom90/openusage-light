@@ -8,7 +8,7 @@ OpenUsage Light is a native macOS menu-bar app for seeing usage limits across AI
 
 Open Accounts from the menu-bar panel's Options menu (or press Return), click Add Account, choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open Browser and Copy Link, so you can pick which browser to use. If sign-in fails, Try Again starts it over. You can add multiple accounts for the same provider.
 
-To rename an account, double-click its name on the dashboard, choose Rename Account from its header's right-click menu, or click the name at the top of its page in Accounts. Return or a click elsewhere saves the new name, and Esc cancels. Remove Account is at the bottom of the account's page in Accounts.
+To rename an account, choose Rename Account from its right-click menu on the dashboard, or click the name at the top of its page in Accounts. Return or a click elsewhere saves the new name, and Esc cancels. Remove Account is at the bottom of the account's page in Accounts.
 
 Account metadata is stored in the app's UserDefaults domain. OAuth tokens and API keys are stored in this app's own Keychain service. OpenUsage Light does not read credentials, files, Keychain items, databases, or environment variables belonging to other tools.
 
@@ -18,7 +18,9 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-Claude and Codex accounts show a Resets line while a rate-limit reset is available. It counts down to the soonest expiry, in orange within 7 days and red within 48 hours. Hover or click the line to see when each reset expires, and choose Use to spend one on that account.
+Each account on the dashboard shows its first two limits in the order you set. Click anywhere on an account to show the rest of its metrics and its plan. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
+
+Claude and Codex accounts show a Resets line while a rate-limit reset is available. It counts down to the soonest expiry, in orange within 7 days and red within 48 hours. Hover or click its value ("2 available") to see when each reset expires, and choose Use to spend one on that account.
 
 ## Building
 

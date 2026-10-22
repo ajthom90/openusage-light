@@ -1,10 +1,10 @@
 import SwiftUI
 
 extension View {
-    /// Makes a Resets line the trigger for its resets timeline: hovering the line (after the usual dwell)
-    /// or clicking it opens `RateLimitResetsDetail` centred under the line, where a reset can be claimed.
-    /// The line lights up while the pointer is over it or its popover is open, over the same rect that
-    /// takes the click.
+    /// Makes the Resets value ("2 available") the trigger for its resets timeline: hovering it (after the
+    /// usual dwell) or clicking it opens `RateLimitResetsDetail` anchored on the value, where a reset can
+    /// be claimed. While the pointer is over the value or its popover is open, a quaternary chip lights up
+    /// behind the value alone, the inline highlight OpenUsage uses for its resets and spend values.
     func rateLimitResetsPopover(data: WidgetData, claim: ResetClaimService?) -> some View {
         modifier(RateLimitResetsPopover(data: data, claim: claim))
     }
@@ -18,18 +18,21 @@ private struct RateLimitResetsPopover: ViewModifier {
     @State private var hover = HoverPopoverState()
 
     func body(content: Content) -> some View {
+        let isLit = hover.overInline || hover.isPresented
         Button { hover.present() } label: {
             content
-                .contentShape(Rectangle())
+                // Negative insets hug the value without changing the line's height.
                 .background {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(.fill.quaternary)
-                        .padding(.horizontal, -5)
-                        .opacity(hover.overInline || hover.isPresented ? 1 : 0)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(.quaternary)
+                        .padding(.horizontal, -7)
+                        .padding(.vertical, -4)
+                        .opacity(isLit ? 1 : 0)
                 }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .animation(.easeOut(duration: 0.12), value: hover.overInline || hover.isPresented)
+        .animation(.easeOut(duration: 0.12), value: isLit)
         .onContinuousHover { phase in
             if case .active = phase { hover.inlineHover(true) } else { hover.inlineHover(false) }
         }

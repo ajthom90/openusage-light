@@ -57,11 +57,6 @@ enum ShareCardRenderer {
     /// On a successful copy it asks the layout store to surface a transient "Copied to clipboard" pill —
     /// a clipboard write gives no other signal that it landed.
     /// The rows are every enabled metric of the provider, in the order the dashboard shows them.
-    ///
-    /// The render is pinned to the regular density regardless of the user's popover density slider: the
-    /// rows read density via `@AppStorage`, so the saved value is swapped to `.regular` for the duration
-    /// of the render and restored on exit (synchronously), keeping the exported card consistent without
-    /// disturbing the live popover.
     @discardableResult
     static func share(
         group: ProviderGroup,
@@ -82,24 +77,12 @@ enum ShareCardRenderer {
         return renderAndCopy(view, label: group.provider.id, layout: layout)
     }
 
-    /// Shared render→copy pipeline for both share actions. Pins the render to regular density (the rows
-    /// read density via `@AppStorage`, so the saved value is swapped to `.regular` for the render and
-    /// restored on exit) so the export ignores the user's popover density slider; rasterizes `view`;
-    /// copies the PNG; and on a successful copy surfaces the transient "Copied to clipboard" pill (a
-    /// clipboard write gives no other signal). Beeps and logs (naming the card with `label`) on failure,
-    /// so a failed export is never silently swallowed. Returns whether the PNG landed on the pasteboard.
+    /// Shared render→copy pipeline for both share actions: rasterizes `view`, copies the PNG, and on a
+    /// successful copy surfaces the transient "Copied to clipboard" pill (a clipboard write gives no other
+    /// signal). Beeps and logs (naming the card with `label`) on failure, so a failed export is never
+    /// silently swallowed. Returns whether the PNG landed on the pasteboard.
     @discardableResult
     private static func renderAndCopy<Card: View>(_ view: Card, label: String, layout: LayoutStore) -> Bool {
-        let densityKey = DensitySetting.key
-        let savedDensity = UserDefaults.standard.string(forKey: densityKey)
-        UserDefaults.standard.set(DensitySetting.regular.rawValue, forKey: densityKey)
-        defer {
-            if let savedDensity {
-                UserDefaults.standard.set(savedDensity, forKey: densityKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: densityKey)
-            }
-        }
         guard let image = image(for: view) else {
             AppLog.error(.lifecycle, "share card: ImageRenderer produced no image for \(label)")
             NSSound.beep()

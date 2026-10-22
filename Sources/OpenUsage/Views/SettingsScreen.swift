@@ -3,15 +3,15 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
+    @Environment(WidgetDataStore.self) private var dataStore
     @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @AppStorage(TimeFormatSetting.key) private var timeFormat = TimeFormatSetting.auto
     @State private var launchAtLogin = LaunchAtLoginSetting()
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
     var body: some View {
         PopoverScrollView {
-            VStack(alignment: .leading, spacing: density.sectionSpacing) {
+            VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
                 section("General") {
                     row("Launch at Login") {
                         Toggle("", isOn: Binding(
@@ -29,22 +29,33 @@ struct SettingsScreen: View {
                         picker($appearance, options: AppearanceSetting.allCases, label: \.label)
                             .onChange(of: appearance) { AppearanceSetting.applyCurrent() }
                     }
-                    row("Density") {
-                        picker($density, options: DensitySetting.allCases, label: \.label)
-                    }
                     row("Time Format") {
                         picker($timeFormat, options: TimeFormatSetting.allCases, label: \.label)
                     }
                 }
+                usageDisplaySection
                 notificationsSection
             }
-            .padding(density.panelPadding)
+            .padding(PanelMetrics.margin)
         }
         .scrollPosition($scrollPosition)
         .onChange(of: layout.screen) { _, screen in
             if screen == .settings {
                 scrollPosition.scrollTo(edge: .top)
                 launchAtLogin.refreshStatus()
+            }
+        }
+    }
+
+    /// How every bounded reading and reset time reads, on the dashboard and in the menu bar.
+    private var usageDisplaySection: some View {
+        @Bindable var dataStore = dataStore
+        return section("Usage Display") {
+            row("Show Usage As") {
+                picker($dataStore.meterStyle, options: WidgetDisplayMode.allCases, label: \.label)
+            }
+            row("Reset Times") {
+                picker($dataStore.resetDisplayMode, options: ResetDisplayMode.allCases, label: \.label)
             }
         }
     }
@@ -69,7 +80,7 @@ struct SettingsScreen: View {
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
+        VStack(alignment: .leading, spacing: PanelMetrics.headerSpacing) {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -86,7 +97,7 @@ struct SettingsScreen: View {
             control()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, density.controlRowPadding)
+        .padding(.vertical, PanelMetrics.controlRowPadding)
     }
 
     private func picker<Value: Hashable>(

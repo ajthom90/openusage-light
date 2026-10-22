@@ -32,8 +32,6 @@ struct RateLimitResetsDetail: View {
     /// The confirm card's explanation line; `nil` keeps the generic one.
     var confirmDetail: String?
 
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
-
     /// Which credits this popover has already claimed (keyed by expiry instant), so a claimed node drops
     /// out of the timeline when the post-claim refresh hasn't landed yet. Fresh `expiries` replace it.
     @State private var claimedExpiries: Set<Date> = []
@@ -128,7 +126,7 @@ struct RateLimitResetsDetail: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             Text("You have no rate limit resets")
-                .font(.system(size: density.supportingPointSize))
+                .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -146,7 +144,7 @@ struct RateLimitResetsDetail: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             Text("\(count) available")
-                .font(.system(size: density.supportingPointSize))
+                .font(.callout)
                 .foregroundStyle(.primary)
             Text("Expiry times unavailable")
                 .font(.system(size: 11))
@@ -246,7 +244,7 @@ struct RateLimitResetsDetail: View {
     /// Fixed height for a resting/claimable node so swapping the trailing countdown for the "Use"
     /// button on hover can't change the row's height (which made the rows jump). The confirm node is
     /// deliberately taller — that's a click away, not a hover.
-    private var nodeHeight: CGFloat { density.supportingPointSize + 18 }
+    private let nodeHeight: CGFloat = 30
     /// Inner padding of the confirm card, shared with `dotCenterY` so the rail dot lines up with the
     /// card's first line.
     private let confirmCardPadding: CGFloat = 10
@@ -254,7 +252,7 @@ struct RateLimitResetsDetail: View {
     private func row(_ entry: Entry) -> some View {
         HStack(spacing: 8) {
             Text(entry.time)
-                .font(.system(size: density.supportingPointSize))
+                .font(.callout)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
             Spacer(minLength: 8)
@@ -286,7 +284,7 @@ struct RateLimitResetsDetail: View {
                     .transition(.opacity)
             } else if let countdown = entry.countdown {
                 Text(countdown)
-                    .font(.system(size: density.supportingPointSize))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .fixedSize(horizontal: true, vertical: false)
@@ -302,7 +300,7 @@ struct RateLimitResetsDetail: View {
     private func confirmRow(_ entry: Entry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Use this reset?")
-                .font(.system(size: density.supportingPointSize, weight: .medium))
+                .font(.callout.weight(.medium))
                 .foregroundStyle(.primary)
             Text(confirmDetail ?? "Immediately reset your usage limits. This can't be undone.")
                 .font(.system(size: 11))
@@ -333,7 +331,7 @@ struct RateLimitResetsDetail: View {
     private func claimingRow() -> some View {
         HStack(spacing: 8) {
             Text("Resetting your usage…")
-                .font(.system(size: density.supportingPointSize))
+                .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             MotionAwareProgressView(controlSize: .small)
@@ -350,7 +348,7 @@ struct RateLimitResetsDetail: View {
                 .foregroundStyle(banner.tint)
                 .accessibilityHidden(true)
             Text(banner.text)
-                .font(.system(size: density.supportingPointSize, weight: .medium))
+                .font(.callout.weight(.medium))
                 .foregroundStyle(banner.tint)
                 .fixedSize(horizontal: false, vertical: true)
         }

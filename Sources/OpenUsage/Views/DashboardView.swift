@@ -22,7 +22,6 @@ struct DashboardView: View {
     @Environment(WidgetDataStore.self) private var dataStore
     @Environment(PopoverTransparencyStore.self) private var transparency
     @Environment(\.reduceAnimations) private var reduceAnimations
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @State private var reorderLift: ReorderLift?
     /// The panel height SwiftUI drives — the single animation clock. `PanelHeightModifier` follows it
     /// frame-by-frame onto the AppKit panel, so the window resize rides the same spring as the screen
@@ -51,7 +50,6 @@ struct DashboardView: View {
     @State private var hasVisitedSettings = false
     @State private var isPresentingResetAllConfirm = false
     private static let reorderSpace = "popoverReorderSpace"
-    /// One width across both densities — switching density shouldn't move the popover's left edge.
     private static let popoverWidth: CGFloat = 320
     /// Fixed height of the Accounts / Settings back nav bar — the bar pins itself to exactly this height.
     private static let topBarHeight: CGFloat = 44
@@ -422,7 +420,7 @@ struct DashboardView: View {
                         layout: layout,
                         screen: screen,
                         height: Self.topBarHeight,
-                        horizontalPadding: density.panelPadding,
+                        horizontalPadding: PanelMetrics.margin,
                         onResetAll: { layout.resetToDefault() },
                         isPresentingResetAllConfirm: $isPresentingResetAllConfirm
                     )
@@ -434,7 +432,7 @@ struct DashboardView: View {
                         screen: screen,
                         layout: layout,
                         dataStore: dataStore,
-                        horizontalPadding: density.panelPadding
+                        horizontalPadding: PanelMetrics.margin
                     ) { screen, height in
                         heightCoordinator.setFooter(height, for: screen)
                     }

@@ -1,12 +1,13 @@
 import SwiftUI
 
 /// The dashboard display: one section per provider, holding each of its accounts (`DashboardFamily`).
-/// Every account shows one line per metric that has data, fed by the same `WidgetDataStore` the menu
-/// bar uses. Hovering a card shows its provider's quick links.
+/// A collapsed account shows its first two metrics with a limit and an expanded one every metric that
+/// has data, fed by the same `WidgetDataStore` the menu bar uses. Clicking an account expands or
+/// collapses it. Hovering a card shows its provider's quick links.
 ///
 /// Right-click a provider's card for provider actions, an account for account actions, and a metric
 /// line for metric actions. Everything reorders by dragging: a card by its header, an account by its
-/// name line within its card, a metric line within its account.
+/// header line (or anywhere while collapsed) within its card, an expanded metric line within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -22,18 +23,26 @@ struct WidgetGroupedListView: View {
     @State private var activeFamilyID: String?
     /// Expanded account rows, kept across popover openings and launches.
     @AppStorage("dashboard.expandedAccounts") private var expandedAccountsRaw = ""
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        VStack(alignment: .leading, spacing: density.providerSectionSpacing) {
+        // Sized over every line, shown or not, so expanding an account never moves the bars.
+        let labelWidth = DashboardMetricLine.labelWidth(
+            for: families.flatMap(\.accounts).flatMap(\.lines).map(\.data.dashboardTitle)
+        )
+        VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
             ForEach(families) { family in
                 DashboardProviderCard(
                     family: family,
-                    handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
+                    handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family, labelWidth: labelWidth))) }
                 ) { account in
-                    accountSection(account, group: groups.first { $0.provider.id == account.id }, family: family.id)
+                    accountSection(
+                        account,
+                        group: groups.first { $0.provider.id == account.id },
+                        family: family.id,
+                        labelWidth: labelWidth
+                    )
                 }
                 .contextMenu { providerMenu(family) }
                 .opacity(activeFamilyID == Self.familyFrameID(family.id) ? 0 : 1)
@@ -59,14 +68,22 @@ struct WidgetGroupedListView: View {
         return account.lines.map(\.id)
     }
 
-    private func accountSection(_ account: DashboardAccount, group: ProviderGroup?, family: String) -> some View {
-        plainAccountSection(
+    private func accountSection(
+        _ account: DashboardAccount,
+        group: ProviderGroup?,
+        family: String,
+        labelWidth: CGFloat
+    ) -> some View {
+        let expanded = isExpanded(account.id)
+        return plainAccountSection(
             account,
-            isExpanded: isExpanded(account.id),
+            isExpanded: expanded,
             onToggleExpanded: { toggleExpanded(account.id) },
-            handle: { AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family))) }
+            handle: {
+                AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family, labelWidth: labelWidth)))
+            }
         ) { line in
-            metricLine(line, in: account)
+            metricLine(line, in: account, labelWidth: labelWidth, draggable: expanded)
         }
         .contextMenu { accountMenu(account, group: group) }
         .opacity(activeAccountID == account.id ? 0 : 1)
@@ -93,16 +110,22 @@ struct WidgetGroupedListView: View {
         )
     }
 
-    private func metricLine(_ line: DashboardLine, in account: DashboardAccount) -> some View {
+    /// A metric line with its right-click menu. Only an expanded account's lines drag; a collapsed
+    /// account's summary lines drag the account.
+    private func metricLine(
+        _ line: DashboardLine,
+        in account: DashboardAccount,
+        labelWidth: CGFloat,
+        draggable: Bool
+    ) -> some View {
         DashboardMetricLine(
             data: line.data,
-            onToggleResetDisplay: { dataStore.resetDisplayMode.toggle() },
-            onToggleMeterStyle: { dataStore.meterStyle.toggle() },
+            labelWidth: labelWidth,
             resetClaim: line.data.showsResetExpiries ? container.resetClaim(for: account.id) : nil
         )
         .contentShape(Rectangle())
         .opacity(activeMetricID == line.id ? 0 : 1)
-        .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
+        .highPriorityGesture(metricDragGesture(for: line, accountID: account.id, labelWidth: labelWidth), isEnabled: draggable)
         .contextMenu { lineMenu(line.descriptor, providerID: account.id) }
         .reorderFrame(id: line.id, in: .named(reorderSpaceName))
     }
@@ -176,7 +199,7 @@ struct WidgetGroupedListView: View {
         )
     }
 
-    private func metricDragGesture(for line: DashboardLine, accountID: String) -> some Gesture {
+    private func metricDragGesture(for line: DashboardLine, accountID: String, labelWidth: CGFloat) -> some Gesture {
         reorderDragGesture(
             id: line.id,
             coordinateSpaceName: reorderSpaceName,
@@ -184,12 +207,10 @@ struct WidgetGroupedListView: View {
             active: $activeMetricID,
             lift: $reorderLift,
             makeLift: { value in
-                ReorderLift.make(
-                    id: line.id,
-                    payload: .dashboardMetric(data: line.data),
-                    value: value,
-                    frames: frameStore.frames
-                )
+                let preview = DashboardMetricLine(data: line.data, labelWidth: labelWidth)
+                    .padding(.horizontal, DashboardBox.highlightInset)
+                    .liftedRowSurface()
+                return ReorderLift.make(id: line.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { visibleLineIDs(for: accountID) },
             reorder: { layout.reorderMetric(dragged: line.id, target: $0, in: accountID) }
@@ -216,11 +237,7 @@ struct WidgetGroupedListView: View {
         DashboardFamily.make(groups: layout.displayGroups, line: resolveLine)
     }
 
-    private func plainLine(_ line: DashboardLine) -> some View {
-        DashboardMetricLine(data: line.data)
-    }
-
-    private func accountDragGesture(for account: DashboardAccount, family: String) -> some Gesture {
+    private func accountDragGesture(for account: DashboardAccount, family: String, labelWidth: CGFloat) -> some Gesture {
         reorderDragGesture(
             id: account.id,
             coordinateSpaceName: reorderSpaceName,
@@ -228,8 +245,11 @@ struct WidgetGroupedListView: View {
             active: $activeAccountID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = plainAccountSection(account, isExpanded: isExpanded(account.id), line: plainLine)
-                    .liftedRowSurface()
+                let preview = plainAccountSection(account, isExpanded: isExpanded(account.id)) {
+                    DashboardMetricLine(data: $0.data, labelWidth: labelWidth)
+                }
+                .padding(.vertical, DashboardBox.highlightInset)
+                .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().first { $0.id == family }?.accounts.map(\.id) ?? [] },
@@ -237,7 +257,7 @@ struct WidgetGroupedListView: View {
         )
     }
 
-    private func familyDragGesture(for family: DashboardFamily) -> some Gesture {
+    private func familyDragGesture(for family: DashboardFamily, labelWidth: CGFloat) -> some Gesture {
         let frameID = Self.familyFrameID(family.id)
         return reorderDragGesture(
             id: frameID,
@@ -247,7 +267,9 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let preview = DashboardProviderCard(family: family) {
-                    plainAccountSection($0, isExpanded: isExpanded($0.id), line: plainLine)
+                    plainAccountSection($0, isExpanded: isExpanded($0.id)) {
+                        DashboardMetricLine(data: $0.data, labelWidth: labelWidth)
+                    }
                 }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },

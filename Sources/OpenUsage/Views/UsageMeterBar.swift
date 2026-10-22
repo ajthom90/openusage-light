@@ -10,10 +10,11 @@ struct UsageMeterBar: View {
     let data: WidgetData
     let state: WidgetData.MeterState
 
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     /// Party easter egg: fill the bar with the party gradient instead of the severity color.
     @Environment(\.popoverPartyMode) private var partyMode
 
+    /// The height of AppKit's small determinate progress bar.
+    static let height: CGFloat = 6
     private static let paceTickWidth: CGFloat = 2
     private static let paceTickOverhang: CGFloat = 4
 
@@ -30,12 +31,12 @@ struct UsageMeterBar: View {
                 if let tick {
                     RoundedRectangle(cornerRadius: 1)
                         .fill(Color.primary.opacity(0.55))
-                        .frame(width: Self.paceTickWidth, height: density.meterHeight + Self.paceTickOverhang)
+                        .frame(width: Self.paceTickWidth, height: Self.height + Self.paceTickOverhang)
                         .offset(x: paceTickOffset(track: proxy.size.width, fraction: tick))
                 }
             }
         }
-        .frame(height: density.meterHeight)
+        .frame(height: Self.height)
         .animation(Motion.spring, value: data.fraction)
         .accessibilityHidden(true)
     }
@@ -53,6 +54,6 @@ struct UsageMeterBar: View {
     /// Any non-zero fraction renders at least a full circle, so 1–2% never squashes into a sliver.
     private func fillWidth(track: CGFloat) -> CGFloat {
         guard data.hasData, data.fraction > 0 else { return 0 }
-        return max(density.meterHeight, track * data.fraction)
+        return max(Self.height, track * data.fraction)
     }
 }

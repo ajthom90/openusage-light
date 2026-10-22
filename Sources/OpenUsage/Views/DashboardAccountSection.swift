@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// One account as a row of its provider's grouped box, built on `DisclosureGroup`.
+/// One account as a block of its provider's grouped box: a header line (disclosure triangle, name, and
+/// the plan once expanded) over its metric lines. Collapsed, the block shows the account's first two
+/// metrics with a limit (`DashboardAccount.summaryLines`); expanded, every metric.
 ///
-/// Collapsed, the row is a summary: the disclosure chevron, the account's name and plan, then its first
-/// metric (the one the user ordered first) as a small meter, value, and reset time. Expanded, the
-/// summary keeps the name and plan, and every metric line shows below. The whole summary row is the
-/// toggle: it lights under the pointer and takes the click over the same rect. The row takes the
-/// account's right-click menu.
+/// The whole block is one button, like a menu item: it lights under the pointer, and a click anywhere in
+/// it expands or collapses the account. The Resets value is the one control
+/// inside it, with its own highlight and popover. An account with nothing more to show has no
+/// triangle and isn't a button. Right-click the block for the account's menu, or a line for the metric's.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
     var plan: String?
@@ -15,55 +16,80 @@ struct DashboardAccountSection<Line: View>: View {
     var staleness: StalenessHint?
     var isExpanded = false
     var onToggleExpanded: (() -> Void)?
-    /// Wraps the summary row, so the dashboard can attach the account's drag gesture to it (and not to
-    /// the metric lines, which have their own).
+    /// Wraps each part of the block that drags the account: the header line, and the summary lines while
+    /// collapsed. Expanded metric lines drag themselves instead.
     var handle: (AnyView) -> AnyView = { $0 }
     @ViewBuilder var line: (DashboardLine) -> Line
 
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @Environment(AccountRenameStore.self) private var renaming: AccountRenameStore?
 
+    /// Width of the disclosure triangle's column. The metric lines indent by it, so their labels line up
+    /// with the account name the way a grouped form indents a disclosure group's content.
+    static var indent: CGFloat { 12 }
+
     var body: some View {
-        DisclosureGroup(isExpanded: Binding(get: { isExpanded }, set: { _ in onToggleExpanded?() })) {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(account.lines) { line($0) }
-            }
-        } label: {
-            summary
+        if account.isExpandable(plan: plan) {
+            Button { onToggleExpanded?() } label: { content(expandable: true) }
+                .buttonStyle(AccountBlockStyle())
+                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+        } else {
+            content(expandable: false)
         }
-        .disclosureGroupStyle(AccountDisclosureStyle(density: density, handle: handle))
-        .accessibilityElement(children: .contain)
     }
 
-    private var summary: some View {
-        HStack(spacing: 6) {
-            name
-            if let plan {
-                Text(plan)
-                    .font(.system(size: density.supportingPointSize))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    // Below the name, above the trailing metric: a long plan truncates before the name.
-                    .layoutPriority(1)
+    private func content(expandable: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            handle(AnyView(header(expandable: expandable)))
+            ForEach(isExpanded ? account.lines : account.summaryLines) { item in
+                if isExpanded {
+                    line(item)
+                } else {
+                    handle(AnyView(line(item)))
+                }
             }
-            status
-            Spacer(minLength: 0)
-            if !isExpanded, let first = account.lines.first {
-                DashboardHeadlineMetric(data: first.data)
-            }
+            .padding(.leading, Self.indent)
         }
-        .frame(height: density.accountLineHeight)
+        .padding(.horizontal, DashboardBox.textInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func header(expandable: Bool) -> some View {
+        HStack(spacing: 0) {
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .frame(width: Self.indent, alignment: .leading)
+                .opacity(expandable ? 1 : 0)
+                .accessibilityHidden(true)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                name
+                if isExpanded, let plan {
+                    Text(plan)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        // Below the name: a long plan truncates before the name does.
+                        .layoutPriority(1)
+                }
+                status
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(height: DashboardMetricLine.height)
     }
 
     @ViewBuilder
     private var name: some View {
         if let renaming, let edit = renaming.edit, edit.providerID == account.id {
             InlineRenameField(renaming: renaming, edit: edit)
-                .font(.system(size: density.headerPointSize - 1, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .fixedSize()
         } else {
             Text(account.name)
-                .font(.system(size: density.headerPointSize - 1, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .lineLimit(1)
                 .layoutPriority(2)
         }
@@ -76,13 +102,13 @@ struct DashboardAccountSection<Line: View>: View {
                 .accessibilityLabel("Refreshing")
         } else if let notice {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.notice)
                 .hoverTooltip(notice)
                 .accessibilityLabel(notice)
         } else if let staleness {
             Image(systemName: "clock")
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .hoverTooltip(staleness.tooltip)
                 .accessibilityLabel(staleness.tooltip)
@@ -90,106 +116,28 @@ struct DashboardAccountSection<Line: View>: View {
     }
 }
 
-/// The account row's disclosure, laid out like a grouped Form's disclosure row: a chevron, then the
-/// label, with the content below indented past the chevron. The summary row is one plain button across
-/// the box's full width, padding included, so the click target is exactly the rect the hover lights.
-private struct AccountDisclosureStyle: DisclosureGroupStyle {
-    static let chevronWidth: CGFloat = 8
-    static let chevronGap: CGFloat = 4
-    /// The expanded lines indent past the chevron, so the metric labels line up with the account name.
-    static var contentIndent: CGFloat { chevronWidth + chevronGap }
-
-    let density: DensitySetting
-    let handle: (AnyView) -> AnyView
-
+/// The account block's highlight: a rounded fill inset from the grouped box, lit while the pointer is
+/// over the block, the way a menu item lights.
+private struct AccountBlockStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        AccountDisclosure(configuration: configuration, density: density, handle: handle)
+        AccountBlockHighlight(label: configuration.label)
     }
 }
 
-private struct AccountDisclosure: View {
-    let configuration: DisclosureGroupStyleConfiguration
-    let density: DensitySetting
-    let handle: (AnyView) -> AnyView
+private struct AccountBlockHighlight: View {
+    let label: ButtonStyleConfiguration.Label
 
     @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            handle(AnyView(summaryRow))
-            if configuration.isExpanded {
-                configuration.content
-                    .padding(.leading, density.groupedRowInset + AccountDisclosureStyle.contentIndent)
-                    .padding(.trailing, density.groupedRowInset)
-                    .padding(.bottom, density.groupedRowPadding)
+        label
+            .background {
+                RoundedRectangle(cornerRadius: DashboardBox.highlightCornerRadius, style: .continuous)
+                    .fill(.fill.quaternary)
+                    .padding(.horizontal, DashboardBox.highlightInset)
+                    .opacity(isHovered ? 1 : 0)
             }
-        }
-    }
-
-    private var summaryRow: some View {
-        Button { configuration.isExpanded.toggle() } label: {
-            HStack(spacing: AccountDisclosureStyle.chevronGap) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: density.supportingPointSize - 1, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
-                    .frame(width: AccountDisclosureStyle.chevronWidth)
-                configuration.label
-            }
-            .padding(.horizontal, density.groupedRowInset)
-            .padding(.vertical, density.groupedRowPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(.clear))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .animation(.easeOut(duration: 0.12), value: isHovered)
-        .accessibilityValue(configuration.isExpanded ? "Expanded" : "Collapsed")
-    }
-}
-
-/// A collapsed account's first metric, trailing its summary: a short meter, value, and reset time, in
-/// the same value and reset columns as the expanded lines. Drops the meter when the row is too narrow.
-struct DashboardHeadlineMetric: View {
-    let data: WidgetData
-
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            content(meter: true)
-            content(meter: false)
-        }
-        .font(.system(size: density.supportingPointSize))
-        .accessibilityElement(children: .combine)
-    }
-
-    private func content(meter: Bool) -> some View {
-        HStack(spacing: 8) {
-            if data.isBounded {
-                if meter {
-                    UsageMeterBar(data: data, state: data.meterState())
-                        .frame(width: 28)
-                }
-                Text(data.valueText)
-                    .fontWeight(.medium)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .contentTransition(.numericText())
-                    .frame(width: DashboardMetricLine.valueWidth, alignment: .trailing)
-            } else {
-                Text(data.unboundedDetail)
-                    .monospacedDigit()
-                    .lineLimit(1)
-            }
-            // Same reset column as the expanded lines, so numbers line up row to row.
-            Text(data.compactResetText() ?? "")
-                .foregroundStyle(data.resetColumnStyle())
-                .monospacedDigit()
-                .lineLimit(1)
-                .frame(width: DashboardMetricLine.resetWidth, alignment: .trailing)
-        }
-        .fixedSize()
+            .onHover { isHovered = $0 }
+            .animation(.easeOut(duration: 0.1), value: isHovered)
     }
 }
