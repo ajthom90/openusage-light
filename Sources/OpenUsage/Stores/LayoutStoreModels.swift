@@ -1,38 +1,16 @@
-/// A provider and its placed (visible) widgets, split into Always Visible rows and On Demand rows
-/// behind the dashboard's caret. Drives the grouped dashboard list.
+/// A provider and its enabled widgets in the provider's metric order. Drives the grouped dashboard list.
 struct ProviderGroup: Identifiable {
     let provider: Provider
-    let alwaysShownWidgets: [PlacedWidget]
-    let expandedWidgets: [PlacedWidget]
+    let widgets: [PlacedWidget]
     var id: String { provider.id }
-
-    /// Every visible widget in display order (always-shown first, then expanded). Used where the split
-    /// doesn't matter — reorder id lists and the lifted drag preview.
-    var widgets: [PlacedWidget] { alwaysShownWidgets + expandedWidgets }
-    var hasExpandedMetrics: Bool { !expandedWidgets.isEmpty }
 }
 
-/// A provider and every metric it supports, in the provider's custom order, split between Always
-/// Visible and On Demand. Drives the Accounts detail and the menu-bar pin grouping.
+/// A provider and a list of its metrics in the provider's custom order. Drives the Accounts detail and
+/// the menu-bar pin grouping.
 struct ProviderMetrics: Identifiable {
     let provider: Provider
-    let alwaysShownMetrics: [WidgetDescriptor]
-    let expandedMetrics: [WidgetDescriptor]
+    let metrics: [WidgetDescriptor]
     var id: String { provider.id }
-
-    init(provider: Provider, alwaysShownMetrics: [WidgetDescriptor], expandedMetrics: [WidgetDescriptor]) {
-        self.provider = provider
-        self.alwaysShownMetrics = alwaysShownMetrics
-        self.expandedMetrics = expandedMetrics
-    }
-
-    /// Convenience for callers that don't partition (e.g. tests): everything is always-shown.
-    init(provider: Provider, metrics: [WidgetDescriptor]) {
-        self.init(provider: provider, alwaysShownMetrics: metrics, expandedMetrics: [])
-    }
-
-    /// Every supported metric in custom order (always-shown first, then expanded).
-    var metrics: [WidgetDescriptor] { alwaysShownMetrics + expandedMetrics }
 }
 
 /// Tone for the transient in-Customize pill (`LayoutStore.customizationNotice`): green success or

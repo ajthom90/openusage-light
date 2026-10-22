@@ -4,7 +4,7 @@ import Foundation
 /// stack stores. Rather than record a bespoke inverse per action type (remove vs. reorder vs. pin),
 /// undo snapshots this whole slice before each change and restores it wholesale, so every action kind
 /// is undoable through one code path and the restore is always exact (interlocking state — order,
-/// expanded membership, and pins all move together — can't drift out of sync).
+/// enabled metrics, and pins all move together — can't drift out of sync).
 ///
 /// Equatable so the store can skip pushing a snapshot when an action turned out to be a no-op.
 struct LayoutSnapshot: Equatable {
@@ -12,8 +12,6 @@ struct LayoutSnapshot: Equatable {
     let providerOrder: [String]
     let metricOrderByProvider: [String: [String]]
     let pinnedMetricIDs: Set<String>
-    let expandedMetricIDs: Set<String>
-    let defaultExpandedOnEnableIDs: Set<String>
 }
 
 /// A small, bounded undo stack of `LayoutSnapshot`s — the machinery behind `LayoutStore`'s app-wide

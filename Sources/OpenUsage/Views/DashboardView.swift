@@ -126,8 +126,8 @@ struct DashboardView: View {
                         }
                         return true
                     },
-                    // ⌘Z walks back the last customization step (remove/add, reorder, pin/unpin, caret
-                    // move) — app-wide, since Hide and Pin happen via the dashboard's context menus too,
+                    // ⌘Z walks back the last customization step (remove/add, reorder, pin/unpin) —
+                    // app-wide, since Hide and Pin happen via the dashboard's context menus too,
                     // not only in Accounts. Always consumed here: by the time the monitor calls this it
                     // has already confirmed the panel owns the keystroke and no text field is editing
                     // (those keep their own ⌘Z), so returning false would only let AppKit beep on an empty

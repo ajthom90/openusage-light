@@ -40,17 +40,4 @@ enum DefaultLayout {
         "openrouter.credits",
         "zai.session", "zai.weekly"
     ]
-
-    static let expandedMetricIDs: [String] = [
-        "claude.sonnet", "claude.fable", "claude.extra", "claude.rateLimitResets",
-        "codex.spark", "codex.sparkWeekly", "codex.credits", "codex.rateLimitResets",
-        "cursor.onDemand", "cursor.grokBot",
-        "antigravity.claude", "antigravity.claudeWeekly",
-        "copilot.extra", "copilot.chat", "copilot.completions",
-        "grok.payAsYouGo",
-        "ollama.purchasedCredits",
-        "opencode.monthly",
-        "openrouter.balance", "openrouter.today", "openrouter.week", "openrouter.month", "openrouter.keyLimit",
-        "zai.webSearches"
-    ]
 }

@@ -49,18 +49,15 @@ final class ShareCardRendererTests: XCTestCase {
     }
 
     /// The neighbor-aware condensing rule on a fixed fixture: a text-only row condenses only under
-    /// another text-only row, and the expand caret is a hard boundary a run never bridges.
-    func testCondensedTextRowIndicesFollowNeighborRuleAndRespectExpandBoundary() {
+    /// another text-only row.
+    func testCondensedTextRowOffsetsFollowNeighborRule() {
         func row(bounded: Bool) -> WidgetData {
             WidgetData(title: "Row", icon: .providerMark("claude"), kind: .percent, used: 0, limit: bounded ? 100 : nil)
         }
         // Meter, then a run of three text-only rows.
         let rows = [row(bounded: true), row(bounded: false), row(bounded: false), row(bounded: false)]
 
-        XCTAssertEqual(ShareCardView.condensedTextRowIndices(rows), [2, 3])
-        // With the caret between rows 1 and 2, row 2 starts the expanded segment (never condensed);
-        // only row 3 still condenses.
-        XCTAssertEqual(ShareCardView.condensedTextRowIndices(rows, boundary: 2), [3])
+        XCTAssertEqual(WidgetData.condensedTextRowOffsets(in: rows), [2, 3])
     }
 
     // MARK: - Clipboard write result

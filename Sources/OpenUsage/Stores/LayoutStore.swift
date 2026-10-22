@@ -49,17 +49,6 @@ final class LayoutStore {
     /// `canPin` to at most `maxPinsPerProvider` per provider (the strip stacks a provider's values in pairs).
     private(set) var pinnedMetricIDs: Set<String> = []
 
-    /// Descriptor ids that sit below the per-provider "Shown on expand" divider: the dashboard hides
-    /// them behind a caret until the user taps it, and Customize lists them under the divider.
-    /// Membership only — the sequence within each section follows the provider's metric order, like
-    /// pins. A metric keeps its membership while disabled, so re-enabling restores its section.
-    var expandedMetricIDs: Set<String> = []
-
-    /// Provider IDs whose dashboard cards are currently opened with their expanded metrics visible.
-    /// Unlike hover and drag state, this is a user preference: if someone likes Codex open, it should
-    /// stay open across popover closes and app restarts.
-    private(set) var expandedProviderIDs: Set<String> = []
-
     /// The three transient popover pills, each an auto-clearing `TransientNotice` (was three copy-pasted
     /// value+trigger+clearTask machines). The public `pinLimitNotice`/`shareConfirmation`/
     /// `customizationNotice` surface below forwards to these, so call sites are unchanged.
@@ -89,7 +78,7 @@ final class LayoutStore {
     var customizationNoticeTrigger: Int { customizeNotice.trigger }
 
     /// Bounded, app-wide undo stack for layout customization (remove/add a metric, reorder metrics or
-    /// providers, pin/unpin, move across the expand caret). UI-only state (not persisted): undo is a
+    /// providers, pin/unpin). UI-only state (not persisted): undo is a
     /// within-session affordance, so a relaunch starts fresh. Each entry is a pre-change `LayoutSnapshot`;
     /// `undo()` pops and restores one.
     private var undoHistory = LayoutUndoHistory()
@@ -103,11 +92,9 @@ final class LayoutStore {
     /// Provider-family defaults ("codex.session"); `DefaultLayout.expandingAccounts` maps them onto
     /// every account card in the current registry.
     private let familyDefaults: LayoutDefaultSet
-    var defaultExpandedOnEnableIDs: Set<String> = []
 
     private var defaultMetricIDs: [String] { forAccounts(familyDefaults.metricIDs) }
     private var defaultPinnedMetricIDs: [String] { forAccounts(familyDefaults.pinnedMetricIDs) }
-    private var defaultExpandedMetricIDs: [String] { forAccounts(familyDefaults.expandedMetricIDs) }
 
     private func forAccounts(_ metricIDs: [String]) -> [String] {
         DefaultLayout.expandingAccounts(metricIDs, providerIDs: registry.providers.map(\.id))
@@ -119,8 +106,7 @@ final class LayoutStore {
         storageKey: String = "openusage.layout.v1",
         defaultMetricIDs: [String] = DefaultLayout.metricIDs,
         migrationBaselineMetricIDs: [String] = DefaultLayout.migrationBaselineMetricIDs,
-        defaultPinnedMetricIDs: [String] = DefaultLayout.pinnedMetricIDs,
-        defaultExpandedMetricIDs: [String] = DefaultLayout.expandedMetricIDs
+        defaultPinnedMetricIDs: [String] = DefaultLayout.pinnedMetricIDs
     ) {
         self.registry = registry
         let persistence = LayoutPersistence(defaults: defaults, storageKey: storageKey)
@@ -128,8 +114,7 @@ final class LayoutStore {
         self.familyDefaults = LayoutDefaultSet(
             metricIDs: defaultMetricIDs,
             migrationBaselineMetricIDs: migrationBaselineMetricIDs,
-            pinnedMetricIDs: defaultPinnedMetricIDs,
-            expandedMetricIDs: defaultExpandedMetricIDs
+            pinnedMetricIDs: defaultPinnedMetricIDs
         )
         loadLayout()
     }
@@ -154,39 +139,16 @@ final class LayoutStore {
             defaults: LayoutDefaultSet(
                 metricIDs: defaultMetricIDs,
                 migrationBaselineMetricIDs: familyDefaults.migrationBaselineMetricIDs,
-                pinnedMetricIDs: defaultPinnedMetricIDs,
-                expandedMetricIDs: defaultExpandedMetricIDs
+                pinnedMetricIDs: defaultPinnedMetricIDs
             )
         )
         placed = initial.placed
         providerOrder = initial.providerOrder
         metricOrderByProvider = initial.metricOrderByProvider
         pinnedMetricIDs = initial.pinnedMetricIDs
-        expandedMetricIDs = initial.expandedMetricIDs
-        expandedProviderIDs = initial.expandedProviderIDs
-        defaultExpandedOnEnableIDs = initial.defaultExpandedOnEnableIDs
 
-        if initial.shouldPersistExpandOnEnable { persistExpandOnEnable() }
-        if initial.shouldPersistExpanded { persistExpanded() }
         if let seededDefaults = initial.seededDefaultsToPersist { persistSeededDefaults(seededDefaults) }
         syncPlacedOrder(persistChanges: initial.shouldPersistPlaced)
-    }
-
-    func isProviderExpanded(_ providerID: String) -> Bool {
-        expandedProviderIDs.contains(providerID)
-    }
-
-    @discardableResult
-    func setProviderExpanded(_ expanded: Bool, for providerID: String) -> Bool {
-        guard registry.provider(id: providerID) != nil else { return false }
-        guard expandedProviderIDs.contains(providerID) != expanded else { return false }
-        if expanded {
-            expandedProviderIDs.insert(providerID)
-        } else {
-            expandedProviderIDs.remove(providerID)
-        }
-        persistExpandedProviders()
-        return true
     }
 
     // MARK: - Customize mutations
@@ -196,11 +158,6 @@ final class LayoutStore {
     func setMetricEnabled(_ descriptorID: String, _ enabled: Bool) {
         recordingUndoStep {
             if enabled {
-                if defaultExpandedOnEnableIDs.remove(descriptorID) != nil {
-                    expandedMetricIDs.insert(descriptorID)
-                    persistExpanded()
-                    persistExpandOnEnable()
-                }
                 add(descriptorID)
             } else if let widget = placed.first(where: { $0.descriptorID == descriptorID }) {
                 remove(widget.id)
@@ -220,9 +177,7 @@ final class LayoutStore {
             placed: placed,
             providerOrder: providerOrder,
             metricOrderByProvider: metricOrderByProvider,
-            pinnedMetricIDs: pinnedMetricIDs,
-            expandedMetricIDs: expandedMetricIDs,
-            defaultExpandedOnEnableIDs: defaultExpandedOnEnableIDs
+            pinnedMetricIDs: pinnedMetricIDs
         )
     }
 
@@ -258,22 +213,16 @@ final class LayoutStore {
     }
 
     /// Restore every undoable field from a snapshot and persist the result. Called by `undo()`.
-    /// Provider card expand/collapse (`expandedProviderIDs`) is deliberately excluded: it's transient
-    /// view state, not a layout edit, so undo must not rewind caret toggles done between steps.
     private func restore(_ snapshot: LayoutSnapshot) {
         cancelDrag()
         placed = snapshot.placed
         providerOrder = snapshot.providerOrder
         metricOrderByProvider = snapshot.metricOrderByProvider
         pinnedMetricIDs = snapshot.pinnedMetricIDs
-        expandedMetricIDs = snapshot.expandedMetricIDs
-        defaultExpandedOnEnableIDs = snapshot.defaultExpandedOnEnableIDs
         persist()
         persistProviderOrder()
         persistMetricOrder()
         persistPins()
-        persistExpanded()
-        persistExpandOnEnable()
     }
 
     // MARK: - Menu bar pins
@@ -365,18 +314,6 @@ final class LayoutStore {
         persistence.savePins(pinnedMetricIDs)
     }
 
-    func persistExpanded() {
-        persistence.saveExpandedMetrics(expandedMetricIDs)
-    }
-
-    func persistExpandOnEnable() {
-        persistence.saveExpandOnEnable(defaultExpandedOnEnableIDs)
-    }
-
-    private func persistExpandedProviders() {
-        persistence.saveExpandedProviders(expandedProviderIDs)
-    }
-
     // MARK: - Mutations
 
     func add(_ descriptorID: String) {
@@ -408,18 +345,12 @@ final class LayoutStore {
         persistMetricOrder()
         pinnedMetricIDs = Set(defaultPinnedMetricIDs.filter { registry.descriptor(id: $0) != nil })
         persistPins()
-        expandedMetricIDs = Set(defaultExpandedMetricIDs.filter { registry.descriptor(id: $0) != nil })
-        defaultExpandedOnEnableIDs = []
-        persistExpanded()
-        persistExpandOnEnable()
-        expandedProviderIDs = []
-        persistExpandedProviders()
         persistSeededDefaults(Set(LayoutOrdering.knownMetricIDs(defaultMetricIDs, registry: registry)))
         persist()
     }
 
-    /// Reset a single provider's customization to default — its enabled metrics, metric order, pins,
-    /// and expanded (caret) membership — while leaving every other provider, and the overall provider
+    /// Reset a single provider's customization to default — its enabled metrics, metric order, and
+    /// pins — while leaving every other provider, and the overall provider
     /// order, untouched. The per-provider counterpart to `resetToDefault` ("Reset all providers"): same
     /// per-provider effect, scoped to one `providerID` instead of the whole layout. No-op for an
     /// unknown provider.
@@ -446,22 +377,10 @@ final class LayoutStore {
         metricOrderByProvider[providerID] = registry.descriptors(for: providerID).map(\.id)
         persistMetricOrder()
 
-        // Pins, expanded membership, and the default-expanded-on-enable carry: swap this provider's
-        // entries for its defaults, leaving the rest of each set intact.
+        // Pins: swap this provider's entries for its defaults, leaving other providers' pins intact.
         pinnedMetricIDs.subtract(owned)
         pinnedMetricIDs.formUnion(defaults(defaultPinnedMetricIDs))
         persistPins()
-
-        expandedMetricIDs.subtract(owned)
-        expandedMetricIDs.formUnion(defaults(defaultExpandedMetricIDs))
-        defaultExpandedOnEnableIDs.subtract(owned)
-        persistExpanded()
-        persistExpandOnEnable()
-
-        // Default is a collapsed card.
-        if expandedProviderIDs.remove(providerID) != nil {
-            persistExpandedProviders()
-        }
 
         syncPlacedOrder() // persists `placed`
     }

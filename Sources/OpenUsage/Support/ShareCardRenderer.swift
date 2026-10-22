@@ -56,8 +56,7 @@ enum ShareCardRenderer {
     /// store, build the card with the effective appearance, render it, and copy the PNG to the clipboard.
     /// On a successful copy it asks the layout store to surface a transient "Copied to clipboard" pill —
     /// a clipboard write gives no other signal that it landed.
-    /// The rows mirror what the dashboard shows — always-shown plus expanded only when the provider's
-    /// caret is open — so the export matches what the user sees.
+    /// The rows are every enabled metric of the provider, in the order the dashboard shows them.
     ///
     /// The render is pinned to the regular density regardless of the user's popover density slider: the
     /// rows read density via `@AppStorage`, so the saved value is swapped to `.regular` for the duration
@@ -70,22 +69,15 @@ enum ShareCardRenderer {
         layout: LayoutStore,
         appearance: ColorScheme
     ) -> Bool {
-        let isExpanded = layout.isProviderExpanded(group.provider.id)
-        let alwaysRows = group.alwaysShownWidgets.compactMap { widget -> WidgetData? in
+        let rows = group.widgets.compactMap { widget -> WidgetData? in
             guard let descriptor = layout.descriptor(for: widget) else { return nil }
             return dataStore.data(for: descriptor)
         }
-        let expandedRows = group.expandedWidgets.compactMap { widget -> WidgetData? in
-            guard let descriptor = layout.descriptor(for: widget) else { return nil }
-            return dataStore.data(for: descriptor)
-        }
-        let rows = isExpanded ? alwaysRows + expandedRows : alwaysRows
         let view = ShareCardView(
             provider: group.provider,
             plan: dataStore.plan(for: group.provider.id),
             rows: rows,
-            appearance: appearance,
-            expandBoundaryIndex: isExpanded ? alwaysRows.count : nil
+            appearance: appearance
         )
         return renderAndCopy(view, label: group.provider.id, layout: layout)
     }

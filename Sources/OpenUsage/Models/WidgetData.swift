@@ -558,8 +558,7 @@ extension WidgetData {
 }
 
 extension WidgetData {
-    /// The neighbor-aware condensing rule, in one place: within a single run of rows (a run never spans
-    /// the expand caret — callers segment at that boundary and scan each segment separately), the offsets
+    /// The neighbor-aware condensing rule, in one place: within a list of rows, the offsets
     /// of text-only rows that sit directly under another text-only row. A text-only row has no meter fill
     /// (`!isBounded`); a run of them (Today / Yesterday / Last 30 Days) pulls up into one cluster. The
     /// dashboard maps these offsets back to descriptor IDs; the share-card export maps them to flat indices.

@@ -13,12 +13,8 @@ final class DashboardFamilyTests: XCTestCase {
         }
         let samples = ["session": data("Session"), "fable": data("Fable"), "weekly": data("Weekly", hasData: false)]
         let groups = [
-            ProviderGroup(provider: provider("claude@1"),
-                          alwaysShownWidgets: [PlacedWidget(descriptorID: "session")],
-                          expandedWidgets: [PlacedWidget(descriptorID: "fable"), PlacedWidget(descriptorID: "weekly")]),
-            ProviderGroup(provider: provider("claude@2"),
-                          alwaysShownWidgets: [PlacedWidget(descriptorID: "fable")],
-                          expandedWidgets: []),
+            ProviderGroup(provider: provider("claude@1"), widgets: ["session", "fable", "weekly"].map { PlacedWidget(descriptorID: $0) }),
+            ProviderGroup(provider: provider("claude@2"), widgets: [PlacedWidget(descriptorID: "fable")]),
         ]
         let families = DashboardFamily.make(groups: groups) { widget in
             samples[widget.descriptorID].map {

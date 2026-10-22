@@ -22,7 +22,7 @@ final class AccountInitialsTests: XCTestCase {
             let provider = Provider(id: id, displayName: "P", icon: .providerMark("claude"), accountLabel: label)
             let sample = WidgetData(title: "Session", icon: provider.icon, kind: .percent, used: 10, limit: 100)
             let descriptor = WidgetDescriptor(id: "\(id).session", providerID: id, metricLabel: "Session", sample: sample)
-            return ProviderMetrics(provider: provider, alwaysShownMetrics: [descriptor], expandedMetrics: [])
+            return ProviderMetrics(provider: provider, metrics: [descriptor])
         }
         let content = MenuBarContentBuilder.build(
             groups: [group("claude@1", "Personal"), group("claude@2", "AM 1"), group("codex@1", "rob@sunstory.com")],

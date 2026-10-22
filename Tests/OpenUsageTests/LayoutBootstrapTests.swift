@@ -14,10 +14,7 @@ final class LayoutBootstrapTests: XCTestCase {
 
         XCTAssertEqual(state.placed.map(\.descriptorID), ["claude.session", "claude.weekly"])
         XCTAssertEqual(state.pinnedMetricIDs, ["claude.session"])
-        XCTAssertEqual(state.expandedMetricIDs, ["claude.weekly"])
         XCTAssertEqual(state.seededDefaultsToPersist, ["claude.session", "claude.weekly"])
-        XCTAssertTrue(state.shouldPersistExpanded)
-        XCTAssertTrue(state.shouldPersistExpandOnEnable)
         XCTAssertFalse(state.shouldPersistPlaced)
     }
 
@@ -32,9 +29,6 @@ final class LayoutBootstrapTests: XCTestCase {
         )
 
         XCTAssertEqual(state.placed.map(\.descriptorID), ["claude.session"])
-        XCTAssertFalse(state.expandedMetricIDs.contains("claude.weekly"))
-        XCTAssertFalse(state.shouldPersistExpanded)
-        XCTAssertTrue(state.shouldPersistExpandOnEnable)
         XCTAssertFalse(state.shouldPersistPlaced)
         XCTAssertEqual(state.seededDefaultsToPersist, ["claude.session", "claude.weekly"])
     }
@@ -59,8 +53,7 @@ final class LayoutBootstrapTests: XCTestCase {
         LayoutDefaultSet(
             metricIDs: ["claude.session", "claude.weekly"],
             migrationBaselineMetricIDs: ["claude.session", "claude.weekly"],
-            pinnedMetricIDs: ["claude.session"],
-            expandedMetricIDs: ["claude.weekly"]
+            pinnedMetricIDs: ["claude.session"]
         )
     }
 

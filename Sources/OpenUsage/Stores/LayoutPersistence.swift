@@ -25,9 +25,6 @@ final class LayoutPersistence {
     func loadSeededDefaults() -> [String]? { decode([String].self, forKey: keys.seededDefaults) }
 
     func loadPins() -> [String]? { defaults.stringArray(forKey: keys.pins) }
-    func loadExpandedMetrics() -> [String]? { defaults.stringArray(forKey: keys.expandedMetrics) }
-    func loadExpandOnEnable() -> [String]? { defaults.stringArray(forKey: keys.expandOnEnable) }
-    func loadExpandedProviders() -> [String]? { defaults.stringArray(forKey: keys.expandedProviders) }
 
     func savePlaced(_ value: [PlacedWidget]) { encode(value, forKey: keys.placed) }
     func saveProviderOrder(_ value: [String]) { encode(value, forKey: keys.providerOrder) }
@@ -37,15 +34,6 @@ final class LayoutPersistence {
     }
 
     func savePins(_ value: Set<String>) { defaults.set(Array(value), forKey: keys.pins) }
-    func saveExpandedMetrics(_ value: Set<String>) {
-        defaults.set(Array(value), forKey: keys.expandedMetrics)
-    }
-    func saveExpandOnEnable(_ value: Set<String>) {
-        defaults.set(Array(value), forKey: keys.expandOnEnable)
-    }
-    func saveExpandedProviders(_ value: Set<String>) {
-        defaults.set(Array(value), forKey: keys.expandedProviders)
-    }
 
     /// Fail loudly: a swallowed encode would silently lose a layout change with no signal.
     private func encode<T: Encodable>(_ value: T, forKey key: String) {
@@ -74,9 +62,6 @@ final class LayoutPersistence {
         let metricOrder: String
         let seededDefaults: String
         let pins: String
-        let expandedMetrics: String
-        let expandOnEnable: String
-        let expandedProviders: String
 
         init(storageKey: String) {
             placed = storageKey
@@ -84,9 +69,6 @@ final class LayoutPersistence {
             metricOrder = "\(storageKey).metricOrderByProvider"
             seededDefaults = "\(storageKey).seededDefaults"
             pins = "\(storageKey).menuBarPins"
-            expandedMetrics = "\(storageKey).expandedMetrics"
-            expandOnEnable = "\(storageKey).expandOnEnable"
-            expandedProviders = "\(storageKey).expandedProviders"
         }
     }
 }

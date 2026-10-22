@@ -5,7 +5,6 @@ struct LayoutDefaultSet {
     let metricIDs: [String]
     let migrationBaselineMetricIDs: [String]
     let pinnedMetricIDs: [String]
-    let expandedMetricIDs: [String]
 }
 
 /// Everything `LayoutStore` needs at the end of startup, plus the small set of migration writes that
@@ -15,13 +14,8 @@ struct LayoutInitialState {
     let providerOrder: [String]
     let metricOrderByProvider: [String: [String]]
     let pinnedMetricIDs: Set<String>
-    let expandedMetricIDs: Set<String>
-    let expandedProviderIDs: Set<String>
-    let defaultExpandedOnEnableIDs: Set<String>
 
     let shouldPersistPlaced: Bool
-    let shouldPersistExpanded: Bool
-    let shouldPersistExpandOnEnable: Bool
     let seededDefaultsToPersist: Set<String>?
 }
 
@@ -58,66 +52,12 @@ enum LayoutBootstrap {
                 .filter { registry.descriptor(id: $0) != nil }
         )
 
-        // Expanded membership is a fresh-install default only. Existing layouts that predate the feature
-        // keep every familiar metric above the caret unless the user later moves one.
-        var shouldPersistExpanded = false
-        var expandedMetricIDs: Set<String>
-        if let savedExpanded = persistence.loadExpandedMetrics() {
-            expandedMetricIDs = Set(savedExpanded.filter { registry.descriptor(id: $0) != nil })
-        } else if hasStoredLayout {
-            expandedMetricIDs = []
-        } else {
-            expandedMetricIDs = Set(defaults.expandedMetricIDs.filter { registry.descriptor(id: $0) != nil })
-            shouldPersistExpanded = true
-        }
-
-        let expandedProviderIDs = Set(
-            (persistence.loadExpandedProviders() ?? []).filter { registry.provider(id: $0) != nil }
-        )
-
-        // A newly-shipped default metric is new to an existing user, so it may safely start below the
-        // caret when that is its declared default. Metrics they already had are never silently hidden.
-        let newlyExpanded = Set(seededResult.newlyPlaced)
-            .intersection(defaults.expandedMetricIDs)
-            .filter { registry.descriptor(id: $0) != nil }
-        if !newlyExpanded.isSubset(of: expandedMetricIDs) {
-            expandedMetricIDs.formUnion(newlyExpanded)
-            shouldPersistExpanded = true
-        }
-
-        // A formerly optional On Demand metric can later become an always-visible default. Its old
-        // saved section was seeded before the user enabled it, so honor the new placement when the
-        // metric is first auto-added without disturbing metrics the user already arranged.
-        let newlyAlwaysShown = Set(seededResult.newlyPlaced).subtracting(defaults.expandedMetricIDs)
-        if !expandedMetricIDs.isDisjoint(with: newlyAlwaysShown) {
-            expandedMetricIDs.subtract(newlyAlwaysShown)
-            shouldPersistExpanded = true
-        }
-
-        // Optional default-expanded metrics enter below the caret the first time they are enabled. The
-        // saved queue wins so an explicit user move is not recreated on the next launch.
-        let placedIDs = Set(seededResult.placed.map(\.descriptorID))
-        let expandedNow = expandedMetricIDs
-        let isExpandOnEnableCandidate: (String) -> Bool = { [registry] id in
-            registry.descriptor(id: id) != nil && !expandedNow.contains(id) && !placedIDs.contains(id)
-        }
-        let savedOnEnable = persistence.loadExpandOnEnable()
-        let defaultExpandedOnEnableIDs = Set(
-            (savedOnEnable ?? defaults.expandedMetricIDs).filter(isExpandOnEnableCandidate)
-        )
-        let promotedQueuedIDs = Set(savedOnEnable ?? []).intersection(newlyAlwaysShown)
-
         return LayoutInitialState(
             placed: seededResult.placed,
             providerOrder: providerOrder,
             metricOrderByProvider: metricOrderByProvider,
             pinnedMetricIDs: pinnedMetricIDs,
-            expandedMetricIDs: expandedMetricIDs,
-            expandedProviderIDs: expandedProviderIDs,
-            defaultExpandedOnEnableIDs: defaultExpandedOnEnableIDs,
             shouldPersistPlaced: seededResult.shouldPersistPlaced,
-            shouldPersistExpanded: shouldPersistExpanded,
-            shouldPersistExpandOnEnable: savedOnEnable == nil || !promotedQueuedIDs.isEmpty,
             seededDefaultsToPersist: seededResult.shouldPersistSeededDefaults
                 ? seededResult.seededDefaults
                 : nil
@@ -129,7 +69,6 @@ enum LayoutBootstrap {
         let seededDefaults: Set<String>
         let shouldPersistPlaced: Bool
         let shouldPersistSeededDefaults: Bool
-        let newlyPlaced: [String]
     }
 
     private static func seedNewDefaultMetrics(
@@ -167,11 +106,7 @@ enum LayoutBootstrap {
             placed: placed + toAdd.map { PlacedWidget(descriptorID: $0) },
             seededDefaults: nextSeededDefaults,
             shouldPersistPlaced: !toAdd.isEmpty,
-            shouldPersistSeededDefaults: shouldPersistSeededDefaults,
-            // A pristine install may have saved section choices but no placed-widget array yet.
-            // Its synthesized starting layout already contains the new defaults, so `toAdd` alone
-            // would lose their On Demand placement when a second account first appears.
-            newlyPlaced: hasStoredLayout ? toAdd : knownDefaults.filter { !seededDefaults.contains($0) }
+            shouldPersistSeededDefaults: shouldPersistSeededDefaults
         )
     }
 }

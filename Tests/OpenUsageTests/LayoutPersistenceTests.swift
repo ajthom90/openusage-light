@@ -13,9 +13,6 @@ final class LayoutPersistenceTests: XCTestCase {
         )
         defaults.set(try JSONEncoder().encode(["claude.session"]), forKey: "layout.seededDefaults")
         defaults.set(["claude.session"], forKey: "layout.menuBarPins")
-        defaults.set(["claude.weekly"], forKey: "layout.expandedMetrics")
-        defaults.set(["cursor.requests"], forKey: "layout.expandOnEnable")
-        defaults.set(["claude"], forKey: "layout.expandedProviders")
 
         let persistence = LayoutPersistence(defaults: defaults, storageKey: "layout")
 
@@ -26,9 +23,6 @@ final class LayoutPersistenceTests: XCTestCase {
         XCTAssertEqual(persistence.loadMetricOrder()?["claude"], ["claude.weekly", "claude.session"])
         XCTAssertEqual(persistence.loadSeededDefaults(), ["claude.session"])
         XCTAssertEqual(persistence.loadPins(), ["claude.session"])
-        XCTAssertEqual(persistence.loadExpandedMetrics(), ["claude.weekly"])
-        XCTAssertEqual(persistence.loadExpandOnEnable(), ["cursor.requests"])
-        XCTAssertEqual(persistence.loadExpandedProviders(), ["claude"])
     }
 
     func testSavesEveryExistingKeyAndFormat() throws {
@@ -40,9 +34,6 @@ final class LayoutPersistenceTests: XCTestCase {
         persistence.saveMetricOrder(["claude": ["claude.weekly", "claude.session"]])
         persistence.saveSeededDefaults(["claude.session"])
         persistence.savePins(["claude.session"])
-        persistence.saveExpandedMetrics(["claude.weekly"])
-        persistence.saveExpandOnEnable(["cursor.requests"])
-        persistence.saveExpandedProviders(["claude"])
 
         XCTAssertEqual(try decode([PlacedWidget].self, key: "layout", defaults: defaults).map(\.descriptorID), ["claude.session"])
         XCTAssertEqual(try decode([String].self, key: "layout.providerOrder", defaults: defaults), ["cursor", "claude"])
@@ -52,9 +43,6 @@ final class LayoutPersistenceTests: XCTestCase {
         )
         XCTAssertEqual(try decode([String].self, key: "layout.seededDefaults", defaults: defaults), ["claude.session"])
         XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.menuBarPins") ?? []), ["claude.session"])
-        XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.expandedMetrics") ?? []), ["claude.weekly"])
-        XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.expandOnEnable") ?? []), ["cursor.requests"])
-        XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.expandedProviders") ?? []), ["claude"])
     }
 
     private func decode<T: Decodable>(_ type: T.Type, key: String, defaults: UserDefaults) throws -> T {
