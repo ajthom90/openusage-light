@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// One account inside its provider's card: the account line (name, status, reset count, plan) over its
-/// metric lines. The whole block is the account's target: the pointer lights it the way a menu item
-/// lights, a click shows or hides the provider's quick links below the lines, and it takes the
+/// One account inside its provider's card: the account line (name and status on the left; plan and
+/// reset count as plain text on the right, "Max 5x · ↺ 2 resets") over its metric lines. The whole
+/// block is the account's target: the pointer lights it the way a menu item lights, and it takes the
 /// account's right-click menu.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
@@ -11,8 +11,6 @@ struct DashboardAccountSection<Line: View>: View {
     var refreshing = false
     var staleness: StalenessHint?
     var resetClaim: ResetClaimService?
-    var isExpanded = false
-    var onToggleExpanded: (() -> Void)?
     @ViewBuilder var line: (DashboardLine) -> Line
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
@@ -23,10 +21,6 @@ struct DashboardAccountSection<Line: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             accountLine
             ForEach(account.lines) { line($0) }
-            if isExpanded, !links.isEmpty {
-                ProviderLinksView(links: links)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
         }
         .padding(.vertical, highlightOutset)
         .background {
@@ -38,15 +32,8 @@ struct DashboardAccountSection<Line: View>: View {
         .animation(.easeOut(duration: 0.12), value: isHovered)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
-        .onTapGesture { if canExpand { onToggleExpanded?() } }
         .accessibilityElement(children: .contain)
-        .accessibilityAction(named: isExpanded ? "Hide Links" : "Show Links") {
-            if canExpand { onToggleExpanded?() }
-        }
     }
-
-    private var links: [ProviderLink] { account.provider.visibleLinks }
-    private var canExpand: Bool { onToggleExpanded != nil && !links.isEmpty }
 
     /// How far the hover highlight reaches past the content toward the card edge: all the way to one
     /// highlight inset short of it. Also the block's vertical padding, so the highlight wraps the
@@ -58,13 +45,21 @@ struct DashboardAccountSection<Line: View>: View {
             name
             status
             Spacer(minLength: 8)
-            if let resets = account.resets {
-                ResetCountChip(data: resets, claim: resetClaim)
+            HStack(spacing: 4) {
+                if let plan {
+                    Text(plan)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let resets = account.resets {
+                    if plan != nil {
+                        Text("·").foregroundStyle(.tertiary)
+                    }
+                    ResetCountChip(data: resets, claim: resetClaim)
+                }
             }
-            if let plan {
-                PlanChip(plan: plan)
-                    .layoutPriority(1)
-            }
+            .font(.system(size: density.supportingPointSize))
+            .layoutPriority(1)
         }
         .frame(height: density.accountLineHeight)
     }
@@ -100,22 +95,5 @@ struct DashboardAccountSection<Line: View>: View {
                 .hoverTooltip(staleness.tooltip)
                 .accessibilityLabel(staleness.tooltip)
         }
-    }
-}
-
-/// The account's plan as a small capsule at the trailing edge of the account line.
-struct PlanChip: View {
-    let plan: String
-
-    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
-
-    var body: some View {
-        Text(plan)
-            .font(.system(size: density.planBadgePointSize, weight: .medium))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .padding(.horizontal, 7)
-            .frame(height: 18)
-            .background(Capsule().fill(.fill.tertiary))
     }
 }

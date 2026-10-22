@@ -42,7 +42,6 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     var headerIconSize: CGFloat { self == .compact ? 14 : 16 }
 
     /// Plan badge beside the provider name — always one step below the supporting text.
-    var planBadgePointSize: CGFloat { self == .compact ? 10 : 11 }
 
     // MARK: - Dimensions (all on the 4pt grid or its 2pt half-steps)
 
@@ -96,6 +95,9 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     /// concentric with the card's (`Theme.cardCornerRadius` minus this inset), and neighboring
     /// accounts' highlights meet edge to edge, the way menu items do.
     var accountHighlightInset: CGFloat { self == .compact ? 4 : 6 }
+
+    /// Extra space under a provider card's header, on top of the first account's own padding.
+    var headerBottomPadding: CGFloat { self == .compact ? 3 : 4 }
 
     /// Estimated Customize control-row height for the pre-measurement height seed
     /// (row content ≈ 24pt + `controlRowPadding` × 2).

@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// "↺ 2": the account's available rate-limit resets. Hovering or clicking opens the resets timeline,
-/// where a reset can be claimed. The chip takes the color of the soonest expiry (blue, then orange
-/// within 7 days, red within 48 hours) so an expiring reset stands out.
+/// "↺ 2 resets": the account's available rate-limit resets, as tinted text on the account line.
+/// Hovering or clicking opens the resets timeline, centred on the text, where a reset can be claimed.
+/// The text takes the color of the soonest expiry (blue, then orange within 7 days, red within 48
+/// hours) so an expiring reset stands out.
 struct ResetCountChip: View {
     let data: WidgetData
     var claim: ResetClaimService?
@@ -15,17 +16,14 @@ struct ResetCountChip: View {
         Button { hover.present() } label: {
             HStack(spacing: 3) {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 9, weight: .bold))
-                Text("\(data.resetCreditCount)")
-                    .font(.system(size: 11, weight: .semibold))
+                    .imageScale(.small)
+                    .fontWeight(.semibold)
+                Text(label)
                     .monospacedDigit()
                     .contentTransition(.numericText())
             }
-            .foregroundStyle(tint)
-            .padding(.horizontal, 7)
-            .frame(height: 18)
-            .background(Capsule().fill(tint.opacity(hover.overInline || hover.isPresented ? 0.24 : 0.14)))
-            .contentShape(Capsule())
+            .foregroundStyle(tint.opacity(hover.overInline || hover.isPresented ? 1 : 0.85))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .animation(.easeOut(duration: 0.12), value: hover.overInline)
@@ -59,6 +57,10 @@ struct ResetCountChip: View {
         }
         .onDisappear { hover.dismiss() }
         .accessibilityLabel(data.resetCreditCount == 1 ? "1 reset available" : "\(data.resetCreditCount) resets available")
+    }
+
+    private var label: String {
+        data.resetCreditCount == 1 ? "1 reset" : "\(data.resetCreditCount) resets"
     }
 
     private static func tint(_ severity: WidgetData.MeterSeverity?) -> Color {

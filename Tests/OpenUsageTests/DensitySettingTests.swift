@@ -37,7 +37,6 @@ final class DensitySettingTests: XCTestCase {
             ("labelPointSize", \.labelPointSize),
             ("supportingPointSize", \.supportingPointSize),
             ("headerPointSize", \.headerPointSize),
-            ("planBadgePointSize", \.planBadgePointSize),
         ]
         for (name, size) in type {
             XCTAssertEqual(
