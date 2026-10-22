@@ -69,7 +69,8 @@ struct DashboardAccountSection<Line: View>: View {
                     .font(.system(size: density.supportingPointSize))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .fixedSize()
+                    // Below the name, above the trailing metric: a long plan truncates before the name.
+                    .layoutPriority(1)
             }
             if let resets = account.resets {
                 ResetCountChip(data: resets, claim: resetClaim, compact: true)
@@ -94,6 +95,7 @@ struct DashboardAccountSection<Line: View>: View {
             Text(account.name)
                 .font(.system(size: density.headerPointSize - 1, weight: .semibold))
                 .lineLimit(1)
+                .layoutPriority(2)
         }
     }
 
