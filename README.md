@@ -18,7 +18,7 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-Claude and Codex accounts also show a Rate Limit Resets row: hover the count to see when each reset expires, and choose Use to spend one on that account.
+Claude and Codex accounts show a Resets line while a rate-limit reset is available. It counts down to the soonest expiry, in orange within 7 days and red within 48 hours. Hover or click the line to see when each reset expires, and choose Use to spend one on that account.
 
 ## Building
 

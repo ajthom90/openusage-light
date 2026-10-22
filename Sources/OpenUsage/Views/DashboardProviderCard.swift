@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 /// One provider's section on the dashboard, laid out like a System Settings group: a small section
-/// header (mark and name) over one grouped box holding each account as a row, with inset hairlines
-/// between rows. Hovering the section reveals the provider's quick links (Status, Dashboard) at the header's trailing
+/// header (mark and name) over one grouped box holding each account as a row, with hairlines between
+/// rows inset equally from both edges of the box, as macOS grouped forms draw them. Hovering the section reveals the provider's quick links (Status, Dashboard) at the header's trailing
 /// edge, as small text links that open in the browser.
 struct DashboardProviderCard<Account: View>: View {
     let family: DashboardFamily
@@ -17,12 +17,12 @@ struct DashboardProviderCard<Account: View>: View {
     @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: density.headerToCardSpacing + 2) {
+        VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
             handle(AnyView(header))
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(family.accounts.enumerated()), id: \.element.id) { index, item in
                     if index > 0 {
-                        Divider().padding(.leading, density.groupedRowInset)
+                        Divider().padding(.horizontal, density.groupedRowInset)
                     }
                     account(item)
                 }

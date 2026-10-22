@@ -86,7 +86,6 @@ struct WidgetGroupedListView: View {
             notice: dataStore.headerNotice(for: account.id),
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
-            resetClaim: account.resets == nil ? nil : container.resetClaim(for: account.id),
             isExpanded: isExpanded,
             onToggleExpanded: onToggleExpanded,
             handle: handle,
@@ -98,7 +97,8 @@ struct WidgetGroupedListView: View {
         DashboardMetricLine(
             data: line.data,
             onToggleResetDisplay: { dataStore.resetDisplayMode.toggle() },
-            onToggleMeterStyle: { dataStore.meterStyle.toggle() }
+            onToggleMeterStyle: { dataStore.meterStyle.toggle() },
+            resetClaim: line.data.showsResetExpiries ? container.resetClaim(for: account.id) : nil
         )
         .contentShape(Rectangle())
         .opacity(activeMetricID == line.id ? 0 : 1)

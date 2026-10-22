@@ -68,11 +68,11 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     /// but stays clearly wider than the in-card rhythm, so groups still read as groups.
     var sectionSpacing: CGFloat { self == .compact ? 8 : 14 }
 
-    /// Height of one metric line on the dashboard.
-    var metricLineHeight: CGFloat { self == .compact ? 18 : 20 }
+    /// Height of one metric line on the dashboard: menu-item rhythm, not iOS rows.
+    var metricLineHeight: CGFloat { self == .compact ? 16 : 18 }
 
     /// Height of an account's name line on the dashboard.
-    var accountLineHeight: CGFloat { self == .compact ? 20 : 24 }
+    var accountLineHeight: CGFloat { self == .compact ? 18 : 20 }
 
 
     /// Gap between a provider header and its card.
@@ -90,14 +90,15 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
 
     /// Space between provider sections on the dashboard, on top of the accounts' own padding, so a new
     /// provider reads as a bigger break than a new account.
-    var providerSectionSpacing: CGFloat { self == .compact ? 10 : 16 }
+    var providerSectionSpacing: CGFloat { self == .compact ? 8 : 12 }
 
     /// Leading and trailing inset of a row inside a dashboard grouped box, and of the section header and
     /// the hairlines between rows, so they all line up.
-    var groupedRowInset: CGFloat { self == .compact ? 10 : 12 }
+    var groupedRowInset: CGFloat { self == .compact ? 8 : 10 }
 
-    /// Vertical padding of an account row inside a dashboard grouped box.
-    var groupedRowPadding: CGFloat { self == .compact ? 5 : 7 }
+    /// Vertical padding of an account row inside a dashboard grouped box: a collapsed row is 28pt in
+    /// Default and 24pt in Compact, about a menu item's height.
+    var groupedRowPadding: CGFloat { self == .compact ? 3 : 4 }
 
 
     /// Estimated Customize control-row height for the pre-measurement height seed
