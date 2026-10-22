@@ -25,7 +25,7 @@ struct WidgetGroupedListView: View {
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        VStack(alignment: .leading, spacing: density.sectionSpacing) {
+        VStack(alignment: .leading, spacing: density.panelPadding) {
             ForEach(families) { family in
                 DashboardProviderCard(family: family) { account in
                     accountSection(account, group: groups.first { $0.provider.id == account.id })

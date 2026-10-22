@@ -16,12 +16,12 @@ struct AccountsView: View {
     @Binding var reorderLift: ReorderLift?
 
     @State private var frameStore = ReorderFrameStore()
+    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
         PopoverScrollView {
             content
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(density.panelPadding)
                 .frame(maxWidth: .infinity)
         }
         .onPreferenceChange(ReorderFramePreferenceKey.self) { frameStore.frames = $0 }

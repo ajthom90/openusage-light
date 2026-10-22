@@ -38,8 +38,7 @@ struct SettingsScreen: View {
                 }
                 notificationsSection
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(density.panelPadding)
         }
         .scrollPosition($scrollPosition)
         .onChange(of: layout.screen) { _, screen in

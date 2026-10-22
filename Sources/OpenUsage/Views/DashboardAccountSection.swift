@@ -28,11 +28,11 @@ struct DashboardAccountSection<Line: View>: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, highlightOutset)
         .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius - density.accountHighlightInset, style: .continuous)
                 .fill(.fill.tertiary)
-                .padding(.horizontal, -Self.highlightOutset)
+                .padding(.horizontal, -highlightOutset)
                 .opacity(isHovered ? 1 : 0)
         }
         .animation(.easeOut(duration: 0.12), value: isHovered)
@@ -48,8 +48,10 @@ struct DashboardAccountSection<Line: View>: View {
     private var links: [ProviderLink] { account.provider.visibleLinks }
     private var canExpand: Bool { onToggleExpanded != nil && !links.isEmpty }
 
-    /// How far the hover highlight reaches past the content edge, toward the card edge.
-    static var highlightOutset: CGFloat { 6 }
+    /// How far the hover highlight reaches past the content toward the card edge: all the way to one
+    /// highlight inset short of it. Also the block's vertical padding, so the highlight wraps the
+    /// content evenly on every side.
+    private var highlightOutset: CGFloat { density.cardPadding - density.accountHighlightInset }
 
     private var accountLine: some View {
         HStack(spacing: 6) {

@@ -20,14 +20,17 @@ struct DashboardProviderCard<Account: View>: View {
                     .font(.system(size: density.headerPointSize, weight: .semibold))
                     .lineLimit(1)
             }
-            .padding(.bottom, 4)
-            VStack(alignment: .leading, spacing: 6) {
+            .padding(.horizontal, density.cardPadding)
+            .padding(.top, density.cardPadding)
+            // Accounts stack edge to edge: each carries its own vertical padding, so its hover
+            // highlight meets its neighbor's, and the last one ends one highlight inset above the card's
+            // bottom edge — leaving the content the same `cardPadding` from every card edge.
+            VStack(alignment: .leading, spacing: 0) {
                 ForEach(family.accounts) { account($0) }
             }
+            .padding(.horizontal, density.cardPadding)
+            .padding(.bottom, density.accountHighlightInset)
         }
-        .padding(.horizontal, density.cardPadding)
-        .padding(.top, density.cardPadding - 2)
-        .padding(.bottom, density.cardPadding - 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
     }

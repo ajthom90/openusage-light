@@ -6,8 +6,6 @@ struct DashboardContentView: View {
     let container: AppContainer
     let layout: LayoutStore
     let reorderSpaceName: String
-    let horizontalPadding: CGFloat
-    let bottomGap: CGFloat
 
     @Binding var reorderLift: ReorderLift?
     @Binding var scrollPosition: ScrollPosition
@@ -20,9 +18,7 @@ struct DashboardContentView: View {
             VStack(alignment: .leading, spacing: 0) {
                 widgetContent
             }
-            .padding(.horizontal, horizontalPadding)
-            .padding(.top, density.contentTopPadding)
-            .padding(.bottom, bottomGap)
+            .padding(density.panelPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollPosition($scrollPosition)

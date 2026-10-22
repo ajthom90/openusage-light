@@ -87,8 +87,15 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     /// Vertical padding on a Customize / Settings control row (toggles, pickers).
     var controlRowPadding: CGFloat { self == .compact ? 6 : 9 }
 
-    /// Top padding above the dashboard list.
-    var contentTopPadding: CGFloat { self == .compact ? 10 : 14 }
+    /// The popover's one outer spacing: the inset from the panel edge to its content on every side, on
+    /// every screen, and the gap between provider cards. One value, so the space around a card is the
+    /// same as the space between cards.
+    var panelPadding: CGFloat { self == .compact ? 10 : 14 }
+
+    /// How far an account's hover highlight sits inside its card's edge. The highlight's corners are
+    /// concentric with the card's (`Theme.cardCornerRadius` minus this inset), and neighboring
+    /// accounts' highlights meet edge to edge, the way menu items do.
+    var accountHighlightInset: CGFloat { self == .compact ? 4 : 6 }
 
     /// Estimated Customize control-row height for the pre-measurement height seed
     /// (row content ≈ 24pt + `controlRowPadding` × 2).
