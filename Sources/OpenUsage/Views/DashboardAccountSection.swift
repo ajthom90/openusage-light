@@ -1,14 +1,16 @@
 import SwiftUI
 
 /// One account inside its provider's card: the account line (name, status, the ↺ resets tag, and the
-/// plan tag) over every metric line that has data, in the user's order. Nothing here reacts to the
-/// pointer: it shows what it shows. Right-click it for the account's menu; the name line drags it.
+/// plan tag) over every metric line that has data, in the user's order. The ↺ tag is the one part that
+/// reacts to the pointer: it opens the resets timeline. Right-click the account for its menu; the name
+/// line drags it.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
     var plan: String?
     var notice: String?
     var refreshing = false
     var staleness: StalenessHint?
+    var resetClaim: ResetClaimService?
     /// Wraps the account line, so the dashboard can attach the account's drag gesture to it. Metric
     /// lines drag themselves.
     var handle: (AnyView) -> AnyView = { $0 }
@@ -36,7 +38,7 @@ struct DashboardAccountSection<Line: View>: View {
             status
             Spacer(minLength: 8)
             if let resets = account.resets {
-                ResetCountTag(data: resets)
+                ResetCountChip(data: resets, claim: resetClaim)
             }
             if let plan {
                 PlanTag(plan: plan)
@@ -93,38 +95,5 @@ struct PlanTag: View {
             .padding(.horizontal, 7)
             .frame(height: 18)
             .background(Capsule().fill(.fill.tertiary))
-    }
-}
-
-/// "↺ 2": the account's available rate-limit resets, as a static tag beside the plan. It takes the
-/// color of the soonest expiry (blue, then orange within 7 days, red within 48 hours). The account's
-/// right-click menu says when that is and uses a reset.
-struct ResetCountTag: View {
-    let data: WidgetData
-
-    var body: some View {
-        let tint = Self.tint(data.expirySeverity())
-        HStack(spacing: 3) {
-            Image(systemName: "arrow.counterclockwise")
-                .font(.system(size: 9, weight: .bold))
-            Text("\(data.resetCreditCount)")
-                .font(.system(size: 11, weight: .semibold))
-                .monospacedDigit()
-                .contentTransition(.numericText())
-        }
-        .foregroundStyle(tint)
-        .padding(.horizontal, 7)
-        .frame(height: 18)
-        .background(Capsule().fill(tint.opacity(0.14)))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(data.resetCreditCount == 1 ? "1 reset available" : "\(data.resetCreditCount) resets available")
-    }
-
-    private static func tint(_ severity: WidgetData.MeterSeverity?) -> Color {
-        switch severity {
-        case .critical: Color(nsColor: .systemRed)
-        case .warning: Color(nsColor: .systemOrange)
-        case .normal, nil: .accentColor
-        }
     }
 }

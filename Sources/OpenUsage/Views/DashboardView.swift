@@ -245,8 +245,10 @@ struct DashboardView: View {
 
     private func resetTransientState() {
         // Backstop for any popover-close path the status-item controller's hide doesn't cover: clear a
-        // tooltip the cursor was resting on, since the closed popover fires no hover-exit.
+        // tooltip the cursor was resting on, since the closed popover fires no hover-exit. The resets
+        // popover rides the same backstop.
         HoverTooltips.dismissAll()
+        HoverPopoverState.dismissAll()
         // Closing the popover is a click away from an open rename, so it saves like one.
         container.renaming.commit()
         if layout.screen != .dashboard { layout.screen = .dashboard }

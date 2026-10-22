@@ -333,7 +333,10 @@ final class StatusItemController: NSObject {
     private func hidePanel() {
         // The popover's SwiftUI tree survives `orderOut`, so a tooltip the cursor was resting on gets
         // no hover-exit and would orphan on screen — clear it here, the one chokepoint every close hits.
+        // Dismiss any auxiliary popover that would otherwise survive closing this panel.
         HoverTooltips.dismissAll()
+        HoverPopoverState.dismissAll()
+        ReducedMotionPopoverController.dismissAll()
         // Same survival problem for keyboard focus: a clicked plain-styled control (a row's Used/Left
         // or reset toggle) stays first responder, so its focus ring would reopen with the popover as a
         // stray blue outline. Drop it on close so every reopen starts unfocused.

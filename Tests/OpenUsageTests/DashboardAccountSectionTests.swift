@@ -3,9 +3,9 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// The dashboard shows what it shows: no part of a card, an account, a metric line, or its tags reacts
-/// to hover or a click. Dragging still reorders: the name line drags its account and a metric line
-/// drags itself.
+/// The dashboard shows what it shows: no part of a card, an account, a metric line, or the plan tag
+/// reacts to hover or a click. The ↺ tag is the one exception: hovering it opens the resets popover.
+/// Dragging still reorders: the name line drags its account and a metric line drags itself.
 @MainActor
 final class DashboardAccountSectionTests: XCTestCase {
     private final class Log {
@@ -47,7 +47,7 @@ final class DashboardAccountSectionTests: XCTestCase {
         XCTAssertFalse(interactiveParts(Text("x").help("y")).isEmpty)
     }
 
-    func testNoDashboardViewHasAHoverOrTapHandler() {
+    func testOnlyTheResetsTagHasAHoverOrTapHandler() {
         let section = DashboardAccountSection(account: account, plan: "Max 5x", notice: "Refresh failed") {
             DashboardMetricLine(data: $0.data)
         }
@@ -67,11 +67,28 @@ final class DashboardAccountSectionTests: XCTestCase {
         XCTAssertEqual(interactiveParts(card.body), [], "provider card")
         XCTAssertEqual(interactiveParts(DashboardMetricLine(data: weekly).body), [], "metric line")
         XCTAssertEqual(interactiveParts(DashboardMetricLine(data: credits).body), [], "metric line without a limit")
-        XCTAssertEqual(interactiveParts(ResetCountTag(data: account.resets!).body), [], "resets tag")
         XCTAssertEqual(interactiveParts(PlanTag(plan: "Max 5x").body), [], "plan tag")
+        XCTAssertEqual(interactiveParts(ResetCountChip(data: account.resets!).body), ["Hover", "Button", "Popover"], "resets tag")
     }
 
-    /// A click anywhere on an account (its name, the ↺ tag, the plan tag, a metric's value) opens
+    /// Resting the pointer on the ↺ tag opens the resets popover after the hover dwell, with no click.
+    func testHoveringTheResetsTagOpensItsPopover() throws {
+        let log = Log()
+        let (window, host) = host(log: log)
+        let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
+        func popoverIsOpen() -> Bool { NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
+        let nameLine = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+
+        try hover(CGPoint(x: DashboardBox.inset + 10, y: nameLine), window, host)
+        XCTAssertFalse(popoverIsOpen(), "hovering the name opens nothing")
+
+        try hover(Self.resetsTag(in: host), window, host)
+        XCTAssertTrue(popoverIsOpen(), "hovering the ↺ tag opens the resets popover")
+        XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
+        HoverPopoverState.dismissAll()
+    }
+
+    /// A click anywhere on an account but the ↺ tag (its name, the plan tag, a metric's value) opens
     /// nothing, starts no drag, and changes nothing on screen.
     func testClicksChangeNothing() throws {
         let log = Log()
@@ -83,7 +100,6 @@ final class DashboardAccountSectionTests: XCTestCase {
         let points = [
             CGPoint(x: DashboardBox.inset + 10, y: nameLine),
             CGPoint(x: host.bounds.width - DashboardBox.inset - 20, y: nameLine),
-            CGPoint(x: host.bounds.width - DashboardBox.inset - 80, y: nameLine),
             CGPoint(x: host.bounds.width - DashboardBox.inset - 80, y: firstMetric),
         ]
         for point in points {
@@ -127,6 +143,7 @@ final class DashboardAccountSectionTests: XCTestCase {
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
         let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        window.acceptsMouseMovedEvents = true
         window.appearance = NSAppearance(named: .aqua)
         window.contentView = host
         // Off every screen: the window must be ordered in to take events, never seen.
@@ -135,6 +152,34 @@ final class DashboardAccountSectionTests: XCTestCase {
         host.layoutSubtreeIfNeeded()
         addTeardownBlock { window.close() }
         return (window, host)
+    }
+
+    /// The ↺ tag's center: it sits just before the plan tag at the account line's trailing edge.
+    private static func resetsTag(in host: NSView) -> CGPoint {
+        CGPoint(
+            x: host.bounds.width - DashboardBox.inset - 80,
+            y: DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+        )
+    }
+
+    /// Moves the pointer onto `point` and rests there past the popover's 400 ms hover dwell. The real
+    /// pointer never reaches an offscreen window, so this delivers what AppKit would: the enter event
+    /// for the host's tracking area, then a move to `point`.
+    private func hover(_ point: CGPoint, _ window: NSWindow, _ host: NSView) throws {
+        let area = try XCTUnwrap(host.trackingAreas.first, "nothing on the account tracks the pointer")
+        host.mouseEntered(with: NSEvent.enterExitEvent(
+            with: .mouseEntered,
+            location: NSPoint(x: point.x, y: host.bounds.height - point.y),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            trackingNumber: Int(bitPattern: Unmanaged.passUnretained(area).toOpaque()),
+            userData: nil
+        )!)
+        send(.mouseMoved, at: point, window, host)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
     }
 
     private func pixels(_ host: NSView) throws -> Data {

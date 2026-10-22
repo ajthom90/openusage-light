@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
 /// Every account shows its plan and reset tags and every metric that has data, fed by the same
-/// `WidgetDataStore` the menu bar uses. Nothing reacts to hover or a click.
+/// `WidgetDataStore` the menu bar uses. The ↺ tag is the one thing that reacts to hover or a click: it
+/// opens the account's resets timeline, where a reset is claimed.
 ///
 /// Right-click a provider's card, an account, or a metric line for its menu (`DashboardMenus`).
 /// Everything reorders by dragging: a card by its header, an account by its name line within its card,
@@ -14,7 +15,6 @@ struct WidgetGroupedListView: View {
     @Environment(WidgetDataStore.self) private var dataStore
     @Environment(AccountRenameStore.self) private var renaming
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.popoverIsVisible) private var popoverIsVisible
     let reorderSpaceName: String
     @Binding var reorderLift: ReorderLift?
 
@@ -22,17 +22,6 @@ struct WidgetGroupedListView: View {
     @State private var activeMetricID: String?
     @State private var activeAccountID: String?
     @State private var activeFamilyID: String?
-    /// The reset the user picked from an account's menu, awaiting confirmation.
-    @State private var pendingReset: PendingReset?
-    /// One idempotency key per reset credit, minted the first time it's claimed and reused for any
-    /// retry, so a retried claim can never spend a second credit.
-    @State private var redeemRequestIDs: [String: String] = [:]
-
-    private struct PendingReset {
-        let accountID: String
-        let expiry: Date
-        let detail: String?
-    }
 
     var body: some View {
         let groups = layout.displayGroups
@@ -53,20 +42,6 @@ struct WidgetGroupedListView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onPreferenceChange(ReorderFramePreferenceKey.self) { frameStore.frames = $0 }
         .animation(Motion.spring, value: families.map(\.id))
-        .alert(
-            "Use a Reset?",
-            isPresented: Binding(get: { pendingReset != nil }, set: { if !$0 { pendingReset = nil } }),
-            presenting: pendingReset
-        ) { pending in
-            Button("Reset") { claim(pending) }
-            Button("Cancel", role: .cancel) {}
-        } message: { pending in
-            Text(pending.detail ?? "Immediately reset your usage limits. This can't be undone.")
-        }
-        // The view tree survives the popover closing; a confirmation left open would reappear stale.
-        .onChange(of: popoverIsVisible) { _, visible in
-            if !visible { pendingReset = nil }
-        }
     }
 
     private func resolveLine(_ widget: PlacedWidget) -> DashboardLine? {
@@ -93,6 +68,7 @@ struct WidgetGroupedListView: View {
     private func accountSection(_ account: DashboardAccount, group: ProviderGroup?, family: String) -> some View {
         plainAccountSection(
             account,
+            resetClaim: container.resetClaim(for: account.id),
             handle: { AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family))) }
         ) { line in
             metricLine(line, in: account)
@@ -103,7 +79,6 @@ struct WidgetGroupedListView: View {
                     account,
                     status: dataStore.headerNotice(for: account.id) ?? dataStore.stalenessHint(for: account.id)?.tooltip,
                     canShare: group != nil,
-                    canClaimReset: container.resetClaim(for: account.id)?.isClaimable ?? false,
                     hasHiddenMetrics: !hiddenMetricIDs(for: account.id).isEmpty
                 ),
                 perform: perform
@@ -115,6 +90,7 @@ struct WidgetGroupedListView: View {
 
     private func plainAccountSection<Line: View>(
         _ account: DashboardAccount,
+        resetClaim: ResetClaimService? = nil,
         handle: @escaping (AnyView) -> AnyView = { $0 },
         @ViewBuilder line: @escaping (DashboardLine) -> Line
     ) -> some View {
@@ -124,6 +100,7 @@ struct WidgetGroupedListView: View {
             notice: dataStore.headerNotice(for: account.id),
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
+            resetClaim: resetClaim,
             handle: handle,
             line: line
         )
@@ -163,12 +140,6 @@ struct WidgetGroupedListView: View {
         case .shareScreenshot(let accountID):
             guard let group = layout.displayGroups.first(where: { $0.provider.id == accountID }) else { return }
             _ = ShareCardRenderer.share(group: group, dataStore: dataStore, layout: layout, appearance: colorScheme)
-        case .useReset(let accountID, let expiry):
-            pendingReset = PendingReset(
-                accountID: accountID,
-                expiry: expiry,
-                detail: container.resetClaim(for: accountID)?.confirmDetail
-            )
         case .showHiddenMetrics(let accountID):
             layout.showMetrics(hiddenMetricIDs(for: accountID))
         case .toggleStar(let descriptorID):
@@ -179,18 +150,6 @@ struct WidgetGroupedListView: View {
             }
         case .hide(let descriptorID):
             layout.setMetricEnabled(descriptorID, false)
-        }
-    }
-
-    /// Claims the confirmed reset, then says how it went in the footer's notice pill.
-    private func claim(_ pending: PendingReset) {
-        guard let service = container.resetClaim(for: pending.accountID), service.isClaimable else { return }
-        let key = "\(pending.accountID)|\(pending.expiry.timeIntervalSince1970)"
-        let redeemRequestID = redeemRequestIDs[key] ?? UUID().uuidString
-        redeemRequestIDs[key] = redeemRequestID
-        Task {
-            let outcome = await service.claim(creditExpiringAt: pending.expiry, redeemRequestID: redeemRequestID)
-            layout.presentCustomizationNotice(outcome.message(), tone: outcome == .success ? .positive : .notice)
         }
     }
 

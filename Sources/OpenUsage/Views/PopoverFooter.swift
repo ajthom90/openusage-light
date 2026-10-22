@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// A screen's footer chrome: app identity, refresh status, dashboard actions, and the dashboard's
-/// transient confirmations.
+/// A screen's footer chrome: app identity, refresh status, dashboard actions, and copy confirmation.
 /// It uses the screen it belongs to, so during a slide each mounted page draws its own footer.
 struct PopoverFooter: View {
     let screen: PopoverScreen
@@ -31,29 +30,13 @@ struct PopoverFooter: View {
             onHeightChange(screen, height)
         }
         .overlay(alignment: .top) {
-            if screen == .dashboard, layout.customizationNotice != nil {
-                noticePill
-                    .offset(y: -34)
-            } else if screen == .dashboard, layout.shareConfirmation {
+            if screen == .dashboard, layout.shareConfirmation {
                 shareCopiedPill
                     .offset(y: -34)
             }
         }
         .animation(Motion.spring, value: layout.shareConfirmation)
         .animation(Motion.spring, value: layout.shareConfirmationTrigger)
-        .animation(Motion.spring, value: layout.customizationNotice)
-        .animation(Motion.spring, value: layout.customizationNoticeTrigger)
-    }
-
-    /// The outcome of a dashboard action that has no other place to report it, such as a reset claim.
-    private var noticePill: some View {
-        let isNotice = layout.customizationNoticeTone == .notice
-        return TransientPill(
-            systemImage: isNotice ? "exclamationmark.triangle.fill" : "checkmark.circle.fill",
-            text: layout.customizationNotice ?? "",
-            tint: isNotice ? Theme.notice : Theme.positive,
-            trigger: layout.customizationNoticeTrigger
-        )
     }
 
     private var shareCopiedPill: some View {

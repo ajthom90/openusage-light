@@ -1,7 +1,7 @@
 import XCTest
 @testable import OpenUsage
 
-/// Right-click is the only way to act on the dashboard: each menu holds what a click or hover used to.
+/// Apart from the ↺ tag's resets popover, right-click is the only way to act on the dashboard.
 @MainActor
 final class DashboardMenusTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
@@ -39,60 +39,31 @@ final class DashboardMenusTests: XCTestCase {
     }
 
     func testThePlainAccountMenu() {
-        let menu = DashboardMenus.account(account(), status: nil, canShare: true, canClaimReset: false, hasHiddenMetrics: false, now: now)
+        let menu = DashboardMenus.account(account(), status: nil, canShare: true, hasHiddenMetrics: false)
         XCTAssertEqual(titles(menu), [["Refresh", "Rename", "Edit Account…"], ["Share Screenshot"]])
         XCTAssertEqual(menu.flatMap { $0 }.map(\.command), [
             .refresh(["claude@1"]), .rename("claude@1"), .editAccount("claude@1"), .shareScreenshot("claude@1"),
         ])
     }
 
-    /// Without hover, the menu is the only place that says why the account line shows a warning, when
-    /// the next reset expires, and that metrics are hidden.
-    func testTheAccountMenuExplainsItsStatusUsesTheSoonestResetAndShowsHiddenMetrics() {
-        let soonest = now.addingTimeInterval(6 * 86_400)
+    /// The menu says why the account line shows a warning and that metrics are hidden. Resets live in
+    /// the ↺ tag's popover, so the menu has no reset item even when the account has resets.
+    func testTheAccountMenuExplainsItsStatusAndShowsHiddenMetrics() {
         let menu = DashboardMenus.account(
-            account(resetExpiries: [now.addingTimeInterval(20 * 86_400), soonest, now.addingTimeInterval(-60)]),
+            account(resetExpiries: [now.addingTimeInterval(6 * 86_400)]),
             status: "Couldn't refresh. Check your connection.",
             canShare: true,
-            canClaimReset: true,
-            hasHiddenMetrics: true,
-            now: now
+            hasHiddenMetrics: true
         )
-        let useReset = "Use a Reset (Expires \(DashboardMenus.expiryDate(soonest, now: now)))…"
 
         XCTAssertEqual(titles(menu), [
             ["Couldn't refresh. Check your connection."],
             ["Refresh", "Rename", "Edit Account…"],
             ["Share Screenshot"],
-            [useReset, "Show Hidden Metrics"],
+            ["Show Hidden Metrics"],
         ])
         XCTAssertNil(menu[0][0].command, "the status is a disabled line")
-        XCTAssertEqual(menu[3][0].command, .useReset(accountID: "claude@1", expiry: soonest))
-        XCTAssertEqual(menu[3][1].command, .showHiddenMetrics("claude@1"))
-    }
-
-    func testAResetThatCantBeClaimedStillShowsItsExpiryDisabled() {
-        let soonest = now.addingTimeInterval(3 * 86_400)
-        let menu = DashboardMenus.account(
-            account(resetExpiries: [soonest]), status: nil, canShare: false, canClaimReset: false, hasHiddenMetrics: false, now: now
-        )
-        XCTAssertEqual(titles(menu).last, ["Use a Reset (Expires \(DashboardMenus.expiryDate(soonest, now: now)))…"])
-        XCTAssertNil(menu.last?.first?.command)
-
-        let unknown = DashboardMenus.account(
-            account(resetExpiries: []), status: nil, canShare: false, canClaimReset: true, hasHiddenMetrics: false, now: now
-        )
-        XCTAssertEqual(titles(unknown).last, ["Use a Reset…"])
-        XCTAssertNil(unknown.last?.first?.command, "no expiry, nothing to claim")
-    }
-
-    func testTheExpiryDateNamesTheYearOnlyWhenItIsNotThisOne() {
-        let calendar = Calendar.current
-        let thisYear = calendar.date(byAdding: .day, value: 3, to: calendar.startOfDay(for: now))!
-        let nextYear = calendar.date(byAdding: .year, value: 1, to: thisYear)!
-        let year = String(calendar.component(.year, from: nextYear))
-        XCTAssertFalse(DashboardMenus.expiryDate(thisYear, now: now).contains(String(calendar.component(.year, from: thisYear))))
-        XCTAssertTrue(DashboardMenus.expiryDate(nextYear, now: now).contains(year))
+        XCTAssertEqual(menu[3][0].command, .showHiddenMetrics("claude@1"))
     }
 
     func testTheMetricMenuStarsAndHides() {
