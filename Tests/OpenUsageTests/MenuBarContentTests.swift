@@ -1,15 +1,13 @@
 import XCTest
 @testable import OpenUsage
 
-/// Covers `MenuBarContentBuilder`: it resolves pinned provider groups into Text groups (order, labels,
-/// and values preserved) and Bars entries (bounded metrics only, first four in order), and reports empty
-/// when nothing is pinned.
+/// Covers `MenuBarContentBuilder`: it resolves pinned provider groups into strip groups (order, labels,
+/// and values preserved), and reports empty when nothing is pinned.
 @MainActor
 final class MenuBarContentTests: XCTestCase {
     func testEmptyWhenNoGroups() {
         let content = MenuBarContentBuilder.build(groups: [], data: { $0.sample })
         XCTAssertTrue(content.isEmpty)
-        XCTAssertTrue(content.bars.isEmpty)
     }
 
     func testTextGroupsPreserveOrderLabelsAndValues() {
@@ -25,9 +23,7 @@ final class MenuBarContentTests: XCTestCase {
         XCTAssertEqual(content.groups[1].metrics.map(\.id), ["b.m1"])
     }
 
-    func testBarsIncludeBoundedMetricsAndDropUnbounded() {
-        // A bounded dollar metric has a fill, so it belongs in Bars. An unbounded value (raw spend,
-        // no limit) has no fill and is dropped.
+    func testStripKeepsBoundedAndUnboundedMetrics() {
         let content = MenuBarContentBuilder.build(
             groups: [group("a",
                 percent("a.pct", "Pct", 40),
@@ -36,22 +32,7 @@ final class MenuBarContentTests: XCTestCase {
             data: { $0.sample }
         )
 
-        XCTAssertEqual(content.groups[0].metrics.map(\.id), ["a.pct", "a.credits", "a.spend"])  // Text: all
-        XCTAssertEqual(content.bars.map(\.id), ["a.pct", "a.credits"])                          // Bars: bounded only
-    }
-
-    func testBarsCappedToFourInOrder() {
-        let content = MenuBarContentBuilder.build(
-            groups: [
-                group("a", percent("a.m1", "M1", 10), percent("a.m2", "M2", 20)),
-                group("b", percent("b.m1", "M1", 30), percent("b.m2", "M2", 40)),
-                group("c", percent("c.m1", "M1", 50), percent("c.m2", "M2", 60))
-            ],
-            data: { $0.sample }
-        )
-
-        XCTAssertEqual(content.bars.count, 4)
-        XCTAssertEqual(content.bars.map(\.id), ["a.m1", "a.m2", "b.m1", "b.m2"])
+        XCTAssertEqual(content.groups[0].metrics.map(\.id), ["a.pct", "a.credits", "a.spend"])
     }
 
     func testNoDataMetricsDropFromStrip() {
@@ -68,7 +49,6 @@ final class MenuBarContentTests: XCTestCase {
 
         XCTAssertEqual(content.groups.map(\.providerID), ["a"])
         XCTAssertEqual(content.groups[0].metrics.map(\.id), ["a.live"])
-        XCTAssertEqual(content.bars.map(\.id), ["a.live"])
     }
 
     func testAllPinsWithoutDataFallBackToAppIcon() {

@@ -97,11 +97,6 @@ final class LayoutStore {
     /// back onto the stack (an undo must not be recorded as a new, separately-undoable action).
     private var isApplyingUndo = false
 
-    /// Menu-bar display style (Text strip vs. compact Bars). Persisted; defaults to `.text`.
-    var menuBarStyle: MenuBarStyle {
-        didSet { persistence.saveMenuBarStyle(menuBarStyle) }
-    }
-
     /// The accounts' providers and metrics. Replaced in place by `apply(registry:)` when accounts change.
     private(set) var registry: WidgetRegistry
     private let persistence: LayoutPersistence
@@ -136,7 +131,6 @@ final class LayoutStore {
             pinnedMetricIDs: defaultPinnedMetricIDs,
             expandedMetricIDs: defaultExpandedMetricIDs
         )
-        menuBarStyle = persistence.loadMenuBarStyle()
         loadLayout()
     }
 

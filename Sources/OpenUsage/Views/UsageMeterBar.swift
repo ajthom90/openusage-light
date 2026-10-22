@@ -5,7 +5,7 @@ import SwiftUI
 /// last 10%, red = projected to run out; `Theme.meterFill` / `MeterState.severity`). Empty and
 /// colorless without data. A thin tick marks the even-pace line on yellow and red bars, and on blue
 /// when "always show pacing" is on; it rides in an overlay so it pokes out top and bottom without
-/// changing the bar's height. Hovering shows the pace projection (`MeterState.tooltip`).
+/// changing the bar's height.
 struct UsageMeterBar: View {
     let data: WidgetData
     let state: WidgetData.MeterState
@@ -38,7 +38,6 @@ struct UsageMeterBar: View {
         .frame(height: density.meterHeight)
         .animation(Motion.spring, value: data.fraction)
         .accessibilityHidden(true)
-        .hoverTooltip(state.tooltip)
     }
 
     private var fill: AnyShapeStyle {

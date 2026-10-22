@@ -14,7 +14,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
             defaults.set(density.rawValue, forKey: DensitySetting.key)
             defer { defaults.removePersistentDomain(forName: suite) }
 
-            let account = DashboardAccount(provider: codexProvider, lines: [], extraLines: [], resets: nil)
+            let account = DashboardAccount(provider: codexProvider, lines: [], resets: nil)
             let section = DashboardAccountSection(
                 account: account,
                 plan: longPlan,

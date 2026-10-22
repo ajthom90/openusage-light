@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
 /// Every account shows one line per metric that has data, fed by the same `WidgetDataStore` the menu
-/// bar uses. Clicking an account reveals its extra lines.
+/// bar uses.
 ///
 /// Right-click a provider's card for provider actions, an account for account actions, and a metric
 /// line for metric actions. Metric lines reorder by dragging within their account; accounts reorder
@@ -47,25 +47,17 @@ struct WidgetGroupedListView: View {
         guard let account = DashboardFamily.make(groups: groups, line: resolveLine).first?.accounts.first else {
             return []
         }
-        let extra = layout.isProviderExpanded(accountID) ? account.extraLines : []
-        return (account.lines + extra).map(\.id)
+        return account.lines.map(\.id)
     }
 
     private func accountSection(_ account: DashboardAccount, group: ProviderGroup?) -> some View {
-        let isExpanded = layout.isProviderExpanded(account.id)
-        return DashboardAccountSection(
+        DashboardAccountSection(
             account: account,
             plan: dataStore.plan(for: account.id),
             notice: dataStore.headerNotice(for: account.id),
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
-            isExpanded: isExpanded,
             resetClaim: account.resets == nil ? nil : container.resetClaim(for: account.id),
-            onToggleExpanded: {
-                withAnimation(Motion.spring) {
-                    _ = layout.setProviderExpanded(!isExpanded, for: account.id)
-                }
-            }
         ) { line in
             metricLine(line, in: account)
         }

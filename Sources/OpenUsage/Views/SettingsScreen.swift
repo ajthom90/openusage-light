@@ -25,10 +25,6 @@ struct SettingsScreen: View {
                     }
                 }
                 section("Appearance") {
-                    row("Icon Style") {
-                        @Bindable var layout = container.layout
-                        picker($layout.menuBarStyle, options: MenuBarStyle.allCases, label: \.label)
-                    }
                     row("Theme") {
                         picker($appearance, options: AppearanceSetting.allCases, label: \.label)
                             .onChange(of: appearance) { AppearanceSetting.applyCurrent() }

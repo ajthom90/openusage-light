@@ -9,7 +9,6 @@ final class MenuBarPinTests: XCTestCase {
         let store = makeStore("default")
         XCTAssertTrue(store.pinnedMetricIDs.isEmpty)
         XCTAssertTrue(store.pinnedGroups.isEmpty)
-        XCTAssertEqual(store.menuBarStyle, .text)
     }
 
     func testPinUnpinPersistsAcrossReload() {
@@ -103,15 +102,6 @@ final class MenuBarPinTests: XCTestCase {
         store.setPinned(true, for: "a.m1")
         store.resetToDefault()
         XCTAssertTrue(store.pinnedMetricIDs.isEmpty)
-    }
-
-    func testMenuBarStylePersists() {
-        let defaults = makeDefaults("style")
-        let store = LayoutStore(registry: makeRegistry(), defaults: defaults, storageKey: "layout")
-        store.menuBarStyle = .bars
-
-        let reloaded = LayoutStore(registry: makeRegistry(), defaults: defaults, storageKey: "layout")
-        XCTAssertEqual(reloaded.menuBarStyle, .bars)
     }
 
     func testInvalidPinnedIDsDroppedOnLoad() {

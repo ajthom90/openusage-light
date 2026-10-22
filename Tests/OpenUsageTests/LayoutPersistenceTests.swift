@@ -16,7 +16,6 @@ final class LayoutPersistenceTests: XCTestCase {
         defaults.set(["claude.weekly"], forKey: "layout.expandedMetrics")
         defaults.set(["cursor.requests"], forKey: "layout.expandOnEnable")
         defaults.set(["claude"], forKey: "layout.expandedProviders")
-        defaults.set(MenuBarStyle.bars.rawValue, forKey: "layout.menuBarStyle")
 
         let persistence = LayoutPersistence(defaults: defaults, storageKey: "layout")
 
@@ -30,7 +29,6 @@ final class LayoutPersistenceTests: XCTestCase {
         XCTAssertEqual(persistence.loadExpandedMetrics(), ["claude.weekly"])
         XCTAssertEqual(persistence.loadExpandOnEnable(), ["cursor.requests"])
         XCTAssertEqual(persistence.loadExpandedProviders(), ["claude"])
-        XCTAssertEqual(persistence.loadMenuBarStyle(), .bars)
     }
 
     func testSavesEveryExistingKeyAndFormat() throws {
@@ -45,7 +43,6 @@ final class LayoutPersistenceTests: XCTestCase {
         persistence.saveExpandedMetrics(["claude.weekly"])
         persistence.saveExpandOnEnable(["cursor.requests"])
         persistence.saveExpandedProviders(["claude"])
-        persistence.saveMenuBarStyle(.bars)
 
         XCTAssertEqual(try decode([PlacedWidget].self, key: "layout", defaults: defaults).map(\.descriptorID), ["claude.session"])
         XCTAssertEqual(try decode([String].self, key: "layout.providerOrder", defaults: defaults), ["cursor", "claude"])
@@ -58,7 +55,6 @@ final class LayoutPersistenceTests: XCTestCase {
         XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.expandedMetrics") ?? []), ["claude.weekly"])
         XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.expandOnEnable") ?? []), ["cursor.requests"])
         XCTAssertEqual(Set(defaults.stringArray(forKey: "layout.expandedProviders") ?? []), ["claude"])
-        XCTAssertEqual(defaults.string(forKey: "layout.menuBarStyle"), MenuBarStyle.bars.rawValue)
     }
 
     private func decode<T: Decodable>(_ type: T.Type, key: String, defaults: UserDefaults) throws -> T {

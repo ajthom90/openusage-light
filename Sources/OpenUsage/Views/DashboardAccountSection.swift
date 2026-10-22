@@ -1,31 +1,25 @@
 import SwiftUI
 
 /// One account inside its provider's card: the account line (name, status, reset count, plan) over its
-/// metric lines. Shown and extra lines share one `ForEach`, so a line dragged between them keeps its
-/// identity and its drag gesture. The whole block is the account's target: the pointer lights it the
-/// way a menu item lights, it takes the account's right-click menu, and when the account has lines to
-/// reveal, a click shows or hides them.
+/// metric lines. The whole block is the account's target: the pointer lights it the way a menu item
+/// lights, and it takes the account's right-click menu.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
     var plan: String?
     var notice: String?
     var refreshing = false
     var staleness: StalenessHint?
-    var isExpanded = false
     var resetClaim: ResetClaimService?
-    var onToggleExpanded: (() -> Void)?
     @ViewBuilder var line: (DashboardLine) -> Line
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @Environment(AccountRenameStore.self) private var renaming: AccountRenameStore?
     @State private var isHovered = false
 
-    private var canExpand: Bool { onToggleExpanded != nil && !account.extraLines.isEmpty }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             accountLine
-            ForEach(account.lines + (isExpanded ? account.extraLines : [])) { line($0) }
+            ForEach(account.lines) { line($0) }
         }
         .padding(.vertical, 4)
         .background {
@@ -37,13 +31,7 @@ struct DashboardAccountSection<Line: View>: View {
         .animation(.easeOut(duration: 0.12), value: isHovered)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
-        .onTapGesture {
-            if canExpand { onToggleExpanded?() }
-        }
         .accessibilityElement(children: .contain)
-        .accessibilityAction(named: isExpanded ? "Show Less" : "Show More") {
-            if canExpand { onToggleExpanded?() }
-        }
     }
 
     /// How far the hover highlight reaches past the content edge, toward the card edge.

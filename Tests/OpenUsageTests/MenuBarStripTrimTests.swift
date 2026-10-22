@@ -36,13 +36,12 @@ final class MenuBarStripTrimTests: XCTestCase {
                     icon: .providerMark("claude"),
                     metrics: [
                         MenuBarContent.Metric(id: "claude.session", label: "Session", value: "99%",
-                                              fraction: 0.01, isBounded: true, hasData: true),
+                                              hasData: true),
                         MenuBarContent.Metric(id: "claude.weekly", label: "Weekly", value: "87%",
-                                              fraction: 0.13, isBounded: true, hasData: true)
+                                              hasData: true)
                     ]
                 )
-            ],
-            bars: []
+            ]
         )
 
         let image = try XCTUnwrap(MenuBarStripRenderer.textImage(for: content))

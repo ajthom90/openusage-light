@@ -13,10 +13,8 @@ struct DashboardFamily: Identifiable {
 
 struct DashboardAccount: Identifiable {
     let provider: Provider
-    /// Always-visible lines.
+    /// One line per enabled metric that has data.
     let lines: [DashboardLine]
-    /// Lines revealed by clicking the account.
-    let extraLines: [DashboardLine]
     /// The Rate Limit Resets reading, present only while at least one reset is available.
     let resets: WidgetData?
 
@@ -36,21 +34,16 @@ extension DashboardFamily {
         String(providerID.split(separator: "@", maxSplits: 1).first ?? Substring(providerID))
     }
 
-    /// Groups accounts under their provider in order of first appearance. When none of an account's
-    /// always-visible lines has data, its extra lines take their place, so an account never shows an
-    /// empty block with something hidden behind a click.
+    /// Groups accounts under their provider in order of first appearance. Every enabled metric that
+    /// has data is a line; nothing is tucked behind a click.
     static func make(groups: [ProviderGroup], line: (PlacedWidget) -> DashboardLine?) -> [DashboardFamily] {
         var families: [DashboardFamily] = []
         for group in groups {
-            let always = group.alwaysShownWidgets.compactMap(line)
-            let extra = group.expandedWidgets.compactMap(line)
-            let resets = (always + extra).first { $0.data.showsResetExpiries }?.data
-            let shownAlways = always.filter(\.isShown)
-            let shownExtra = extra.filter(\.isShown)
+            let all = group.widgets.compactMap(line)
+            let resets = all.first { $0.data.showsResetExpiries }?.data
             let account = DashboardAccount(
                 provider: group.provider,
-                lines: shownAlways.isEmpty ? shownExtra : shownAlways,
-                extraLines: shownAlways.isEmpty ? [] : shownExtra,
+                lines: all.filter(\.isShown),
                 resets: resets.flatMap { $0.hasData && $0.resetCreditCount > 0 ? $0 : nil }
             )
             let familyID = familyID(of: group.provider.id)

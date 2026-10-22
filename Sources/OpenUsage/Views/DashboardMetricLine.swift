@@ -5,8 +5,8 @@ import SwiftUI
 /// a balance, a status) has no bar; its value takes the bar's place, and the trailing column stays
 /// reserved for reset times.
 ///
-/// The value flips the global Used/Left reading and the reset time flips countdown/clock time, each with
-/// the full sentence in its tooltip.
+/// The value flips the global Used/Left reading and the reset time flips countdown/clock time. No
+/// tooltips: the line already says everything it knows.
 struct DashboardMetricLine: View {
     let data: WidgetData
     var onToggleResetDisplay: (() -> Void)?
@@ -28,6 +28,7 @@ struct DashboardMetricLine: View {
         }
         .frame(height: density.metricLineHeight)
         .font(.system(size: density.supportingPointSize))
+        .accessibilityElement(children: .combine)
     }
 
     private var content: some View {
@@ -48,7 +49,6 @@ struct DashboardMetricLine: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .contentTransition(.numericText())
-                    .hoverTooltip(data.unboundedValueTooltip)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Color.clear
                     .frame(width: Self.resetWidth)
@@ -71,18 +71,12 @@ struct DashboardMetricLine: View {
                 .minimumScaleFactor(0.8)
                 .contentTransition(.numericText())
         }
-        .hoverTooltip(valueTooltip(state))
         if data.hasMeterStyleToggle, let onToggleMeterStyle {
             Button(action: onToggleMeterStyle) { label }
                 .buttonStyle(.plain)
         } else {
             label
         }
-    }
-
-    /// "71% left · 29% used", plus the pace projection when there is one.
-    private func valueTooltip(_ state: WidgetData.MeterState) -> String {
-        [data.boundedHeadline, data.meterStyleTooltip, state.tooltip].compactMap { $0 }.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -93,7 +87,6 @@ struct DashboardMetricLine: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .hoverTooltip(data.boundedTrailingText())
             if let onToggleResetDisplay {
                 Button(action: onToggleResetDisplay) { label }
                     .buttonStyle(.plain)
@@ -101,7 +94,7 @@ struct DashboardMetricLine: View {
                 label
             }
         } else {
-            Color.clear.hoverTooltip(data.resetTooltip())
+            Color.clear
         }
     }
 }

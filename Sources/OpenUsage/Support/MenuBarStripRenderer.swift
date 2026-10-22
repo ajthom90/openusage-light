@@ -12,23 +12,19 @@ enum MenuBarStripRenderer {
     /// Returning the same `NSImage` instance lets `StatusItemImageUpdater` skip the status-item set
     /// (an unconditional set still costs a WindowServer redraw), and keeps `ImageRenderer` (which
     /// retains a little memory per run on macOS) to actual visual changes.
-    private static var lastRender: (content: MenuBarContent, style: MenuBarStyle, image: NSImage?)?
+    private static var lastRender: (content: MenuBarContent, image: NSImage?)?
 
     /// The strip image for the given content and style, or `nil` when the content renders nothing
     /// in that style (caller falls back to the app icon). Memoized: equal inputs return the
     /// previously rendered instance.
-    static func image(for content: MenuBarContent, style: MenuBarStyle) -> NSImage? {
-        if let lastRender, lastRender.content == content, lastRender.style == style {
+    static func image(for content: MenuBarContent) -> NSImage? {
+        if let lastRender, lastRender.content == content {
             AppLog.debug(.menubar, "strip cache hit")
             return lastRender.image
         }
         AppLog.debug(.menubar, "strip cache miss (rendering)")
-        let image: NSImage?
-        switch style {
-        case .text: image = textImage(for: content)
-        case .bars: image = barsImage(for: content)
-        }
-        lastRender = (content, style, image)
+        let image = textImage(for: content)
+        lastRender = (content, image)
         return image
     }
 
@@ -87,18 +83,6 @@ enum MenuBarStripRenderer {
         }
         guard maxX >= minX else { return nil }
         return CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
-    }
-
-    /// The compact Bars glyph (≤4 bounded-metric bars), or `nil` when no pinned metric has a fill.
-    static func barsImage(for content: MenuBarContent) -> NSImage? {
-        let fractions = content.bars.map(\.fraction)
-        guard !fractions.isEmpty else { return nil }
-        let renderer = ImageRenderer(content: MenuBarBars(fractions: fractions, side: 18))
-        renderer.scale = 2
-        guard let image = renderer.nsImage else { return nil }
-        image.isTemplate = true
-        image.accessibilityDescription = content.accessibilityText
-        return image
     }
 
     /// Last-resort icon if the brand mark fails to load.
@@ -196,106 +180,5 @@ private struct MenuBarTextStrip: View {
         } else {
             Circle().fill(Color.black).frame(width: Self.glyphSide - 1, height: Self.glyphSide - 1)
         }
-    }
-}
-
-/// Draws up to four horizontal usage bars into a compact square — a 1:1 port of the original OpenUsage
-/// tray bars: track 0.16 / fill 1.0 / remainder 0.24 opacity (black, so the template tints them), a
-/// rounded leading edge with a small rounded moving edge, and near-full quantization so a 97% bar still
-/// shows a visible tail.
-private struct MenuBarBars: View {
-    let fractions: [Double]
-    let side: CGFloat
-
-    var body: some View {
-        Canvas { context, size in
-            draw(into: &context, size: size)
-        }
-        .frame(width: side, height: side)
-    }
-
-    private func draw(into context: inout GraphicsContext, size: CGSize) {
-        let n = max(1, min(4, fractions.count))
-        let pad = max(1, (size.width * 0.08).rounded())
-        let gap = max(1, (size.width * 0.03).rounded())
-        let trackX = pad
-        let trackW = size.width - 2 * pad
-
-        let layoutN = CGFloat(max(2, n))
-        let trackH = max(1, ((size.height - 2 * pad - (layoutN - 1) * gap) / layoutN).rounded(.down))
-        let rx = max(1, (trackH / 3).rounded(.down))
-
-        let totalBarsHeight = CGFloat(n) * trackH + CGFloat(n - 1) * gap
-        let yOffset = pad + ((size.height - 2 * pad - totalBarsHeight) / 2).rounded(.down)
-
-        for i in 0..<n {
-            let y = yOffset + CGFloat(i) * (trackH + gap) + 1
-
-            context.fill(
-                bar(x: trackX, y: y, w: trackW, h: trackH, leading: rx, trailing: rx),
-                with: .color(.black.opacity(0.16))
-            )
-
-            let fill = MenuBarBarGeometry.fill(trackW: trackW, fraction: i < fractions.count ? fractions[i] : 0)
-            if fill.fillW > 0 {
-                let trailing = fill.fillW >= trackW ? rx : max(0, (rx * 0.35).rounded(.down))
-                context.fill(
-                    bar(x: trackX, y: y, w: fill.fillW, h: trackH, leading: rx, trailing: trailing),
-                    with: .color(.black)
-                )
-            }
-            if fill.fillW > 0, fill.remainderW > 0, let dividerX = fill.dividerX {
-                context.fill(
-                    bar(x: trackX + dividerX, y: y, w: fill.remainderW, h: trackH,
-                        leading: max(0, (rx * 0.2).rounded(.down)), trailing: rx),
-                    with: .color(.black.opacity(0.24))
-                )
-            }
-        }
-    }
-
-    private func bar(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, leading: CGFloat, trailing: CGFloat) -> Path {
-        UnevenRoundedRectangle(
-            topLeadingRadius: leading,
-            bottomLeadingRadius: leading,
-            bottomTrailingRadius: trailing,
-            topTrailingRadius: trailing
-        )
-        .path(in: CGRect(x: x, y: y, width: w, height: h))
-    }
-}
-
-/// Pure fill geometry for the Bars glyph, factored out so the near-full quantization and minimum-visible
-/// remainder rules are unit-testable. A 1:1 port of the original OpenUsage tray math.
-enum MenuBarBarGeometry {
-    struct Fill: Equatable {
-        let fillW: CGFloat
-        let remainderW: CGFloat
-        let dividerX: CGFloat?
-    }
-
-    /// Quantize near-full (0.7–1.0) bars by remainder in 15% steps, so a nearly-full bar still leaves a
-    /// visible tail instead of reading as 100%.
-    static func visualFraction(_ fraction: Double) -> Double {
-        guard fraction.isFinite else { return 0 }
-        let clamped = min(1, max(0, fraction))
-        if clamped > 0.7, clamped < 1 {
-            let remainder = 1 - clamped
-            let quantized = min(1, (remainder / 0.15).rounded(.up) * 0.15)
-            return max(0, 1 - quantized)
-        }
-        return clamped
-    }
-
-    static func fill(trackW: CGFloat, fraction: Double) -> Fill {
-        guard fraction.isFinite, fraction > 0 else { return Fill(fillW: 0, remainderW: 0, dividerX: nil) }
-        let visual = visualFraction(fraction)
-        if visual >= 1 { return Fill(fillW: trackW, remainderW: 0, dividerX: nil) }
-        let minVisible = max(4, (trackW * 0.2).rounded())
-        let maxFillW = max(1, trackW - minVisible)
-        let fillW = max(1, min(maxFillW, (trackW * CGFloat(visual)).rounded()))
-        let trueRemainder = trackW - fillW
-        let remainderW = min(trackW - 1, max(trueRemainder, minVisible))
-        return Fill(fillW: fillW, remainderW: remainderW, dividerX: trackW - remainderW)
     }
 }
