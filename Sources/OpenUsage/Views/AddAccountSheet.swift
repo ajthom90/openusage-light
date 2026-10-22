@@ -1,232 +1,305 @@
 import AppKit
 import SwiftUI
 
-/// Adds an account: pick a provider, then finish its browser, device-code, or API-key sign-in. Opened
-/// from the Accounts list and the empty dashboard.
+/// Adds an account: choose a provider, then finish its browser, device-code, or API-key sign-in.
+/// Opened as a sheet on the popover from the Accounts list and the empty dashboard.
 struct AddAccountSheet: View {
-    let store: AccountStore
-
+    @State private var flow: AddAccountFlow
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-    @State private var kind: ProviderKind?
-    @State private var promptValue: LoginPrompt?
-    @State private var code = ""
-    @State private var label = ""
-    @State private var errorMessage: String?
-    @State private var isSigningIn = false
-    @State private var loginTask: Task<Void, Never>?
-    @State private var continuation: AsyncStream<String>.Continuation?
+
+    init(store: AccountStore) {
+        _flow = State(initialValue: AddAccountFlow(store: store))
+    }
+
+    init(flow: AddAccountFlow) {
+        _flow = State(initialValue: flow)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(kind == nil ? "Add Account" : "Sign In")
-                    .font(.headline)
-                Spacer()
-                Button("Cancel") { cancel() }
-                    .glassButtonStyle()
-                    .controlSize(.small)
-                    .keyboardShortcut(.cancelAction)
-            }
-            if let kind {
-                signInContent(for: kind)
-            } else {
-                providerPicker
-            }
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(20)
-        .frame(width: 360)
-        .onDisappear { loginTask?.cancel() }
-    }
-
-    private var providerPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Choose a provider")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ForEach(ProviderKind.allCases, id: \.self) { provider in
-                Button {
-                    kind = provider
-                    if provider.authMethod == .oauth { startOAuth(provider) }
-                } label: {
-                    HStack(spacing: 10) {
-                        ProviderIcon(source: provider.iconSource)
-                            .frame(width: 22, height: 22)
-                        Text(provider.displayName)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .glassButtonStyle()
-                .controlSize(.small)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func signInContent(for kind: ProviderKind) -> some View {
-        if kind.authMethod == .apiKey {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Enter your \(kind.displayName) API key.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                SecureField("API Key", text: $code)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Account Name (Optional)", text: $label)
-                    .textFieldStyle(.roundedBorder)
-                Button("Add Account") { addAPIKey(kind) }
-                    .glassButtonStyle(prominent: true)
-                    .controlSize(.small)
-                    .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 10) {
-                if isSigningIn {
-                    progressContent
+        VStack(alignment: .leading, spacing: 0) {
+            if let provider = flow.provider {
+                if provider.authMethod == .apiKey {
+                    APIKeyStep(flow: flow, provider: provider, cancel: cancel)
                 } else {
-                    Text("Preparing sign-in…")
-                        .foregroundStyle(.secondary)
+                    BrowserSignInStep(flow: flow, provider: provider, cancel: cancel)
                 }
-                if case .browser(_, let acceptsPastedCode) = promptValue, acceptsPastedCode {
-                    TextField("Paste Authorization Code", text: $code)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { submitCode() }
-                    Button("Continue") { submitCode() }
-                        .glassButtonStyle(prominent: true)
-                        .controlSize(.small)
-                        .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+            } else {
+                ProviderChoiceStep(flow: flow, cancel: cancel)
             }
         }
-    }
-
-    @ViewBuilder
-    private var progressContent: some View {
-        switch promptValue {
-        case .browser(let url, _):
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Sign in with your browser.")
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    Button("Open in Browser") { openURL(url) }
-                        .glassButtonStyle(prominent: true)
-                        .controlSize(.small)
-                    Button("Copy Link") {
-                        let pasteboard = NSPasteboard.general
-                        pasteboard.clearContents()
-                        pasteboard.setString(url.absoluteString, forType: .string)
-                    }
-                    .glassButtonStyle()
-                    .controlSize(.small)
-                }
-            }
-        case .deviceCode(let userCode, let url):
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Enter this code in your browser:")
-                    .foregroundStyle(.secondary)
-                HStack {
-                    Text(userCode)
-                        .font(.system(.title3, design: .monospaced).weight(.semibold))
-                }
-                HStack(spacing: 8) {
-                    Button("Copy") {
-                        let pasteboard = NSPasteboard.general
-                        pasteboard.clearContents()
-                        pasteboard.setString(userCode, forType: .string)
-                    }
-                    .glassButtonStyle()
-                    .controlSize(.small)
-                    Button("Open Verification Page") { openURL(url) }
-                        .glassButtonStyle(prominent: true)
-                        .controlSize(.small)
-                }
-                Text("This window will finish when sign-in completes.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        case nil:
-            ProgressView()
-                .controlSize(.small)
+        .frame(width: 300)
+        // The popover panel takes keys without activating the app, but this sheet is an ordinary
+        // window: without activation its fields never receive typing.
+        .onAppear { NSApp.activate(ignoringOtherApps: true) }
+        .onDisappear { flow.cancel() }
+        .onChange(of: flow.isFinished) { _, isFinished in
+            if isFinished { dismiss() }
         }
-    }
-
-    private func startOAuth(_ kind: ProviderKind) {
-        var stream: AsyncStream<String>!
-        stream = AsyncStream { continuation = $0 }
-        isSigningIn = true
-        loginTask = Task {
-            do {
-                let result = try await ProviderLoginCatalog.login(for: kind).login(
-                    prompt: { prompt in
-                        await MainActor.run {
-                            promptValue = prompt
-                        }
-                    },
-                    pastedCode: stream
-                )
-                await MainActor.run { save(result, for: kind) }
-            } catch is CancellationError {
-                await MainActor.run { errorMessage = "Sign-in was cancelled." }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isSigningIn = false
-                }
-            }
-        }
-    }
-
-    private func submitCode() {
-        continuation?.yield(code)
-        continuation?.finish()
-        continuation = nil
-    }
-
-    private func addAPIKey(_ kind: ProviderKind) {
-        let stream = AsyncStream<String> { continuation in
-            continuation.yield(code)
-            continuation.finish()
-        }
-        isSigningIn = true
-        loginTask = Task {
-            do {
-                let result = try await ProviderLoginCatalog.login(for: kind).login(prompt: { _ in }, pastedCode: stream)
-                await MainActor.run { save(result, for: kind) }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isSigningIn = false
-                }
-            }
-        }
-    }
-
-    private func save(_ result: (label: String, credential: AccountCredential), for kind: ProviderKind) {
-        let accountLabel = label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? result.label
-            : label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let account = store.add(kind: kind, label: accountLabel, credential: result.credential)
-        guard store.accounts.contains(where: { $0.id == account.id }) else {
-            errorMessage = store.lastError ?? "The account could not be saved."
-            isSigningIn = false
-            return
-        }
-        continuation?.finish()
-        dismiss()
     }
 
     private func cancel() {
-        continuation?.finish()
-        loginTask?.cancel()
+        flow.cancel()
         dismiss()
     }
+}
+
+private struct ProviderChoiceStep: View {
+    @Bindable var flow: AddAccountFlow
+    let cancel: () -> Void
+    @FocusState private var isListFocused: Bool
+
+    var body: some View {
+        SheetHeader(provider: nil, title: "Add Account", message: "Choose the provider to sign in to.")
+        List(ProviderKind.allCases, id: \.self, selection: $flow.selection) { provider in
+            Label {
+                Text(provider.displayName)
+            } icon: {
+                ProviderIcon(source: provider.iconSource)
+            }
+            .listItemTint(.monochrome)
+        }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+        .background(Theme.cardFill, in: .rect(cornerRadius: 10))
+        .frame(height: 262)
+        .padding(.horizontal, 20)
+        .focused($isListFocused)
+        .contextMenu(forSelectionType: ProviderKind.self, menu: { _ in }, primaryAction: { _ in
+            flow.continueWithSelection()
+        })
+        .onAppear { isListFocused = true }
+        SheetButtons(cancel: cancel) {
+            Button("Continue") { flow.continueWithSelection() }
+                .keyboardShortcut(.defaultAction)
+                .disabled(flow.selection == nil)
+        }
+    }
+}
+
+private struct BrowserSignInStep: View {
+    @Bindable var flow: AddAccountFlow
+    let provider: ProviderKind
+    let cancel: () -> Void
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        SheetHeader(provider: provider, title: "Sign In to \(provider.displayName)", message: message)
+        Group {
+            if let errorMessage = flow.errorMessage {
+                ErrorText(errorMessage)
+            } else {
+                if case .deviceCode(let userCode, _) = flow.prompt {
+                    DeviceCodeBox(code: userCode)
+                        .padding(.bottom, 12)
+                }
+                status
+            }
+        }
+        .padding(.horizontal, 20)
+        if flow.errorMessage == nil, case .browser(_, acceptsPastedCode: true) = flow.prompt {
+            pastedCodeForm
+                .padding(.top, 12)
+        }
+        SheetButtons(cancel: cancel) { primaryButton }
+    }
+
+    private var message: String {
+        switch flow.prompt {
+        case .deviceCode: "Open the verification page in your browser and enter this code."
+        case .browser, nil: "Continue in your browser. This sheet closes when you’re signed in."
+        }
+    }
+
+    private var status: some View {
+        HStack(spacing: 8) {
+            if flow.isWorking {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(statusText)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            if case .browser(let url, _) = flow.prompt {
+                Button("Copy Link") { copy(url.absoluteString) }
+                    .buttonStyle(.link)
+            }
+        }
+        .font(.callout)
+    }
+
+    private var statusText: String {
+        if flow.prompt == nil { return "Preparing sign-in…" }
+        return flow.isCodeSubmitted ? "Signing in…" : "Waiting for your browser…"
+    }
+
+    private var pastedCodeForm: some View {
+        Form {
+            Section {
+                TextField("Code", text: $flow.pastedCode, prompt: Text("Paste code"))
+                    .onSubmit { flow.submitCode() }
+                    .disabled(flow.isCodeSubmitted)
+            } footer: {
+                Text("Paste the code here if your browser shows one.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .inlineGroupedForm()
+    }
+
+    @ViewBuilder
+    private var primaryButton: some View {
+        if flow.errorMessage != nil {
+            Button("Try Again") { flow.signIn() }
+                .keyboardShortcut(.defaultAction)
+        } else if flow.hasPastedCode {
+            Button("Continue") { flow.submitCode() }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!flow.canSubmitCode)
+        } else {
+            Button("Open Browser") { open() }
+                .keyboardShortcut(.defaultAction)
+                .disabled(flow.prompt == nil)
+        }
+    }
+
+    private func open() {
+        switch flow.prompt {
+        case .browser(let url, _): openURL(url)
+        case .deviceCode(_, let url): openURL(url)
+        case nil: break
+        }
+    }
+}
+
+private struct APIKeyStep: View {
+    @Bindable var flow: AddAccountFlow
+    let provider: ProviderKind
+    let cancel: () -> Void
+
+    var body: some View {
+        SheetHeader(
+            provider: provider,
+            title: "Add \(provider.displayName)",
+            message: "Enter an API key from your \(provider.displayName) account. It’s stored in your Keychain."
+        )
+        Form {
+            Section {
+                SecureField("API Key", text: $flow.apiKey, prompt: Text("Required"))
+                    .onSubmit { flow.addKey() }
+                TextField("Name", text: $flow.accountName, prompt: Text(provider.displayName))
+                    .onSubmit { flow.addKey() }
+            } footer: {
+                if let errorMessage = flow.errorMessage {
+                    ErrorText(errorMessage)
+                }
+            }
+        }
+        .inlineGroupedForm()
+        SheetButtons(cancel: cancel) {
+            Button("Add Account") { flow.addKey() }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!flow.canAddKey)
+        }
+    }
+}
+
+/// The title block every step opens with, left-aligned like a macOS alert: the provider's mark
+/// once one is chosen, a bold title, and one line of guidance.
+private struct SheetHeader: View {
+    let provider: ProviderKind?
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let provider {
+                ProviderIcon(source: provider.iconSource, inset: 0.04)
+                    .frame(width: 32, height: 32)
+                    .padding(.bottom, 8)
+            }
+            Text(title)
+                .font(.headline)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding([.horizontal, .top], 20)
+        .padding(.bottom, 14)
+    }
+}
+
+/// Cancel and the step's default button at the bottom trailing edge. Escape cancels and Return
+/// presses the default button.
+private struct SheetButtons<Primary: View>: View {
+    let cancel: () -> Void
+    @ViewBuilder let primary: Primary
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            Button("Cancel", action: cancel)
+                .keyboardShortcut(.cancelAction)
+            primary
+        }
+        .padding(20)
+    }
+}
+
+private struct DeviceCodeBox: View {
+    let code: String
+
+    var body: some View {
+        HStack {
+            Text(code)
+                .font(.system(.title2, design: .monospaced).weight(.semibold))
+                .textSelection(.enabled)
+            Spacer()
+            Button("Copy Code", systemImage: "doc.on.doc") { copy(code) }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help("Copy Code")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Theme.cardFill, in: .rect(cornerRadius: 10))
+    }
+}
+
+private struct ErrorText: View {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+
+    var body: some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(.callout)
+            .foregroundStyle(.red)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private extension View {
+    /// A grouped form laid out inline in the sheet: sized to its rows instead of scrolling, and
+    /// without the extra vertical margin the form adds around itself when it fills a window.
+    func inlineGroupedForm() -> some View {
+        formStyle(.grouped)
+            .scrollDisabled(true)
+            .scrollContentBackground(.hidden)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, -16)
+    }
+}
+
+@MainActor
+private func copy(_ string: String) {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(string, forType: .string)
 }

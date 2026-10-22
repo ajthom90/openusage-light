@@ -69,4 +69,10 @@ final class PanelGeometryTests: XCTestCase {
         XCTAssertEqual(Set(frames.map(\.maxY)), [949])
         XCTAssertTrue(frames.allSatisfy { $0.minY == $0.minY.rounded() && $0.height == $0.height.rounded() })
     }
+
+    func testAttachedSheetRaisesThePanelUntilItEnds() {
+        XCTAssertEqual(PanelGeometry.height(content: 250, attachedSheet: nil), 250)
+        XCTAssertEqual(PanelGeometry.height(content: 250, attachedSheet: 394), 394 + PanelGeometry.sheetMargin)
+        XCTAssertEqual(PanelGeometry.height(content: 600, attachedSheet: 394), 600)
+    }
 }

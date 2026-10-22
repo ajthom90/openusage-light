@@ -1,0 +1,117 @@
+import Foundation
+import XCTest
+@testable import OpenUsage
+
+@MainActor
+final class AddAccountFlowTests: XCTestCase {
+    func testFailedSignInCanBeRetriedAndAddsTheAccount() async throws {
+        let store = makeStore()
+        var attempts = 0
+        let flow = AddAccountFlow(store: store) { _ in
+            attempts += 1
+            return attempts == 1
+                ? StubLogin { _ in throw LoginError.invalidCode }
+                : StubLogin { _ in ("claude@example.com", .oauth(OAuthTokens(accessToken: "access"))) }
+        }
+        flow.selection = .claude
+
+        flow.continueWithSelection()
+        try await waitUntil { flow.errorMessage != nil }
+        XCTAssertEqual(flow.errorMessage, LoginError.invalidCode.localizedDescription)
+        XCTAssertTrue(store.accounts.isEmpty)
+
+        flow.signIn()
+        try await waitUntil { flow.isFinished }
+        XCTAssertNil(flow.errorMessage)
+        XCTAssertEqual(store.accounts.map(\.label), ["claude@example.com"])
+        XCTAssertEqual(store.accounts.map(\.kind), [.claude])
+    }
+
+    func testPastedCodeReachesTheWaitingSignIn() async throws {
+        let store = makeStore()
+        let url = try XCTUnwrap(URL(string: "https://example.com/authorize"))
+        let flow = AddAccountFlow(store: store) { _ in
+            StubLogin(prompt: .browser(url, acceptsPastedCode: true)) { input in
+                var iterator = input.makeAsyncIterator()
+                let code = await iterator.next() ?? ""
+                return ("code:\(code)", .oauth(OAuthTokens(accessToken: "access")))
+            }
+        }
+        flow.selection = .claude
+        flow.continueWithSelection()
+        try await waitUntil { flow.prompt != nil }
+        XCTAssertFalse(flow.canSubmitCode)
+
+        flow.pastedCode = "abc123"
+        flow.submitCode()
+        try await waitUntil { flow.isFinished }
+        XCTAssertEqual(store.accounts.map(\.label), ["code:abc123"])
+    }
+
+    func testAPIKeyIsSavedUnderTheTypedName() async throws {
+        let vault = InMemoryCredentialVault()
+        let store = makeStore(vault: vault)
+        let flow = AddAccountFlow(store: store)
+        flow.selection = .openrouter
+        flow.continueWithSelection()
+        XCTAssertFalse(flow.isWorking)
+        XCTAssertFalse(flow.canAddKey)
+
+        flow.apiKey = "  sk-or-key  "
+        flow.accountName = " Work "
+        flow.addKey()
+        try await waitUntil { flow.isFinished }
+        let account = try XCTUnwrap(store.accounts.first)
+        XCTAssertEqual(account.label, "Work")
+        XCTAssertEqual(try vault.load(account.id), .apiKey("sk-or-key"))
+    }
+
+    func testCancelStopsTheSignInWithoutAddingAnAccount() async throws {
+        let store = makeStore()
+        let url = try XCTUnwrap(URL(string: "https://example.com/device"))
+        let flow = AddAccountFlow(store: store) { _ in
+            StubLogin(prompt: .deviceCode(userCode: "ABCD-EFGH", verificationURL: url)) { _ in
+                try await Task.sleep(for: .seconds(30))
+                return ("late", .oauth(OAuthTokens(accessToken: "access")))
+            }
+        }
+        flow.selection = .copilot
+        flow.continueWithSelection()
+        try await waitUntil { flow.prompt != nil }
+
+        flow.cancel()
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertFalse(flow.isFinished)
+        XCTAssertNil(flow.errorMessage)
+        XCTAssertTrue(store.accounts.isEmpty)
+    }
+
+    private func makeStore(vault: InMemoryCredentialVault = InMemoryCredentialVault()) -> AccountStore {
+        let suite = "AddAccountFlowTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return AccountStore(defaults: defaults, vault: vault)
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        for _ in 0..<200 where !condition() {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertTrue(condition(), "Timed out waiting for the add-account flow")
+    }
+}
+
+private struct StubLogin: ProviderLogin {
+    var prompt: LoginPrompt?
+    let finish: @Sendable (AsyncStream<String>) async throws -> (label: String, credential: AccountCredential)
+
+    init(prompt: LoginPrompt? = nil, finish: @escaping @Sendable (AsyncStream<String>) async throws -> (label: String, credential: AccountCredential)) {
+        self.prompt = prompt
+        self.finish = finish
+    }
+
+    func login(prompt show: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+        if let prompt { await show(prompt) }
+        return try await finish(pastedCode)
+    }
+}

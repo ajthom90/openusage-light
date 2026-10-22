@@ -6,7 +6,7 @@ OpenUsage Light is a native macOS menu-bar app for seeing usage limits across AI
 
 ## Accounts
 
-Open Accounts from the menu-bar panel's Options menu (or press Return), click Add Account, choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open in Browser and Copy Link, so you can pick which browser to use. You can add multiple accounts for the same provider.
+Open Accounts from the menu-bar panel's Options menu (or press Return), click Add Account, choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open Browser and Copy Link, so you can pick which browser to use. If sign-in fails, Try Again starts it over. You can add multiple accounts for the same provider.
 
 To rename an account, double-click its name on the dashboard, choose Rename Account from its header's right-click menu, or click the name at the top of its page in Accounts. Return or a click elsewhere saves the new name, and Esc cancels. Remove Account is at the bottom of the account's page in Accounts.
 
