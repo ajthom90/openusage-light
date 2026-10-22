@@ -25,31 +25,6 @@ final class DashboardFamilyTests: XCTestCase {
         XCTAssertEqual(families[0].accounts.map { $0.lines.map(\.id) }, [["session", "fable"], ["fable"]])
     }
 
-    func testCollapsedAccountShowsItsFirstTwoLimitedMetricsInTheUsersOrder() {
-        func line(_ id: String, limit: Double?) -> DashboardLine {
-            var data = WidgetData(title: id, icon: .providerMark("codex"), kind: limit == nil ? .count : .percent, used: 5, limit: limit)
-            if limit == nil { data.values = [MetricValue(number: 5, kind: .count, label: "available")] }
-            return DashboardLine(descriptor: WidgetDescriptor(id: id, providerID: "codex", metricLabel: id, sample: data), data: data)
-        }
-        func account(_ lines: [DashboardLine]) -> DashboardAccount {
-            DashboardAccount(provider: Provider(id: "codex@1", displayName: "Codex", icon: .providerMark("codex")), lines: lines)
-        }
-        // A Codex account whose only limit is weekly keeps that bar, ahead of its readings without a limit.
-        let codex = account([line("Weekly", limit: 100), line("Resets", limit: nil), line("Credits", limit: nil)])
-        XCTAssertEqual(codex.summaryLines.map(\.id), ["Weekly"])
-        XCTAssertTrue(codex.isExpandable(plan: nil))
-        // The user's order decides which two show; a third limit waits for the expanded account.
-        let claude = account([line("Fable", limit: 100), line("Resets", limit: nil), line("Session", limit: 100), line("Weekly", limit: 100)])
-        XCTAssertEqual(claude.summaryLines.map(\.id), ["Fable", "Session"])
-        // Without any limit the first reading stands in, so a collapsed account is never just a name.
-        let balance = account([line("Credits", limit: nil), line("Resets", limit: nil)])
-        XCTAssertEqual(balance.summaryLines.map(\.id), ["Credits"])
-        // Expanding has to reveal something: another line or the plan.
-        let single = account([line("Session", limit: 100)])
-        XCTAssertFalse(single.isExpandable(plan: nil))
-        XCTAssertTrue(single.isExpandable(plan: "Pro"))
-    }
-
     func testResetsAreALineInTheUsersOrderOnlyWhileOneIsAvailable() {
         func resets(_ count: Double) -> WidgetData {
             var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"), kind: .count, used: count, limit: nil)

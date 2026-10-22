@@ -18,19 +18,6 @@ struct DashboardAccount: Identifiable {
 
     var id: String { provider.id }
     var name: String { provider.accountLabel ?? provider.displayName }
-
-    /// The lines a collapsed account shows: its first two metrics with a limit, in the user's order. An
-    /// account with no limited metric shows its first line instead, so a collapsed account is never
-    /// just a name.
-    var summaryLines: [DashboardLine] {
-        let bounded = lines.filter(\.data.isBounded).prefix(2)
-        return bounded.isEmpty ? Array(lines.prefix(1)) : Array(bounded)
-    }
-
-    /// Whether expanding reveals anything: a line the summary leaves out, or the plan.
-    func isExpandable(plan: String?) -> Bool {
-        plan != nil || lines.count > summaryLines.count
-    }
 }
 
 struct DashboardLine: Identifiable {

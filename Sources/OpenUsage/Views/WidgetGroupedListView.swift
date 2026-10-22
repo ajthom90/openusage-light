@@ -1,13 +1,12 @@
 import SwiftUI
 
 /// The dashboard display: one section per provider, holding each of its accounts (`DashboardFamily`).
-/// A collapsed account shows its first two metrics with a limit and an expanded one every metric that
-/// has data, fed by the same `WidgetDataStore` the menu bar uses. Clicking an account expands or
-/// collapses it. Hovering a card shows its provider's quick links.
+/// Every account shows its plan beside its name and every metric that has data, fed by the same
+/// `WidgetDataStore` the menu bar uses. Hovering a card shows its provider's quick links.
 ///
 /// Right-click a provider's card for provider actions, an account for account actions, and a metric
 /// line for metric actions. Everything reorders by dragging: a card by its header, an account by its
-/// header line (or anywhere while collapsed) within its card, an expanded metric line within its account.
+/// name line within its card, a metric line within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -21,13 +20,11 @@ struct WidgetGroupedListView: View {
     @State private var activeMetricID: String?
     @State private var activeAccountID: String?
     @State private var activeFamilyID: String?
-    /// Expanded account rows, kept across popover openings and launches.
-    @AppStorage("dashboard.expandedAccounts") private var expandedAccountsRaw = ""
 
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        // Sized over every line, shown or not, so expanding an account never moves the bars.
+        // One label column for the whole dashboard, so every bar starts at the same x.
         let labelWidth = DashboardMetricLine.labelWidth(
             for: families.flatMap(\.accounts).flatMap(\.lines).map(\.data.dashboardTitle)
         )
@@ -74,16 +71,13 @@ struct WidgetGroupedListView: View {
         family: String,
         labelWidth: CGFloat
     ) -> some View {
-        let expanded = isExpanded(account.id)
-        return plainAccountSection(
+        plainAccountSection(
             account,
-            isExpanded: expanded,
-            onToggleExpanded: { toggleExpanded(account.id) },
             handle: {
                 AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family, labelWidth: labelWidth)))
             }
         ) { line in
-            metricLine(line, in: account, labelWidth: labelWidth, draggable: expanded)
+            metricLine(line, in: account, labelWidth: labelWidth)
         }
         .contextMenu { accountMenu(account, group: group) }
         .opacity(activeAccountID == account.id ? 0 : 1)
@@ -92,8 +86,6 @@ struct WidgetGroupedListView: View {
 
     private func plainAccountSection<Line: View>(
         _ account: DashboardAccount,
-        isExpanded: Bool = false,
-        onToggleExpanded: (() -> Void)? = nil,
         handle: @escaping (AnyView) -> AnyView = { $0 },
         @ViewBuilder line: @escaping (DashboardLine) -> Line
     ) -> some View {
@@ -103,20 +95,16 @@ struct WidgetGroupedListView: View {
             notice: dataStore.headerNotice(for: account.id),
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
-            isExpanded: isExpanded,
-            onToggleExpanded: onToggleExpanded,
             handle: handle,
             line: line
         )
     }
 
-    /// A metric line with its right-click menu. Only an expanded account's lines drag; a collapsed
-    /// account's summary lines drag the account.
+    /// A metric line with its right-click menu. It drags to reorder within its account.
     private func metricLine(
         _ line: DashboardLine,
         in account: DashboardAccount,
-        labelWidth: CGFloat,
-        draggable: Bool
+        labelWidth: CGFloat
     ) -> some View {
         DashboardMetricLine(
             data: line.data,
@@ -125,7 +113,7 @@ struct WidgetGroupedListView: View {
         )
         .contentShape(Rectangle())
         .opacity(activeMetricID == line.id ? 0 : 1)
-        .highPriorityGesture(metricDragGesture(for: line, accountID: account.id, labelWidth: labelWidth), isEnabled: draggable)
+        .highPriorityGesture(metricDragGesture(for: line, accountID: account.id, labelWidth: labelWidth))
         .contextMenu { lineMenu(line.descriptor, providerID: account.id) }
         .reorderFrame(id: line.id, in: .named(reorderSpaceName))
     }
@@ -208,7 +196,7 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let preview = DashboardMetricLine(data: line.data, labelWidth: labelWidth)
-                    .padding(.horizontal, DashboardBox.highlightInset)
+                    .padding(.horizontal, 4)
                     .liftedRowSurface()
                 return ReorderLift.make(id: line.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
@@ -218,18 +206,6 @@ struct WidgetGroupedListView: View {
     }
 
     // MARK: - Account and card reordering
-
-    private var expandedAccountIDs: Set<String> {
-        Set(expandedAccountsRaw.split(separator: ",").map(String.init))
-    }
-
-    private func isExpanded(_ accountID: String) -> Bool { expandedAccountIDs.contains(accountID) }
-
-    private func toggleExpanded(_ accountID: String) {
-        var ids = expandedAccountIDs
-        if ids.remove(accountID) == nil { ids.insert(accountID) }
-        withAnimation(Motion.spring) { expandedAccountsRaw = ids.sorted().joined(separator: ",") }
-    }
 
     private static func familyFrameID(_ familyID: String) -> String { "family:\(familyID)" }
 
@@ -245,10 +221,10 @@ struct WidgetGroupedListView: View {
             active: $activeAccountID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = plainAccountSection(account, isExpanded: isExpanded(account.id)) {
+                let preview = plainAccountSection(account) {
                     DashboardMetricLine(data: $0.data, labelWidth: labelWidth)
                 }
-                .padding(.vertical, DashboardBox.highlightInset)
+                .padding(.vertical, DashboardBox.verticalPadding)
                 .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
@@ -267,7 +243,7 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let preview = DashboardProviderCard(family: family) {
-                    plainAccountSection($0, isExpanded: isExpanded($0.id)) {
+                    plainAccountSection($0) {
                         DashboardMetricLine(data: $0.data, labelWidth: labelWidth)
                     }
                 }

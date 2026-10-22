@@ -3,15 +3,16 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// The whole account block is one click target, collapsed or expanded: header, metric lines, padding,
-/// and empty space all toggle it. A drag on it stays a drag, and a click on the Resets value opens the
-/// resets timeline instead of toggling the account.
+/// An account isn't a click target. Its name line drags it, each metric line drags itself, and the Resets
+/// value is the one thing that acts on a click: it opens the resets timeline.
 @MainActor
-final class DashboardAccountRowClickTests: XCTestCase {
+final class DashboardAccountSectionTests: XCTestCase {
     private final class Log {
-        var toggles = 0
-        var drags = 0
+        var accountDrags = 0
+        var metricDrags = 0
     }
+
+    private static let labelWidth: CGFloat = 60
 
     private let account: DashboardAccount = {
         var lines = ["Session", "Weekly", "Fable"].map { title in
@@ -29,57 +30,47 @@ final class DashboardAccountRowClickTests: XCTestCase {
         )
     }()
 
-    func testClickAnywhereOnTheCollapsedBlockToggles() {
+    func testClickOnTheResetsValueOpensItsPopover() {
         let log = Log()
-        let (window, host) = host(expanded: false, log: log)
-        let size = host.bounds.size
-        for point in [CGPoint(x: 1, y: 1), CGPoint(x: size.width / 2, y: size.height / 2), CGPoint(x: size.width - 1, y: size.height - 1)] {
-            click(point, window, host)
-        }
-        XCTAssertEqual(log.toggles, 3)
-    }
-
-    func testClickOnAnExpandedLineCollapsesLikeTheHeader() {
-        let log = Log()
-        let (window, host) = host(expanded: true, log: log)
-        let row = DashboardMetricLine.height
-        click(CGPoint(x: host.bounds.width / 2, y: row / 2), window, host)
-        click(CGPoint(x: host.bounds.width - 4, y: row * 2.5), window, host)
-        XCTAssertEqual(log.toggles, 2)
-    }
-
-    func testClickOnTheResetsValueOpensTheTimelineInsteadOfToggling() {
-        let log = Log()
-        let (window, host) = host(expanded: true, log: log)
+        let (window, host) = host(log: log)
         let resetsLine = DashboardMetricLine.height * 4.5
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
-        click(CGPoint(x: DashboardBox.textInset + DashboardAccountSection<EmptyView>.indent + 60 + DashboardMetricLine.columnSpacing + 8, y: resetsLine), window, host)
-        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
-        XCTAssertTrue(NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) }, "the resets popover opens")
-        XCTAssertEqual(log.toggles, 0)
-        click(CGPoint(x: 4, y: resetsLine), window, host)
-        XCTAssertEqual(log.toggles, 1)
+        func popoverIsOpen() -> Bool { NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
+
+        click(CGPoint(x: DashboardBox.textInset + 4, y: resetsLine), window, host)
+        XCTAssertFalse(popoverIsOpen(), "a click on the label opens nothing")
+
+        click(CGPoint(x: DashboardBox.textInset + Self.labelWidth + DashboardMetricLine.columnSpacing + 8, y: resetsLine), window, host)
+        XCTAssertTrue(popoverIsOpen(), "a click on the value opens the resets popover")
+        XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
     }
 
-    func testDragOnTheRowDoesNotToggle() {
+    func testTheNameLineDragsTheAccountAndAMetricLineDragsItself() {
         let log = Log()
-        let (window, host) = host(expanded: false, log: log)
-        let start = CGPoint(x: host.bounds.width / 2, y: host.bounds.height / 2)
-        send(.leftMouseDown, at: start, window, host)
-        send(.leftMouseDragged, at: CGPoint(x: start.x, y: start.y + 12), window, host)
-        send(.leftMouseUp, at: CGPoint(x: start.x, y: start.y + 12), window, host)
-        XCTAssertGreaterThan(log.drags, 0)
-        XCTAssertEqual(log.toggles, 0)
+        let (window, host) = host(log: log)
+        let row = DashboardMetricLine.height
+        // The empty end of the name line belongs to it too.
+        drag(from: CGPoint(x: host.bounds.width - 20, y: row / 2), window, host)
+        XCTAssertGreaterThan(log.accountDrags, 0)
+        XCTAssertEqual(log.metricDrags, 0)
+
+        log.accountDrags = 0
+        drag(from: CGPoint(x: host.bounds.width / 2, y: row * 1.5), window, host)
+        XCTAssertGreaterThan(log.metricDrags, 0)
+        XCTAssertEqual(log.accountDrags, 0)
     }
 
-    private func host(expanded: Bool, log: Log) -> (NSWindow, NSView) {
+    private func host(log: Log) -> (NSWindow, NSView) {
         let view = DashboardAccountSection(
             account: account,
             plan: "Max 5x",
-            isExpanded: expanded,
-            onToggleExpanded: { log.toggles += 1 },
-            handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.drags += 1 })) }
-        ) { DashboardMetricLine(data: $0.data, labelWidth: 60) }
+            handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })) }
+        ) { line in
+            // As the dashboard wires it: every metric line carries its own drag.
+            DashboardMetricLine(data: line.data, labelWidth: Self.labelWidth)
+                .contentShape(Rectangle())
+                .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.metricDrags += 1 })
+        }
         .frame(width: 300)
         .environment(\.hoverTooltipsDisabled, true)
         let host = NSHostingView(rootView: view)
@@ -98,6 +89,14 @@ final class DashboardAccountRowClickTests: XCTestCase {
     private func click(_ point: CGPoint, _ window: NSWindow, _ host: NSView) {
         send(.leftMouseDown, at: point, window, host)
         send(.leftMouseUp, at: point, window, host)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+    }
+
+    private func drag(from start: CGPoint, _ window: NSWindow, _ host: NSView) {
+        let end = CGPoint(x: start.x, y: start.y + 12)
+        send(.leftMouseDown, at: start, window, host)
+        send(.leftMouseDragged, at: end, window, host)
+        send(.leftMouseUp, at: end, window, host)
     }
 
     /// `point` is top-left based, in the host's coordinates.

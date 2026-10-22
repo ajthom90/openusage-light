@@ -209,10 +209,10 @@ struct DashboardView: View {
                     }
                 }
             }
-            // In-screen growth/shrink (a provider card expands, the footer notice appears, a refresh
-            // loads rows): re-target the height on the same spring. Establishment is allowed even mid-
-            // slide (a measurement that lands during a switch must seed the height — there's nothing to
-            // fight yet); the animated *re-target* defers to the switch path while a slide is in flight.
+            // In-screen growth/shrink (the footer notice appears, a refresh loads rows): re-target the
+            // height on the same spring. Establishment is allowed even mid-slide (a measurement that
+            // lands during a switch must seed the height — there's nothing to fight yet); the animated
+            // *re-target* defers to the switch path while a slide is in flight.
             .onChange(of: heightCoordinator.measuredIdeal[layout.screen]) { _, _ in
                 guard let target = heightCoordinator.target(for: layout.screen) else { return }
                 if !didEstablishHeight {

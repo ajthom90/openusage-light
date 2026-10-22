@@ -6,10 +6,9 @@ import SwiftUI
 /// panel starts and ends at the same x. A reading without a limit (credits, a balance, a status) has no
 /// bar; its value takes the bar's place, and the trailing column stays reserved for reset times.
 ///
-/// Body text for the label and value, subheadline for the reset time. The line holds no buttons of its
-/// own: a click anywhere on it belongs to its account. The one exception is the Resets value
-/// ("● 2 available"), which opens the resets timeline, where a reset can be claimed; its reset column
-/// counts down to the soonest expiry, tinted once that is within a week.
+/// Body text for the label and value, subheadline for the reset time. Nothing on a line acts on a click
+/// except the Resets value ("● 2 available"), which opens the resets timeline, where a reset can be
+/// claimed; its reset column counts down to the soonest expiry, tinted once that is within a week.
 struct DashboardMetricLine: View {
     let data: WidgetData
     /// Width of the label column; `labelWidth(for:)` sizes it to the widest label on the dashboard.

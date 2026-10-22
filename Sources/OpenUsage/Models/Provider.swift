@@ -6,7 +6,7 @@ struct Provider: Identifiable, Hashable {
     let displayName: String
     let icon: IconSource
     let accountLabel: String?
-    /// Per-provider quick links (e.g. "Status", "Console") shown as buttons in the card's expanded area.
+    /// Per-provider quick links (e.g. "Status", "Console"), shown in the dashboard section's header on hover.
     /// Declared inline by each provider; mirrors the legacy Tauri `PluginMeta.links`. Empty by default so
     /// providers without links and the existing `Provider(id:displayName:icon:)` call sites need no change.
     let links: [ProviderLink]

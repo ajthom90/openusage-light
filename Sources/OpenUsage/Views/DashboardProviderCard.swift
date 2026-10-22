@@ -2,11 +2,9 @@ import AppKit
 import SwiftUI
 
 /// One provider's section on the dashboard, laid out like a grouped form: a section header (mark and
-/// name) over one grouped box holding each account as a block, with hairlines between the blocks inset to
-/// the text on both sides. The box is drawn like a menu: an account's highlight is inset from the box's
-/// edges with a concentric corner, and the text sits inside that highlight. Hovering the section reveals
-/// the provider's quick links (Status, Dashboard) at the header's trailing edge, as small text links that
-/// open in the browser.
+/// name) over one grouped box holding its accounts, separated by space alone. The mark, the account names,
+/// and the metric labels share one leading edge. Hovering the section reveals the provider's quick links
+/// (Status, Dashboard) at the header's trailing edge, as small text links that open in the browser.
 struct DashboardProviderCard<Account: View>: View {
     let family: DashboardFamily
     /// Wraps the header, so the dashboard can attach the card's drag gesture to it.
@@ -20,18 +18,10 @@ struct DashboardProviderCard<Account: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: PanelMetrics.headerSpacing) {
             handle(AnyView(header))
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(family.accounts.enumerated()), id: \.element.id) { index, item in
-                    if index > 0 {
-                        Divider()
-                            .padding(.horizontal, DashboardBox.textInset)
-                            .padding(.vertical, DashboardBox.highlightInset)
-                    }
-                    account(item)
-                }
+            VStack(alignment: .leading, spacing: DashboardBox.accountSpacing) {
+                ForEach(family.accounts) { account($0) }
             }
-            .padding(.vertical, DashboardBox.highlightInset)
-            .clipShape(Theme.cardShape)
+            .padding(.vertical, DashboardBox.verticalPadding)
             .cardSurface()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,13 +49,14 @@ struct DashboardProviderCard<Account: View>: View {
     }
 }
 
-/// Where things sit inside a provider's grouped box. An account's highlight is inset from the box's
-/// edges, with the box's corner radius minus that inset so the two corners stay concentric, and the
-/// text sits 10 pt inside the highlight.
+/// Where things sit inside a provider's grouped box. Text sits `textInset` in from the box's sides, and
+/// the section header is inset the same, so the provider's mark lines up with the names and labels below.
 enum DashboardBox {
-    static let highlightInset: CGFloat = 4
-    static let highlightCornerRadius: CGFloat = Theme.cardCornerRadius - highlightInset
-    static let textInset: CGFloat = highlightInset + 10
+    static let textInset: CGFloat = 14
+    /// Above the first account and below the last.
+    static let verticalPadding: CGFloat = 4
+    /// Between two accounts.
+    static let accountSpacing: CGFloat = 8
 }
 
 /// The provider's quick links in the card header: "Status ↗  Dashboard ↗" in small secondary text that
