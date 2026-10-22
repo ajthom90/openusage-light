@@ -1,119 +1,10 @@
 import AppKit
 import SwiftUI
 
-struct AccountsSettingsSection: View {
-    let store: AccountStore
-    let onChange: () -> Void
-
-    @State private var isAdding = false
-    @State private var editingAccount: Account?
-    @State private var removingAccount: Account?
-    @State private var editedLabel = ""
-
-    var body: some View {
-        section {
-            if store.accounts.isEmpty {
-                Text("No Accounts")
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                ForEach(store.accounts) { account in
-                    accountRow(account)
-                    if account.id != store.accounts.last?.id { Divider().padding(.leading, 48) }
-                }
-            }
-            Button {
-                isAdding = true
-            } label: {
-                Label("Add Account", systemImage: "plus")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .glassButtonStyle(prominent: true)
-            .controlSize(.small)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-        }
-        .sheet(isPresented: $isAdding) {
-            AddAccountSheet(store: store, onAdded: onChange)
-        }
-        .alert("Rename Account", isPresented: Binding(
-            get: { editingAccount != nil },
-            set: { if !$0 { editingAccount = nil } }
-        )) {
-            TextField("Account Name", text: $editedLabel)
-            Button("Cancel", role: .cancel) { editingAccount = nil }
-            Button("Save") {
-                if let editingAccount {
-                    store.rename(editingAccount.id, to: editedLabel.trimmingCharacters(in: .whitespacesAndNewlines))
-                    onChange()
-                }
-                editingAccount = nil
-            }
-        }
-        .confirmationDialog(
-            "Remove \(removingAccount?.label ?? "Account")?",
-            isPresented: Binding(
-                get: { removingAccount != nil },
-                set: { if !$0 { removingAccount = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Remove Account", role: .destructive) {
-                if let removingAccount {
-                    store.remove(removingAccount.id)
-                    onChange()
-                }
-                removingAccount = nil
-            }
-        }
-    }
-
-    private func accountRow(_ account: Account) -> some View {
-        HStack(spacing: 10) {
-            ProviderIcon(source: account.kind.iconSource)
-                .frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(account.kind.displayName)
-                    .font(.system(size: 12, weight: .medium))
-                Text(account.label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            Menu {
-                Button("Rename…") {
-                    editedLabel = account.label
-                    editingAccount = account
-                }
-                Button("Remove Account", role: .destructive) { removingAccount = account }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    private func section<Content: View>(@ViewBuilder rows: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("Accounts")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-            VStack(spacing: 0, content: rows)
-        }
-    }
-}
-
+/// Adds an account: pick a provider, then finish its browser, device-code, or API-key sign-in. Opened
+/// from the Accounts list and the empty dashboard.
 struct AddAccountSheet: View {
     let store: AccountStore
-    let onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -330,7 +221,6 @@ struct AddAccountSheet: View {
             return
         }
         continuation?.finish()
-        onAdded()
         dismiss()
     }
 

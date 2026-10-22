@@ -171,6 +171,81 @@ final class ResetDisplayTests: XCTestCase {
         XCTAssertNil(data.expiryTooltip)
     }
 
+    @MainActor
+    func testResetsRowIsWiredOnlyOnClaudeAndCodexAccounts() {
+        let runtimes = ProviderKind.allCases.map {
+            AccountProviderRuntime(account: Account(kind: $0, label: "Work"), vault: InMemoryCredentialVault())
+        }
+        let resetsRows = runtimes.flatMap { runtime in
+            runtime.widgetDescriptors.filter { $0.sample.showsResetExpiries || $0.sample.traySuffix != nil }
+        }
+
+        XCTAssertEqual(resetsRows.map(\.id), runtimes.filter { [.claude, .codex].contains($0.account.kind) }
+            .map { "\($0.account.cardID).rateLimitResets" })
+        for row in resetsRows {
+            XCTAssertEqual(row.sample.title, "Rate Limit Resets")
+            XCTAssertEqual(row.sample.traySuffix, "resets")
+            XCTAssertTrue(row.sample.showsResetExpiries)
+        }
+    }
+
+    func testResetsPopoverEntriesAreSoonestFirstAndNumbered() {
+        // The popover timeline sorts the resets soonest-first, numbers them from 1, and pairs each exact
+        // expiry time with its countdown. Per-reset dot color reuses the row's severity bands.
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let entries = RateLimitResetsDetail.entries(
+            from: [
+                // Deliberately out of order to prove the sort.
+                now.addingTimeInterval(12 * 24 * 3600 + 18 * 3600),          // ~12d18h -> blue
+                now.addingTimeInterval(WidgetData.expiryCriticalWindow - 3600) // <48h  -> red, soonest
+            ],
+            now: now
+        )
+
+        XCTAssertEqual(entries.map(\.number), [1, 2])
+        XCTAssertEqual(entries[0].severity, .critical)   // soonest sorts first
+        XCTAssertEqual(entries[1].severity, .normal)
+        XCTAssertEqual(entries[1].time.contains(" at "), true) // exact wall-clock time leads
+        XCTAssertEqual(entries[1].countdown, "12d 18h")        // countdown trails
+    }
+
+    func testResetsPopoverPastDueAndImminentEntriesReadSoonWithNoCountdown() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        for offset in [-60.0, 180.0] {
+            let entries = RateLimitResetsDetail.entries(from: [now.addingTimeInterval(offset)], now: now)
+
+            XCTAssertEqual(entries.count, 1)
+            XCTAssertEqual(entries[0].time, "Expiring soon")
+            XCTAssertNil(entries[0].countdown)
+            XCTAssertEqual(entries[0].severity, .critical)
+        }
+    }
+
+    func testResetsPopoverEmptyWhenNoResets() {
+        XCTAssertTrue(RateLimitResetsDetail.entries(from: [], now: Date()).isEmpty)
+    }
+
+    func testResetsPopoverContentResolvesEmptyCountOnlyAndTimeline() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+        // Zero resets -> the genuine empty state.
+        XCTAssertEqual(RateLimitResetsDetail.content(count: 0, expiries: [], now: now), .empty)
+
+        // Resets present but no expiry list (the dedicated fetch failed, so the row fell back to the
+        // usage-body count): must NOT read "no resets"; it states the count instead.
+        XCTAssertEqual(
+            RateLimitResetsDetail.content(count: 3, expiries: [], now: now),
+            .unknownExpiries(count: 3)
+        )
+
+        // Expiries present -> the timeline.
+        let expiries = [now.addingTimeInterval(4 * 24 * 3600)]
+        guard case .timeline(let entries) = RateLimitResetsDetail.content(count: 1, expiries: expiries, now: now) else {
+            return XCTFail("expected timeline")
+        }
+        XCTAssertEqual(entries.count, 1)
+    }
+
     func testCompactDurationAlwaysShowsHoursAtDayScale() {
         // Day-scale durations always show two units so a whole-day-ish span never reads as a flat "Xd"
         // that hides the sub-day remainder. Sub-day durations are unchanged.

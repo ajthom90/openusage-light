@@ -2,17 +2,8 @@ import SwiftUI
 
 struct ReorderLift {
     enum Payload {
-        case dashboardProvider(
-            provider: Provider,
-            plan: String?,
-            rows: [WidgetData],
-            dividerIndex: Int?,
-            links: [ProviderLink],
-            showsCaret: Bool,
-            isExpanded: Bool
-        )
         case dashboardMetric(data: WidgetData)
-        case customizeProviderRow(provider: Provider, metricCount: Int)
+        case accountRow(provider: Provider)
         case customizeMetric(title: String)
     }
 
@@ -22,7 +13,7 @@ struct ReorderLift {
     let touchOffset: CGPoint
     var location: CGPoint
 
-    /// The one place a lift is built from a drag value. Every reorder site (dashboard/Customize ×
+    /// The one place a lift is built from a drag value. Every reorder site (dashboard/Accounts ×
     /// provider/metric) differs only in the `payload`; the frame lookup and touch-offset math are
     /// identical, so they live here once. Returns `nil` when the dragged row has no recorded frame.
     static func make(
@@ -69,71 +60,27 @@ struct ReorderLiftPreview: View {
     @ViewBuilder
     private var preview: some View {
         switch lift.payload {
-        case .dashboardProvider(let provider, let plan, let rows, let dividerIndex, let links, let showsCaret, let isExpanded):
-            dashboardProviderPreview(
-                provider: provider,
-                plan: plan,
-                rows: rows,
-                dividerIndex: dividerIndex,
-                links: links,
-                showsCaret: showsCaret,
-                isExpanded: isExpanded
-            )
         case .dashboardMetric(let data):
             dashboardMetricPreview(data)
-        case .customizeProviderRow(let provider, let metricCount):
-            customizeProviderRowPreview(provider: provider, metricCount: metricCount)
+        case .accountRow(let provider):
+            accountRowPreview(provider)
         case .customizeMetric(let title):
             customizeMetricPreview(title)
         }
     }
 
-    private func dashboardProviderPreview(
-        provider: Provider,
-        plan: String?,
-        rows: [WidgetData],
-        dividerIndex: Int?,
-        links: [ProviderLink],
-        showsCaret: Bool,
-        isExpanded: Bool
-    ) -> some View {
-        // Same anatomy as the live dashboard section (`WidgetGroupedListView.section` + `container`):
-        // header over the shared metric card, at the density's header→card spacing.
-        VStack(alignment: .leading, spacing: density.headerToCardSpacing) {
-            ProviderSectionHeader(provider: provider, plan: plan)
-                .padding(.horizontal, 8)
-
-            DashboardMetricCard {
-                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                    if dividerIndex == index {
-                        DashboardMetricCardSeparator()
-                    }
-                    WidgetRowView(data: row)
-                }
-                if dividerIndex == rows.count {
-                    DashboardMetricCardSeparator()
-                }
-                if isExpanded, !links.isEmpty {
-                    ProviderLinksView(links: links)
-                }
-                if showsCaret {
-                    DashboardMetricCardCaret(isExpanded: isExpanded, action: {})
-                }
-            }
-        }
-    }
-
     private func dashboardMetricPreview(_ data: WidgetData) -> some View {
-        WidgetRowView(data: data)
+        DashboardMetricLine(data: data)
+            .padding(.horizontal, density.cardPadding)
             .liftedRowSurface()
     }
 
-    private func customizeProviderRowPreview(provider: Provider, metricCount: Int) -> some View {
-        // Same row anatomy as the live L1 (`ProviderListRow`), rendered inert — the lift's shadow +
+    private func accountRowPreview(_ provider: Provider) -> some View {
+        // Same row anatomy as the live L1 (`AccountListRow`), rendered inert — the lift's shadow +
         // scale read as the floating chip, and the whole preview is non-interactive (`.allowsHitTesting`
-        // false in `body`), so the toggle/chevron carry no live action.
-        ProviderListRow(provider: provider, metricCount: metricCount, handle: { $0 })
-        .liftedRowSurface()
+        // false in `body`), so the chevron carries no live action.
+        AccountListRow(provider: provider, handle: { $0 })
+            .liftedRowSurface()
     }
 
     private func customizeMetricPreview(_ title: String) -> some View {
@@ -185,7 +132,7 @@ extension View {
     }
 }
 
-/// The shared drag-to-reorder gesture used by both the dashboard list and the Customize screen, for both
+/// The shared drag-to-reorder gesture used by both the dashboard list and the Accounts screen, for both
 /// provider headers and metric rows. The gesture body (lift tracking, target hit-testing, spring + haptic)
 /// lives here once; each caller supplies only what differs: the active-row binding, the lift builder, the
 /// current ordered ids, and the reorder action.

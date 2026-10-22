@@ -19,10 +19,10 @@ final class PanelHeightCoordinatorTests: XCTestCase {
 
     func testOtherScreensIncludeTopBar() {
         let c = PanelHeightCoordinator(topBarHeight: topBar)
-        c.setScrollContent(300, for: .customize)
-        c.setFooter(40, for: .customize)
-        // Customize/Settings pin the fixed top bar: ideal = topBar + footer + content.
-        XCTAssertEqual(c.measuredIdeal[.customize], 44 + 40 + 300)
+        c.setScrollContent(300, for: .accounts)
+        c.setFooter(40, for: .accounts)
+        // Accounts/Settings pin the fixed top bar: ideal = topBar + footer + content.
+        XCTAssertEqual(c.measuredIdeal[.accounts], 44 + 40 + 300)
     }
 
     func testFooterDefaultsToZeroUntilMeasured() {

@@ -76,6 +76,11 @@ final class AccountStore {
         try credentialVault.load(id)
     }
 
+    /// The account behind a dashboard card, by its `Account.cardID` (the card's `Provider.id`).
+    func account(cardID: String) -> Account? {
+        accounts.first { $0.cardID == cardID }
+    }
+
     private func persist() -> Bool {
         do {
             defaults.set(try JSONEncoder().encode(accounts), forKey: Self.storageKey)

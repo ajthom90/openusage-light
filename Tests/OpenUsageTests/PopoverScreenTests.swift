@@ -1,8 +1,8 @@
 import XCTest
 @testable import OpenUsage
 
-/// The in-popover screen mode (dashboard / Customize / Settings) and its `isEditing` bridge,
-/// which older call sites still drive Customize through.
+/// The in-popover screen mode (dashboard / Accounts / Settings) and its `isEditing` bridge,
+/// which older call sites still drive Accounts through.
 @MainActor
 final class PopoverScreenTests: XCTestCase {
     func testStartsOnDashboard() {
@@ -11,11 +11,11 @@ final class PopoverScreenTests: XCTestCase {
         XCTAssertFalse(store.isEditing)
     }
 
-    func testIsEditingBridgesCustomizeScreen() {
+    func testIsEditingBridgesAccountsScreen() {
         let store = makeStore("Bridge")
 
         store.isEditing = true
-        XCTAssertEqual(store.screen, .customize)
+        XCTAssertEqual(store.screen, .accounts)
 
         store.isEditing = false
         XCTAssertEqual(store.screen, .dashboard)
@@ -31,13 +31,18 @@ final class PopoverScreenTests: XCTestCase {
     func testScreensReplaceEachOther() {
         let store = makeStore("Switch")
 
-        store.screen = .customize
+        store.screen = .accounts
         store.screen = .settings
         XCTAssertEqual(store.screen, .settings)
         XCTAssertFalse(store.isEditing)
 
-        store.screen = .customize
+        store.screen = .accounts
         XCTAssertTrue(store.isEditing)
+    }
+
+    func testAccountsSlidesInBetweenDashboardAndSettings() {
+        XCTAssertLessThan(PopoverScreen.dashboard.slideRank, PopoverScreen.accounts.slideRank)
+        XCTAssertLessThan(PopoverScreen.accounts.slideRank, PopoverScreen.settings.slideRank)
     }
 
     private func makeStore(_ name: String) -> LayoutStore {

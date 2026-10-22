@@ -70,6 +70,13 @@ final class HoverPopoverState {
         if active { hideTask?.cancel(); hideTask = nil } else { scheduleHide() }
     }
 
+    /// Open the popover now (a click on its trigger), skipping the hover dwell.
+    func present() {
+        showTask?.cancel(); showTask = nil
+        hideTask?.cancel(); hideTask = nil
+        isPresented = true
+    }
+
     /// Force the popover shut (popover/dashboard teardown), so it can't orphan on screen.
     func dismiss() {
         showTask?.cancel(); showTask = nil

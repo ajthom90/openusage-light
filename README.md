@@ -6,7 +6,9 @@ OpenUsage Light is a native macOS menu-bar app for seeing usage limits across AI
 
 ## Accounts
 
-Click Add Account in the menu-bar panel (or Settings → Accounts → Add Account), choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open in Browser and Copy Link, so you can pick which browser to use. You can add multiple accounts for the same provider, rename them, and remove them independently.
+Open Accounts from the menu-bar panel's Options menu (or press Return), click Add Account, choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open in Browser and Copy Link, so you can pick which browser to use. You can add multiple accounts for the same provider.
+
+To rename an account, double-click its name on the dashboard, choose Rename Account from its header's right-click menu, or click the name at the top of its page in Accounts. Return or a click elsewhere saves the new name, and Esc cancels. Remove Account is at the bottom of the account's page in Accounts.
 
 Account metadata is stored in the app's UserDefaults domain. OAuth tokens and API keys are stored in this app's own Keychain service. OpenUsage Light does not read credentials, files, Keychain items, databases, or environment variables belonging to other tools.
 
@@ -15,6 +17,8 @@ Account metadata is stored in the app's UserDefaults domain. OAuth tokens and AP
 The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Ollama, OpenCode Go, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode Go, OpenRouter, and Z.ai, which use API keys.
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
+
+Claude and Codex accounts also show a Rate Limit Resets row: hover the count to see when each reset expires, and choose Use to spend one on that account.
 
 ## Building
 

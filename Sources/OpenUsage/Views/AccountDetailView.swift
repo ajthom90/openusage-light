@@ -1,20 +1,21 @@
 import SwiftUI
 
-/// The Customize detail for one provider (L2): two distinct cards — **Always Visible** (shown on the
-/// dashboard card) and **On Demand** (tucked behind the card's caret). Drag a metric by its grip
-/// onto a row in the other card to move it across; an empty card shows a small dashed "Drag metrics
-/// here" drop zone that's also the drop target for moving a metric into it. Each metric row is
-/// grip · name · star · toggle (drag left, toggle right — same shape as the provider rows). The star
-/// is always visible: outline when not starred, filled accent when starred; tapping it pops a
-/// transient confirmation pill (and an orange denial pill over the per-provider cap). Providers that
-/// need an API key get their own "API Key" section here too.
+/// The Accounts detail for one account (L2). The title bar carries the account's name, which renames
+/// in place (`PopoverTopBar`). Below it are two metric cards — **Always Visible** (shown on the
+/// dashboard card) and **On Demand** (tucked behind the card's caret) — and a destructive Remove
+/// Account row that asks for confirmation. Drag a metric by its grip onto a row in the other card to
+/// move it across; an empty card shows a small dashed "Drag metrics here" drop zone that's also the
+/// drop target for moving a metric into it. Each metric row is grip · name · star · toggle (drag left,
+/// toggle right). The star is always visible: outline when not starred, filled accent when starred;
+/// tapping it pops a transient confirmation pill (and an orange denial pill over the per-provider cap).
 ///
 /// The drag gesture lives on the container, not on each row. With a per-row gesture, SwiftUI tears
 /// down the dragged row (and its gesture) when it crosses between the two cards' `ForEach`es,
 /// dropping the drag mid-gesture. A single container-level gesture stays attached to the persistent
 /// section stack, so the drag survives the cross — no force-drop, no stuck overlay. Each row's grip
 /// publishes its own frame so the container gesture can tell which row a drag started on.
-struct CustomizeProviderDetailView: View {
+struct AccountDetailView: View {
+    @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
     let providerID: String
     let reorderSpaceName: String
@@ -22,6 +23,7 @@ struct CustomizeProviderDetailView: View {
     let frameStore: ReorderFrameStore
 
     @State private var activeMetricID: String?
+    @State private var isConfirmingRemoval = false
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
@@ -29,11 +31,12 @@ struct CustomizeProviderDetailView: View {
             VStack(alignment: .leading, spacing: density.sectionSpacing) {
                 metricSections(group)
                     .simultaneousGesture(metricDragGesture())
+                removeAccountRow(group.provider)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .animation(Motion.spring, value: layout.expandedMetricIDs)
         } else {
-            // Unknown provider — L1 only lists known providers, so this is unreachable in practice.
+            // Unknown account — L1 only lists known accounts, and removing one returns to L1 first.
             EmptyView()
         }
     }
@@ -43,6 +46,39 @@ struct CustomizeProviderDetailView: View {
             metricSection("Always Visible", metrics: group.alwaysShownMetrics, providerID: group.provider.id)
             metricSection("On Demand", metrics: group.expandedMetrics, providerID: group.provider.id)
         }
+    }
+
+    // MARK: - Remove
+
+    private func removeAccountRow(_ provider: Provider) -> some View {
+        Button(role: .destructive) {
+            isConfirmingRemoval = true
+        } label: {
+            Text("Remove Account…")
+                .foregroundStyle(Color(nsColor: .systemRed))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, density.controlRowPadding)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .cardSurface()
+        .confirmationDialog(
+            "Remove \(provider.fullName)?",
+            isPresented: $isConfirmingRemoval,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Account", role: .destructive) { removeAccount() }
+        } message: {
+            Text("Its sign-in is deleted from this Mac. You can add the account again at any time.")
+        }
+    }
+
+    /// Back to the list first, so the removed row animates out of L1 instead of the detail vanishing.
+    private func removeAccount() {
+        guard let account = container.accounts.account(cardID: providerID) else { return }
+        withAnimation(Motion.spring) { layout.customizeProviderID = nil }
+        container.accounts.remove(account.id)
     }
 
     // MARK: - Metric sections

@@ -1,0 +1,86 @@
+import Foundation
+
+extension AccountProviderRuntime {
+    /// The account's reset credits with each credit's expiry, read with the same sign-in right after a
+    /// successful usage read. Best-effort: a failure only costs the expiries, and the row falls back to
+    /// the count in the usage body.
+    func codexResetCredits(after usage: HTTPResponse, accessToken: String, accountID: String?) async -> HTTPResponse? {
+        guard (200..<300).contains(usage.statusCode) else { return nil }
+        do {
+            return try await CodexUsageClient(http: http).fetchResetCredits(accessToken: accessToken, accountID: accountID)
+        } catch {
+            AppLog.warn(
+                LogTag.plugin("codex"),
+                "\(account.cardID) reset-credit fetch failed; using the usage-body count: \(error.localizedDescription)"
+            )
+            return nil
+        }
+    }
+
+    /// Claims the credit expiring at `expiry` with the account's own sign-in: one credit per call, always by
+    /// explicit credit id, guarded by the popover's idempotency key. The credit list is fetched again at
+    /// claim time and the target matched by its expiry, so the id is fresh, and a credit that was claimed
+    /// elsewhere or expired in the meantime fails to match and reads `.noCredit`. Never throws: every
+    /// failure is logged without credentials or response bodies and collapsed to an outcome.
+    func claimCodexResetCredit(expiringAt expiry: Date, redeemRequestID: String) async -> ResetClaimOutcome {
+        let tag = LogTag.plugin("codex")
+        let cardID = account.cardID
+        let tokens: OAuthTokens
+        do {
+            tokens = try await codexTokens(try await loadCredential())
+        } catch {
+            AppLog.error(tag, "\(cardID) reset claim: couldn't prepare the claim: \(error.localizedDescription)")
+            return .failed(ResetClaimFailure(error))
+        }
+        let client = CodexUsageClient(http: http)
+        let accountID = tokens.extras["chatgpt_account_id"]
+
+        // A retry of a key that already matched replays the same (key, credit) pair instead of matching
+        // again: after a consume whose answer was lost, the credit is gone from the list, and only the
+        // replay lets the server's `already_redeemed` prove the claim landed.
+        let creditID: String
+        if let matched = codexMatchedCreditIDs[redeemRequestID] {
+            creditID = matched
+        } else {
+            let list: HTTPResponse
+            do {
+                list = try await client.fetchResetCredits(accessToken: tokens.accessToken, accountID: accountID)
+            } catch {
+                AppLog.error(tag, "\(cardID) reset claim: credit list fetch failed: \(error.localizedDescription)")
+                return .failed(ResetClaimFailure(error))
+            }
+            if ProviderAuthRetry.isAuthFailure(list) {
+                AppLog.error(tag, "\(cardID) reset claim: credit list fetch rejected (HTTP \(list.statusCode))")
+                return .failed(.signInExpired)
+            }
+            guard (200..<300).contains(list.statusCode), let body = ProviderParse.jsonObject(list.body) else {
+                AppLog.error(tag, "\(cardID) reset claim: credit list fetch failed (HTTP \(list.statusCode))")
+                return .failed(.refused)
+            }
+            guard let matched = CodexUsageMapper.resetCreditID(in: body, expiringAt: expiry) else {
+                AppLog.warn(tag, "\(cardID) reset claim: no available credit matches the picked expiry")
+                return .noCredit
+            }
+            codexMatchedCreditIDs[redeemRequestID] = matched
+            creditID = matched
+        }
+
+        let response: HTTPResponse
+        do {
+            response = try await client.consumeResetCredit(
+                accessToken: tokens.accessToken, accountID: accountID,
+                creditID: creditID, redeemRequestID: redeemRequestID
+            )
+        } catch {
+            AppLog.error(tag, "\(cardID) reset claim: consume request failed: \(error.localizedDescription)")
+            return .failed(ResetClaimFailure(error))
+        }
+        let outcome = CodexUsageMapper.resetClaimOutcome(from: response)
+        if outcome == .success {
+            AppLog.info(tag, "\(cardID) reset claim: claimed (HTTP \(response.statusCode))")
+        } else {
+            AppLog.warn(tag, "\(cardID) reset claim: \(outcome) (HTTP \(response.statusCode))")
+        }
+        return outcome
+    }
+}

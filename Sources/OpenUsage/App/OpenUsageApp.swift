@@ -33,23 +33,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startDashboard(_ container: AppContainer) {
-        container.onAccountsChanged = { [weak self] in
-            Task { await self?.rebuildAfterAccountChange() }
-        }
         container.startRefreshing()
         statusItemController = StatusItemController(container: container)
         let launchDurationMS = Int((ProcessInfo.processInfo.systemUptime - processStartedAt) * 1_000)
         AppLog.info(.lifecycle, "launch to status item ready: \(launchDurationMS) ms")
-    }
-
-    private func rebuildAfterAccountChange() async {
-        guard let current = container else { return }
-        let accounts = current.accounts
-        statusItemController = nil
-        container = nil
-        let rebuilt = await AppContainer(accounts: accounts)
-        container = rebuilt
-        startDashboard(rebuilt)
     }
 
     public func applicationWillTerminate(_ notification: Notification) {

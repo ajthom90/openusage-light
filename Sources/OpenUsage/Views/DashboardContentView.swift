@@ -27,7 +27,7 @@ struct DashboardContentView: View {
         }
         .scrollPosition($scrollPosition)
         .sheet(isPresented: $isAddingAccount) {
-            AddAccountSheet(store: container.accounts, onAdded: container.rebuildAfterAccountChange)
+            AddAccountSheet(store: container.accounts)
         }
     }
 

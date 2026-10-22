@@ -7,25 +7,24 @@ final class ProviderHeaderLayoutTests: XCTestCase {
     private let longPlan = String(repeating: "Future Enterprise Entitlement ", count: 12)
     private let codexProvider = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
 
-    func testDashboardHeaderFitsOversizedPlanInBothDensities() throws {
+    func testDashboardAccountLineFitsOversizedPlanInBothDensities() throws {
         for density in DensitySetting.allCases {
             let suite = "ProviderHeaderLayoutTests.\(UUID().uuidString)"
             let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
             defaults.set(density.rawValue, forKey: DensitySetting.key)
             defer { defaults.removePersistentDomain(forName: suite) }
 
-            let header = ProviderSectionHeader(
-                provider: codexProvider,
+            let account = DashboardAccount(provider: codexProvider, lines: [], extraLines: [], resets: nil)
+            let section = DashboardAccountSection(
+                account: account,
                 plan: longPlan,
-                warning: "Refresh failed",
-                staleness: StalenessHint(label: "Outdated", tooltip: "Last updated 2h ago"),
-                onCopyScreenshot: { true }
-            )
+                notice: "Refresh failed"
+            ) { _ in EmptyView() }
             .defaultAppStorage(defaults)
             .environment(\.hoverTooltipsDisabled, true)
 
-            // 320pt popover minus 14pt outer and 8pt section padding on each side.
-            try assertFits(header, width: 276)
+            // 320pt popover minus the 14pt outer padding and the 14pt card padding on each side.
+            try assertFits(section, width: 264)
         }
     }
 

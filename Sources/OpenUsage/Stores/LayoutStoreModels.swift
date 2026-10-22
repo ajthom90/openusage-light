@@ -13,7 +13,7 @@ struct ProviderGroup: Identifiable {
 }
 
 /// A provider and every metric it supports, in the provider's custom order, split between Always
-/// Visible and On Demand. Drives the Customize screen and the menu-bar pin grouping.
+/// Visible and On Demand. Drives the Accounts detail and the menu-bar pin grouping.
 struct ProviderMetrics: Identifiable {
     let provider: Provider
     let alwaysShownMetrics: [WidgetDescriptor]
@@ -33,13 +33,6 @@ struct ProviderMetrics: Identifiable {
 
     /// Every supported metric in custom order (always-shown first, then expanded).
     var metrics: [WidgetDescriptor] { alwaysShownMetrics + expandedMetrics }
-}
-
-/// One row in the Customize provider list (L1).
-struct ProviderRow: Identifiable {
-    let provider: Provider
-    let metricCount: Int
-    var id: String { provider.id }
 }
 
 /// Tone for the transient in-Customize pill (`LayoutStore.customizationNotice`): green success or

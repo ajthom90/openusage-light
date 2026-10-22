@@ -19,6 +19,13 @@ struct Provider: Identifiable, Hashable {
         self.links = links
     }
 
+    /// "Claude · AM1": the provider and the account's name, for a menu item or dialog that has one line to
+    /// tell accounts of the same provider apart.
+    var fullName: String {
+        guard let accountLabel, !accountLabel.isEmpty else { return displayName }
+        return "\(displayName) · \(accountLabel)"
+    }
+
     /// Links safe to render: trimmed, non-empty label and URL, and an `http(s)` scheme only. Mirrors the
     /// legacy `visibleLinks` filter so a malformed entry never ships a dead or no-op button.
     var visibleLinks: [ProviderLink] {

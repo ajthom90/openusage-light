@@ -18,6 +18,9 @@ final class DensitySettingTests: XCTestCase {
             ("contentTopPadding", \.contentTopPadding),
             ("meterHeight", \.meterHeight),
             ("estimatedMetricRowHeight", \.estimatedMetricRowHeight),
+            ("metricLineHeight", \.metricLineHeight),
+            ("accountLineHeight", \.accountLineHeight),
+            ("cardPadding", \.cardPadding),
         ]
         for (name, dimension) in spacing {
             XCTAssertLessThan(

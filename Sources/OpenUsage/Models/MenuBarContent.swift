@@ -21,6 +21,9 @@ struct MenuBarContent: Equatable {
         let displayName: String
         let icon: IconSource
         let metrics: [Metric]
+        /// The account's tag on the provider mark ("A1"), set only when the strip shows more than one
+        /// account of the same provider, so the marks can be told apart.
+        var badge: String? = nil
     }
 
     /// Provider groups for the Text style, in Customize order. Dynamic: only metrics that currently
@@ -64,18 +67,35 @@ enum MenuBarContentBuilder {
             guard !metrics.isEmpty else { return nil }
             return MenuBarContent.Group(
                 providerID: group.provider.id,
-                displayName: group.provider.displayName,
+                displayName: group.provider.fullName,
                 icon: group.provider.icon,
                 metrics: metrics
             )
         }
+        let accountNames = Dictionary(uniqueKeysWithValues: groups.map {
+            ($0.provider.id, $0.provider.accountLabel ?? $0.provider.displayName)
+        })
+        let badgedGroups = badged(resolvedGroups, names: accountNames)
         // Bars show any *bounded* metric (it has a fill), not just percentages. Unbounded values (raw
         // spend/credits, no limit) have no fill and are dropped.
-        let bars = resolvedGroups
+        let bars = badgedGroups
             .flatMap(\.metrics)
             .filter(\.isBounded)
             .prefix(maxBars)
-        return MenuBarContent(groups: resolvedGroups, bars: Array(bars))
+        return MenuBarContent(groups: badgedGroups, bars: Array(bars))
+    }
+
+    /// Tags each group whose provider has more than one account in the strip.
+    private static func badged(_ groups: [MenuBarContent.Group], names: [String: String]) -> [MenuBarContent.Group] {
+        let families = Dictionary(grouping: groups.indices) { DashboardFamily.familyID(of: groups[$0].providerID) }
+        var result = groups
+        for indices in families.values where indices.count > 1 {
+            let tags = AccountInitials.tags(for: indices.map { names[groups[$0].providerID] ?? "" })
+            for (index, tag) in zip(indices, tags) where !tag.isEmpty {
+                result[index].badge = tag
+            }
+        }
+        return result
     }
 
     private static func resolve(_ descriptor: WidgetDescriptor, _ data: WidgetData) -> MenuBarContent.Metric {

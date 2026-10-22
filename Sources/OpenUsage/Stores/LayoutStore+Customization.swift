@@ -23,7 +23,8 @@ extension LayoutStore {
         registry.orderedProviderIDs(savedOrder: providerOrder)
     }
 
-    private func orderedProviders() -> [Provider] {
+    /// Every account's provider in the user's saved order. Also the Accounts list (L1).
+    func orderedProviders() -> [Provider] {
         orderedProviderIDs().compactMap { registry.provider(id: $0) }
     }
 
@@ -64,23 +65,7 @@ extension LayoutStore {
         }
     }
 
-    /// The L1 Customize list: every account in the user's saved order with its metric count.
-    var customizeProviderRows: [ProviderRow] {
-        orderedProviders().map { provider in
-            ProviderRow(
-                provider: provider,
-                metricCount: metricCount(for: provider.id)
-            )
-        }
-    }
-
-    /// Total metrics a provider supports — the L1 row's badge number. Registry descriptor count,
-    /// independent of how many the user has enabled.
-    func metricCount(for providerID: String) -> Int {
-        registry.descriptors(for: providerID).count
-    }
-
-    /// The L2 Customize detail for one provider: every metric it supports, split across the
+    /// The Accounts detail (L2) for one account: every metric it supports, split across the
     /// "Always Visible" / "On Demand" divider, in its saved metric order. Nil for an unknown provider
     /// or one with no metrics.
     func customizeDetail(for providerID: String) -> ProviderMetrics? {

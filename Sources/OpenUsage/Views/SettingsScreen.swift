@@ -12,7 +12,6 @@ struct SettingsScreen: View {
     var body: some View {
         PopoverScrollView {
             VStack(alignment: .leading, spacing: density.sectionSpacing) {
-                AccountsSettingsSection(store: container.accounts, onChange: container.rebuildAfterAccountChange)
                 section("General") {
                     row("Launch at Login") {
                         Toggle("", isOn: Binding(

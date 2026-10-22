@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The popover content: the provider/metric list (or the Customize / Settings screen) as a scroll
-/// view between fixed chrome — a top back/title bar on Customize/Settings and bottom identity/action
-/// chrome on Dashboard and Settings. Customize uses its top bar and scrolling content without footer
+/// The popover content: the provider/metric list (or the Accounts / Settings screen) as a scroll
+/// view between fixed chrome — a top back/title bar on Accounts/Settings and bottom identity/action
+/// chrome on Dashboard and Settings. Accounts uses its top bar and scrolling content without footer
 /// controls.
 ///
 /// The chrome belongs to its screen: `screenView` builds each page's top bar and footer from that
@@ -59,7 +59,7 @@ struct DashboardView: View {
     private static let reorderSpace = "popoverReorderSpace"
     /// One width across both densities — switching density shouldn't move the popover's left edge.
     private static let popoverWidth: CGFloat = 320
-    /// Fixed height of the Customize / Settings back nav bar — the bar pins itself to exactly this height.
+    /// Fixed height of the Accounts / Settings back nav bar — the bar pins itself to exactly this height.
     private static let topBarHeight: CGFloat = 44
 
     var body: some View {
@@ -87,12 +87,12 @@ struct DashboardView: View {
             }
             .coordinateSpace(name: Self.reorderSpace)
             .background(
-                // Esc backs out of Customize / Settings first; only from the dashboard does it close
-                // the popover. Return opens Customize from the dashboard (the same affordance the
-                // footer's Options ▸ Customize menu item carries) and returns to the
-                // dashboard from Customize or Settings — matching Esc and the back navigation,
-                // never jumping Settings → Customize. Always consumed, so a bare Return can't fall
-                // through and dismiss the popover.
+                // Esc backs out of Accounts / Settings first; only from the dashboard does it close
+                // the popover. Return opens Accounts from the dashboard (the same affordance the
+                // footer's Options ▸ Accounts menu item carries) and returns to the
+                // dashboard from Accounts or Settings — matching Esc and the back navigation,
+                // never jumping Settings → Accounts. Always consumed, so a bare Return can't fall
+                // through and dismiss the popover. Neither reaches here while a rename field edits.
                 PopoverKeyReader(
                     onEscape: {
                         // From a provider's L2 detail, back out to the L1 list first; only from L1 /
@@ -112,7 +112,7 @@ struct DashboardView: View {
                             withAnimation(Motion.spring) { layout.customizeProviderID = nil }
                             return true
                         }
-                        let target: PopoverScreen = layout.screen == .dashboard ? .customize : .dashboard
+                        let target: PopoverScreen = layout.screen == .dashboard ? .accounts : .dashboard
                         withAnimation(Motion.modeSwitch) { layout.screen = target }
                         return true
                     },
@@ -128,7 +128,7 @@ struct DashboardView: View {
                     },
                     // ⌘Z walks back the last customization step (remove/add, reorder, pin/unpin, caret
                     // move) — app-wide, since Hide and Pin happen via the dashboard's context menus too,
-                    // not only in Customize. Always consumed here: by the time the monitor calls this it
+                    // not only in Accounts. Always consumed here: by the time the monitor calls this it
                     // has already confirmed the panel owns the keystroke and no text field is editing
                     // (those keep their own ⌘Z), so returning false would only let AppKit beep on an empty
                     // undo. With nothing to undo we swallow it silently instead.
@@ -162,11 +162,11 @@ struct DashboardView: View {
                 layout.cancelDrag()
                 if screen == .settings { hasVisitedSettings = true }
             }
-            // The Reset All alert attaches to the Customize L1 nav bar. Leaving the list — back to the
+            // The Reset All alert attaches to the Accounts L1 nav bar. Leaving the list — back to the
             // dashboard or into a provider's L2 detail — unmounts that host, which dismisses the alert
             // but leaves `isPresentingResetAllConfirm` `true`. Drop it whenever L1 stops being visible
             // so the destructive confirmation can't reappear stale on return without a fresh tap.
-            .onChange(of: layout.screen == .customize && layout.customizeProviderID == nil) { _, isL1Visible in
+            .onChange(of: layout.screen == .accounts && layout.customizeProviderID == nil) { _, isL1Visible in
                 if !isL1Visible { isPresentingResetAllConfirm = false }
             }
             // Each screen switch: pin to the outgoing screen for one render (`slideProgress = 0`),
@@ -257,6 +257,8 @@ struct DashboardView: View {
         // Trend hover popover rides the same backstop.
         HoverTooltips.dismissAll()
         HoverPopoverState.dismissAll()
+        // Closing the popover is a click away from an open rename, so it saves like one.
+        container.renaming.commit()
         if layout.screen != .dashboard { layout.screen = .dashboard }
         reorderLift = nil
         layout.cancelDrag()
@@ -341,7 +343,7 @@ struct DashboardView: View {
         }
     }
 
-    /// Follow the Settings pager slot during its slide, or park safely beyond a Dashboard ↔ Customize
+    /// Follow the Settings pager slot during its slide, or park safely beyond a Dashboard ↔ Accounts
     /// transition when Settings isn't one of the visible pages.
     static func settingsOverlayOffset(
         pages: [PopoverScreen],
@@ -461,8 +463,8 @@ struct DashboardView: View {
                 reorderLift: $reorderLift,
                 scrollPosition: $dashboardScrollPosition
             )
-        case .customize:
-            CustomizeView(
+        case .accounts:
+            AccountsView(
                 reorderSpaceName: Self.reorderSpace,
                 reorderLift: $reorderLift
             )
@@ -470,7 +472,6 @@ struct DashboardView: View {
             SettingsScreen()
         }
     }
-
 }
 
 /// The popover's opaque backdrop tray, painted behind all content so the popover reads as one solid

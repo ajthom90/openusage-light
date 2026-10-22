@@ -10,6 +10,8 @@ struct CodexUsageClient: Sendable {
     static let clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
     static let refreshURL = URL(string: "https://auth.openai.com/oauth/token")!
     static let usageURL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
+    static let resetCreditsURL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
+    static let consumeResetCreditURL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume")!
 
     var http: any HTTPClient
 
@@ -90,6 +92,54 @@ struct CodexUsageClient: Sendable {
             headers: headers,
             timeout: 10
         ))
+    }
+
+    /// On-demand rate-limit reset credits, including each credit's expiry. A separate endpoint from
+    /// `usage`, whose `rate_limit_reset_credits` carries only the count. The extra headers mirror the Codex
+    /// desktop client, which the endpoint expects.
+    func fetchResetCredits(accessToken: String, accountID: String?) async throws -> HTTPResponse {
+        try await http.send(HTTPRequest(
+            method: "GET",
+            url: Self.resetCreditsURL,
+            headers: Self.resetCreditHeaders(accessToken: accessToken, accountID: accountID),
+            timeout: 10
+        ))
+    }
+
+    /// Consumes (claims) one rate-limit reset credit, the request the Codex CLI sends. `redeemRequestID` is
+    /// the caller's idempotency key: minted once per credit and reused on retry, so a retried claim can
+    /// never spend a second credit (the server answers `already_redeemed`). `creditID` targets exactly one
+    /// credit and never lets the server pick. The outcome rides in the 200 body's `code`.
+    func consumeResetCredit(
+        accessToken: String,
+        accountID: String?,
+        creditID: String,
+        redeemRequestID: String
+    ) async throws -> HTTPResponse {
+        var headers = Self.resetCreditHeaders(accessToken: accessToken, accountID: accountID)
+        headers["Content-Type"] = "application/json"
+        let payload = ["redeem_request_id": redeemRequestID, "credit_id": creditID]
+        return try await http.send(HTTPRequest(
+            method: "POST",
+            url: Self.consumeResetCreditURL,
+            headers: headers,
+            body: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+            timeout: 15
+        ))
+    }
+
+    private static func resetCreditHeaders(accessToken: String, accountID: String?) -> [String: String] {
+        var headers = [
+            "Authorization": "Bearer \(accessToken)",
+            "Accept": "application/json",
+            "User-Agent": "OpenUsage",
+            "OpenAI-Beta": "codex-1",
+            "originator": "Codex Desktop"
+        ]
+        if let accountID, !accountID.isEmpty {
+            headers["ChatGPT-Account-Id"] = accountID
+        }
+        return headers
     }
 
 }

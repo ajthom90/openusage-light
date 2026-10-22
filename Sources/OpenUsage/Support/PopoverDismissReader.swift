@@ -7,18 +7,21 @@ import AppKit
 /// keyboard navigation rides this low-level monitor instead, which sees the raw keyDown the moment
 /// the app processes it.
 ///
-/// - **Esc**: `onEscape` gets first refusal (e.g. backing out of Customize); when it declines, the
+/// - **Esc**: `onEscape` gets first refusal (e.g. backing out of Accounts); when it declines, the
 ///   popover is dismissed through `MenuBarPopover.dismiss`, the same path a status-item click takes
 ///   — so it stays in sync, reopens in one click, and trips the controller's visibility reset
 ///   (cancelling edit mode + the jiggle).
-/// - **Return**: `onReturn` navigates into or back out of Customize (the same affordance the footer's
-///   Options ▸ Customize item carries). Consuming the key here is also what stops a bare
+/// - **Return**: `onReturn` navigates into or back out of Accounts (the same affordance the footer's
+///   Options ▸ Accounts item carries). Consuming the key here is also what stops a bare
 ///   Return from falling through and dismissing the popover.
+///
+/// None of these act while a text field is editing (an inline account rename, a sign-in field): the
+/// key goes to the field, so Return commits and Esc cancels there instead.
 struct PopoverKeyReader: NSViewRepresentable {
     /// Called first on Esc. Return `true` when the press was handled in-popover (Esc then does
     /// NOT close); return `false` to let the popover dismiss.
     var onEscape: @MainActor () -> Bool = { false }
-    /// Called on plain (unmodified) Return. Return `true` to consume it (e.g. toggling Customize);
+    /// Called on plain (unmodified) Return. Return `true` to consume it (e.g. toggling Accounts);
     /// `false` lets the key fall through to a focused control.
     var onReturn: @MainActor () -> Bool = { false }
     /// Called on ⌘, (Settings). Handled on this always-on monitor — the same one as Esc/Return — so it

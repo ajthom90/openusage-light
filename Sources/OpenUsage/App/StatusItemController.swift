@@ -69,6 +69,7 @@ final class StatusItemController: NSObject {
                     .environment(container.layout)
                     .environment(container.dataStore)
                     .environment(container.transparency)
+                    .environment(container.renaming)
             )
         )
         // The host view fills the panel. SwiftUI measures each screen and drives the panel height;
@@ -335,6 +336,7 @@ final class StatusItemController: NSObject {
         // Dismiss any auxiliary popover that would otherwise survive closing this panel.
         HoverTooltips.dismissAll()
         HoverPopoverState.dismissAll()
+        ReducedMotionPopoverController.dismissAll()
         // Same survival problem for keyboard focus: a clicked plain-styled control (a row's Used/Left
         // or reset toggle) stays first responder, so its focus ring would reopen with the popover as a
         // stray blue outline. Drop it on close so every reopen starts unfocused.

@@ -1,0 +1,59 @@
+import SwiftUI
+
+/// The capsule meter shared by the dashboard lines and the share card rows. The fill is a flat system
+/// color carrying the pace verdict (blue = well within limits, yellow = projected to land inside the
+/// last 10%, red = projected to run out; `Theme.meterFill` / `MeterState.severity`). Empty and
+/// colorless without data. A thin tick marks the even-pace line on yellow and red bars, and on blue
+/// when "always show pacing" is on; it rides in an overlay so it pokes out top and bottom without
+/// changing the bar's height. Hovering shows the pace projection (`MeterState.tooltip`).
+struct UsageMeterBar: View {
+    let data: WidgetData
+    let state: WidgetData.MeterState
+
+    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
+    /// Party easter egg: fill the bar with the party gradient instead of the severity color.
+    @Environment(\.popoverPartyMode) private var partyMode
+
+    private static let paceTickWidth: CGFloat = 2
+    private static let paceTickOverhang: CGFloat = 4
+
+    var body: some View {
+        let tick = data.paceTick(for: state)
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary)
+                Capsule()
+                    .fill(partyMode ? PartyMode.meterFill : fill)
+                    .frame(width: fillWidth(track: proxy.size.width))
+            }
+            .overlay(alignment: .leading) {
+                if let tick {
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(Color.primary.opacity(0.55))
+                        .frame(width: Self.paceTickWidth, height: density.meterHeight + Self.paceTickOverhang)
+                        .offset(x: paceTickOffset(track: proxy.size.width, fraction: tick))
+                }
+            }
+        }
+        .frame(height: density.meterHeight)
+        .animation(Motion.spring, value: data.fraction)
+        .accessibilityHidden(true)
+        .hoverTooltip(state.tooltip)
+    }
+
+    private var fill: AnyShapeStyle {
+        state.severity.map(Theme.meterFill) ?? AnyShapeStyle(Color.secondary)
+    }
+
+    /// Centers the tick on its fraction, clamped so it never pokes past either rounded end.
+    private func paceTickOffset(track: CGFloat, fraction: Double) -> CGFloat {
+        let centered = track * fraction - Self.paceTickWidth / 2
+        return min(max(centered, 0), max(track - Self.paceTickWidth, 0))
+    }
+
+    /// Any non-zero fraction renders at least a full circle, so 1–2% never squashes into a sliver.
+    private func fillWidth(track: CGFloat) -> CGFloat {
+        guard data.hasData, data.fraction > 0 else { return 0 }
+        return max(density.meterHeight, track * data.fraction)
+    }
+}

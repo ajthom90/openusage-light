@@ -36,6 +36,44 @@ enum ClaudeUsageMapper {
         )
     }
 
+    /// The reset-grants request's `cedar_ember` block; `nil` when the account is outside the program.
+    static func mapResetGrantStatus(_ response: HTTPResponse) throws -> ClaudeResetGrantStatus? {
+        try ProviderAuthRetry.requireSuccess(
+            response,
+            authExpired: ClaudeAuthError.tokenExpired,
+            requestFailed: { ClaudeUsageError.requestFailed($0) }
+        )
+        guard let body = ProviderParse.jsonObject(response.body) else {
+            throw ClaudeUsageError.invalidResponse
+        }
+        return ClaudeResetGrantStatus.parse(body["cedar_ember"])
+    }
+
+    /// Collapses a reset-claim response to the popover's outcome. Request ids are fresh per confirm, so
+    /// `already_used` can only answer this account's own earlier attempt and counts as claimed.
+    static func resetClaimOutcome(from response: HTTPResponse) -> ResetClaimOutcome {
+        if ProviderAuthRetry.isAuthFailure(response) { return .failed(.signInExpired) }
+        guard (200..<300).contains(response.statusCode),
+              let body = ProviderParse.jsonObject(response.body),
+              let result = body["result"] as? String
+        else { return .failed(.refused) }
+        let cooldownUntil = resetDate(body["cooldown_until"])
+        func outcome(_ code: String) -> ResetClaimOutcome? {
+            switch code {
+            case "reset", "already_used": .success
+            case "not_limited": .nothingToReset
+            case "ineligible", "no_grant", "unknown_grant", "not_next_grant": .noCredit
+            case "reset_unconfirmed", "stamp_indeterminate": .unconfirmed
+            case "cooldown", "paused", "low_priority_active": .unavailableNow(until: cooldownUntil)
+            default: nil
+            }
+        }
+        if result == "unavailable" {
+            return (body["reason"] as? String).flatMap(outcome) ?? .failed(.refused)
+        }
+        return outcome(result) ?? .failed(.refused)
+    }
+
     /// Labels returned directly by Anthropic's live usage endpoint.
     static let liveLimitLabels: Set<String> = [
         "Session", "Weekly", "Sonnet", "Fable", "Extra usage spent"

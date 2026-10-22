@@ -8,9 +8,9 @@ import Observation
 final class LayoutStore {
     // Swift's private access is file-scoped. Members shared with `LayoutStore+Customization.swift`
     // stay module-internal below; implementation details used only here remain private.
-    var placed: [PlacedWidget]
+    var placed: [PlacedWidget] = []
 
-    /// In-popover navigation (screen, Customize master/detail, screen-switch slide). Its own store so
+    /// In-popover navigation (screen, Accounts master/detail, screen-switch slide). Its own store so
     /// screen routing isn't tangled with layout state; the `screen`/`isEditing`/`customizeProviderID`/
     /// `screenSlide*` surface below forwards to it, so existing call sites are unchanged. Private so the
     /// forwarding surface stays the ONLY spelling — two live paths to the same state invites drift.
@@ -25,12 +25,12 @@ final class LayoutStore {
     /// The screen being left plus a per-switch counter, for DashboardView's horizontal slide.
     var screenSlideFrom: PopoverScreen { navigation.screenSlideFrom }
     var screenSlideID: Int { navigation.screenSlideID }
-    /// Whether the Customize screen is showing — a bridge over `screen` for edit-mode call sites.
+    /// Whether the Accounts screen is showing — a bridge over `screen` for edit-mode call sites.
     var isEditing: Bool {
         get { navigation.isEditing }
         set { navigation.isEditing = newValue }
     }
-    /// The provider whose Customize detail (L2) is showing (nil shows the L1 list).
+    /// The account whose Accounts detail (L2) is showing (nil shows the L1 list).
     var customizeProviderID: String? {
         get { navigation.customizeProviderID }
         set { navigation.customizeProviderID = newValue }
@@ -39,26 +39,26 @@ final class LayoutStore {
     var draggingID: UUID?
     /// Persisted provider display order (provider IDs). Drives both the dashboard groups and the
     /// Customize sections, so the user can drag whole providers into the order they want.
-    var providerOrder: [String]
+    var providerOrder: [String] = []
     /// Persisted metric order within each provider. Toggle switches do not mutate this, so turning a metric on
     /// or off never makes rows jump around in Customize.
-    var metricOrderByProvider: [String: [String]]
+    var metricOrderByProvider: [String: [String]] = [:]
 
     /// Descriptor ids pinned to the menu bar. Membership only — display order is derived from the
     /// provider + metric order above, so pins follow the same sequence shown in Customize. Capped via
     /// `canPin` to at most `maxPinsPerProvider` per provider (the strip stacks a provider's values in pairs).
-    private(set) var pinnedMetricIDs: Set<String>
+    private(set) var pinnedMetricIDs: Set<String> = []
 
     /// Descriptor ids that sit below the per-provider "Shown on expand" divider: the dashboard hides
     /// them behind a caret until the user taps it, and Customize lists them under the divider.
     /// Membership only — the sequence within each section follows the provider's metric order, like
     /// pins. A metric keeps its membership while disabled, so re-enabling restores its section.
-    var expandedMetricIDs: Set<String>
+    var expandedMetricIDs: Set<String> = []
 
     /// Provider IDs whose dashboard cards are currently opened with their expanded metrics visible.
     /// Unlike hover and drag state, this is a user preference: if someone likes Codex open, it should
     /// stay open across popover closes and app restarts.
-    private(set) var expandedProviderIDs: Set<String>
+    private(set) var expandedProviderIDs: Set<String> = []
 
     /// The three transient popover pills, each an auto-clearing `TransientNotice` (was three copy-pasted
     /// value+trigger+clearTask machines). The public `pinLimitNotice`/`shareConfirmation`/
@@ -102,12 +102,21 @@ final class LayoutStore {
         didSet { persistence.saveMenuBarStyle(menuBarStyle) }
     }
 
-    let registry: WidgetRegistry
+    /// The accounts' providers and metrics. Replaced in place by `apply(registry:)` when accounts change.
+    private(set) var registry: WidgetRegistry
     private let persistence: LayoutPersistence
-    private let defaultMetricIDs: [String]
-    private let defaultPinnedMetricIDs: [String]
-    private let defaultExpandedMetricIDs: [String]
-    var defaultExpandedOnEnableIDs: Set<String>
+    /// Provider-family defaults ("codex.session"); `DefaultLayout.expandingAccounts` maps them onto
+    /// every account card in the current registry.
+    private let familyDefaults: LayoutDefaultSet
+    var defaultExpandedOnEnableIDs: Set<String> = []
+
+    private var defaultMetricIDs: [String] { forAccounts(familyDefaults.metricIDs) }
+    private var defaultPinnedMetricIDs: [String] { forAccounts(familyDefaults.pinnedMetricIDs) }
+    private var defaultExpandedMetricIDs: [String] { forAccounts(familyDefaults.expandedMetricIDs) }
+
+    private func forAccounts(_ metricIDs: [String]) -> [String] {
+        DefaultLayout.expandingAccounts(metricIDs, providerIDs: registry.providers.map(\.id))
+    }
 
     init(
         registry: WidgetRegistry,
@@ -121,16 +130,36 @@ final class LayoutStore {
         self.registry = registry
         let persistence = LayoutPersistence(defaults: defaults, storageKey: storageKey)
         self.persistence = persistence
-        self.defaultMetricIDs = defaultMetricIDs
-        self.defaultPinnedMetricIDs = defaultPinnedMetricIDs
-        self.defaultExpandedMetricIDs = defaultExpandedMetricIDs
+        self.familyDefaults = LayoutDefaultSet(
+            metricIDs: defaultMetricIDs,
+            migrationBaselineMetricIDs: migrationBaselineMetricIDs,
+            pinnedMetricIDs: defaultPinnedMetricIDs,
+            expandedMetricIDs: defaultExpandedMetricIDs
+        )
+        menuBarStyle = persistence.loadMenuBarStyle()
+        loadLayout()
+    }
 
+    /// Adopts a new set of accounts without rebuilding anything. Every layout change is persisted as it
+    /// happens, so reloading from storage against the new registry keeps the user's arrangement, seeds
+    /// defaults for a new account, and drops a removed account's metrics, pins, and order.
+    func apply(registry: WidgetRegistry) {
+        cancelDrag()
+        undoHistory.clear()
+        self.registry = registry
+        if let customizeProviderID, registry.provider(id: customizeProviderID) == nil {
+            self.customizeProviderID = nil
+        }
+        loadLayout()
+    }
+
+    private func loadLayout() {
         let initial = LayoutBootstrap.load(
             registry: registry,
             persistence: persistence,
             defaults: LayoutDefaultSet(
                 metricIDs: defaultMetricIDs,
-                migrationBaselineMetricIDs: migrationBaselineMetricIDs,
+                migrationBaselineMetricIDs: familyDefaults.migrationBaselineMetricIDs,
                 pinnedMetricIDs: defaultPinnedMetricIDs,
                 expandedMetricIDs: defaultExpandedMetricIDs
             )
@@ -142,7 +171,6 @@ final class LayoutStore {
         expandedMetricIDs = initial.expandedMetricIDs
         expandedProviderIDs = initial.expandedProviderIDs
         defaultExpandedOnEnableIDs = initial.defaultExpandedOnEnableIDs
-        menuBarStyle = initial.menuBarStyle
 
         if initial.shouldPersistExpandOnEnable { persistExpandOnEnable() }
         if initial.shouldPersistExpanded { persistExpanded() }

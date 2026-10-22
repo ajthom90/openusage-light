@@ -8,7 +8,11 @@ struct CodexMappedUsage: Equatable, Sendable {
 enum CodexUsageMapper {
     static let sessionPeriodMs = MetricPeriod.sessionMs
     static let weeklyPeriodMs = MetricPeriod.weekMs
-    static func mapUsageResponse(_ response: HTTPResponse, now: Date = Date()) throws -> CodexMappedUsage {
+    static func mapUsageResponse(
+        _ response: HTTPResponse,
+        resetCredits: HTTPResponse? = nil,
+        now: Date = Date()
+    ) throws -> CodexMappedUsage {
         try ProviderAuthRetry.requireSuccess(
             response,
             authExpired: CodexAuthError.tokenExpired,
@@ -35,6 +39,17 @@ enum CodexUsageMapper {
         // array, each entry reusing the primary/secondary window shape. Surfaced as their own Spark /
         // Spark Weekly meters (issue #796) — the JS edition had these; the Swift rewrite dropped them.
         lines.append(contentsOf: sparkLines(body: body, now: now))
+
+        // On-demand rate-limit reset credits. The row reads "2 available" (the count is carried raw, so
+        // the menu-bar tile reads the same number); each still-available credit's expiry rides along in
+        // `expiriesAt` for the resets popover.
+        if let resets = readResetCredits(body: body, resetCredits: resetCredits) {
+            lines.append(.values(
+                label: "Rate Limit Resets",
+                values: [MetricValue(number: Double(resets.count), kind: .count, label: "available")],
+                expiriesAt: resets.expiries
+            ))
+        }
 
         if let remaining = readCreditsRemaining(response: response, body: body) {
             lines.append(.values(label: "Credits", values: creditValues(remaining: remaining)))
@@ -208,6 +223,91 @@ enum CodexUsageMapper {
     static func creditValues(remaining: Double) -> [MetricValue] {
         let credits = max(0, Int(remaining.rounded(.down)))
         return [MetricValue(number: Double(credits), kind: .count, label: "credits")]
+    }
+
+    /// On-demand reset credits: the floored available count plus each still-available credit's expiry,
+    /// sorted soonest-first. Prefers the dedicated `/rate-limit-reset-credits` payload (the only source
+    /// that carries the per-credit expiry list) and falls back to the usage body's embedded
+    /// `rate_limit_reset_credits` object (count only) when that fetch was unavailable. A missing, null, or
+    /// non-numeric count skips the row entirely.
+    static func readResetCredits(
+        body: [String: Any],
+        resetCredits: HTTPResponse?
+    ) -> (count: Int, expiries: [Date])? {
+        guard let source = resetCreditsSource(body: body, resetCredits: resetCredits),
+              let count = ProviderParse.number(source["available_count"]), count >= 0
+        else {
+            return nil
+        }
+        return (Int(count.rounded(.down)), availableResetCredits(in: source).compactMap(\.expiry).sorted())
+    }
+
+    /// The dedicated endpoint's body when it returned a usable payload (2xx, parseable, carrying a
+    /// *numeric* `available_count`), otherwise the usage body's embedded object. The count is checked with
+    /// `ProviderParse.number` because a JSON `null` decodes to `NSNull`, which a bare nil-check would
+    /// accept and then drop the row instead of falling back to the usage-body count.
+    private static func resetCreditsSource(
+        body: [String: Any],
+        resetCredits: HTTPResponse?
+    ) -> [String: Any]? {
+        if let resetCredits, (200..<300).contains(resetCredits.statusCode),
+           let dedicated = ProviderParse.jsonObject(resetCredits.body),
+           ProviderParse.number(dedicated["available_count"]) != nil {
+            return dedicated
+        }
+        return body["rate_limit_reset_credits"] as? [String: Any]
+    }
+
+    /// The id of the still-available credit whose `expires_at` matches `expiry`, within a second: the
+    /// popover's dates come from the same parsing as this list, so a real match is exact and the tolerance
+    /// only absorbs sub-second truncation.
+    static func resetCreditID(in body: [String: Any], expiringAt expiry: Date) -> String? {
+        availableResetCredits(in: body).first { credit in
+            credit.expiry.map { abs($0.timeIntervalSince(expiry)) < 1 } ?? false
+        }?.id
+    }
+
+    /// Credits still available to claim. `status` is optional upstream, so a credit with no status counts
+    /// as available and only an explicitly non-available state (`redeeming`, `redeemed`) is dropped.
+    /// `expires_at` is an ISO-8601 string or an epoch number, and may be null for a credit that never
+    /// expires.
+    private static func availableResetCredits(in source: [String: Any]) -> [(id: String?, expiry: Date?)] {
+        guard let credits = source["credits"] as? [[String: Any]] else { return [] }
+        return credits
+            .filter { credit in
+                guard let status = credit["status"] as? String else { return true }
+                return status == "available"
+            }
+            .map { credit in (credit["id"] as? String, parseExpiry(credit["expires_at"])) }
+    }
+
+    private static func parseExpiry(_ value: Any?) -> Date? {
+        if let string = value as? String, let date = OpenUsageISO8601.date(from: string) {
+            return date
+        }
+        if let seconds = ProviderParse.number(value) {
+            return Date(timeIntervalSince1970: seconds)
+        }
+        return nil
+    }
+
+    /// Collapses a consume response to the popover's outcome. Every protocol code arrives as HTTP 200 with
+    /// the outcome in the body's `code`; `already_redeemed` is the idempotency key absorbing a retry of a
+    /// claim that already landed, so it counts as success.
+    static func resetClaimOutcome(from response: HTTPResponse) -> ResetClaimOutcome {
+        if ProviderAuthRetry.isAuthFailure(response) { return .failed(.signInExpired) }
+        guard (200..<300).contains(response.statusCode),
+              let body = ProviderParse.jsonObject(response.body),
+              let code = body["code"] as? String
+        else {
+            return .failed(.refused)
+        }
+        switch code {
+        case "reset", "already_redeemed": return .success
+        case "nothing_to_reset": return .nothingToReset
+        case "no_credit": return .noCredit
+        default: return .failed(.refused)
+        }
     }
 
     private static func readCreditsRemaining(response: HTTPResponse, body: [String: Any]) -> Double? {

@@ -12,8 +12,8 @@ enum DefaultLayout {
     }
 
     static let metricIDs: [String] = [
-        "claude.session", "claude.weekly", "claude.sonnet", "claude.fable", "claude.extra",
-        "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.credits",
+        "claude.session", "claude.weekly", "claude.sonnet", "claude.fable", "claude.extra", "claude.rateLimitResets",
+        "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.credits", "codex.rateLimitResets",
         "cursor.usage", "cursor.auto", "cursor.api", "cursor.onDemand", "cursor.grokBot",
         "antigravity.geminiPro", "antigravity.geminiWeekly", "antigravity.argonWeekly",
         "antigravity.claude", "antigravity.claudeWeekly",
@@ -42,8 +42,8 @@ enum DefaultLayout {
     ]
 
     static let expandedMetricIDs: [String] = [
-        "claude.sonnet", "claude.fable", "claude.extra",
-        "codex.spark", "codex.sparkWeekly", "codex.credits",
+        "claude.sonnet", "claude.fable", "claude.extra", "claude.rateLimitResets",
+        "codex.spark", "codex.sparkWeekly", "codex.credits", "codex.rateLimitResets",
         "cursor.onDemand", "cursor.grokBot",
         "antigravity.claude", "antigravity.claudeWeekly",
         "copilot.extra", "copilot.chat", "copilot.completions",

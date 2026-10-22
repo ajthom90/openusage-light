@@ -12,13 +12,13 @@ struct StalenessHint: Equatable {
 @MainActor
 @Observable
 final class WidgetDataStore {
-    private let registry: WidgetRegistry
-    private let providersByID: [String: ProviderRuntime]
+    @ObservationIgnored private var registry: WidgetRegistry
+    @ObservationIgnored private var providersByID: [String: ProviderRuntime]
     private let cache: ProviderSnapshotCache
     private let defaults: UserDefaults
     /// The user's widget order that drives the menu-bar value. Injected
     /// so the store reads `LayoutStore.visiblePlaced` without owning it; defaults to registry order.
-    private let orderedDescriptors: @MainActor () -> [WidgetDescriptor]
+    private let layoutOrderedDescriptors: (@MainActor () -> [WidgetDescriptor])?
     /// Clock for the failure-backoff window. Injected so tests can advance time deterministically.
     private let now: () -> Date
     /// Monotonic clock for refresh durations, kept separate from wall time so a clock adjustment cannot
@@ -130,7 +130,7 @@ final class WidgetDataStore {
         self.providersByID = Dictionary(uniqueKeysWithValues: providers.map { ($0.provider.id, $0) })
         self.cache = cache
         self.defaults = defaults
-        self.orderedDescriptors = orderedDescriptors ?? { registry.descriptors }
+        self.layoutOrderedDescriptors = orderedDescriptors
         self.now = now
         self.monotonicNow = monotonicNow
         self.slowProviderRefreshThreshold = slowProviderRefreshThreshold
@@ -151,6 +151,26 @@ final class WidgetDataStore {
         self.localSnapshots = loaded
         self.snapshots = loaded
         for (cardID, snapshot) in loaded { providersByID[cardID]?.adoptLaunchSnapshot(snapshot) }
+    }
+
+    /// Adopts a new set of account runtimes in place. A removed account's data is dropped, a new
+    /// account shows its cached snapshot (if any) until its first refresh lands, and accounts that are
+    /// still present keep their snapshots untouched.
+    func apply(providers: [ProviderRuntime], registry: WidgetRegistry) {
+        self.registry = registry
+        providersByID = Dictionary(uniqueKeysWithValues: providers.map { ($0.provider.id, $0) })
+        let ids = Set(providersByID.keys)
+        var next = localSnapshots.filter { ids.contains($0.key) }
+        let added = ids.subtracting(next.keys)
+        for (cardID, snapshot) in cache.loadSnapshots(providerIDs: Array(added)) {
+            next[cardID] = snapshot
+            providersByID[cardID]?.adoptLaunchSnapshot(snapshot)
+        }
+        localSnapshots = next
+        snapshots = next
+        providerErrors = providerErrors.filter { ids.contains($0.key) }
+        refreshingProviderIDs.formIntersection(ids)
+        failureRetryAfter = failureRetryAfter.filter { ids.contains($0.key) }
     }
 
     /// Refresh every account, concurrently — one slow provider never delays the rest.
@@ -221,7 +241,7 @@ final class WidgetDataStore {
         // Deliberate delta from the pre-extraction loop: the pass decides from this snapshot, taken
         // before the first delivery `await`, where the old inline loop re-read `data(for:)` between
         // deliveries — a mid-pass refresh no longer changes later metrics' inputs within one pass.
-        let metrics = orderedDescriptors()
+        let metrics = (layoutOrderedDescriptors?() ?? registry.descriptors)
             .compactMap { descriptor -> QuotaNotificationEvaluator.Metric? in
                 let data = data(for: descriptor)
                 guard data.isBounded else { return nil }

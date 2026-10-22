@@ -69,6 +69,15 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     /// but stays clearly wider than the in-card rhythm, so groups still read as groups.
     var sectionSpacing: CGFloat { self == .compact ? 8 : 14 }
 
+    /// Height of one metric line on the dashboard.
+    var metricLineHeight: CGFloat { self == .compact ? 18 : 20 }
+
+    /// Height of an account's name line on the dashboard.
+    var accountLineHeight: CGFloat { self == .compact ? 20 : 24 }
+
+    /// Inner padding of a dashboard provider card.
+    var cardPadding: CGFloat { self == .compact ? 10 : 14 }
+
     /// Gap between a provider header and its card.
     var headerToCardSpacing: CGFloat { self == .compact ? 2 : 4 }
 

@@ -31,6 +31,34 @@ final class RoutingHTTPClient: HTTPClient, @unchecked Sendable {
     }
 }
 
+extension HTTPRequest {
+    /// Claude's hourly reset-grants check, which shares the usage endpoint's path.
+    var isClaudeResetGrantsCheck: Bool { url.query?.contains("cedar_ember=1") == true }
+}
+
+/// A mutable clock so a test can advance `now` between refreshes to exercise time-based gates.
+final class TestClock: @unchecked Sendable {
+    private let lock = OSAllocatedUnfairLock(initialState: Date.distantPast)
+
+    init(_ value: Date) { set(value) }
+
+    var now: Date { lock.withLock { $0 } }
+
+    func set(_ value: Date) { lock.withLock { $0 = value } }
+}
+
+/// A thread-safe value a stub HTTP handler can read while the test flips it.
+final class TestSwitch<Value: Sendable>: @unchecked Sendable {
+    private let lock: OSAllocatedUnfairLock<Value>
+
+    init(_ value: Value) { lock = OSAllocatedUnfairLock(initialState: value) }
+
+    var value: Value {
+        get { lock.withLock { $0 } }
+        set { lock.withLock { $0 = newValue } }
+    }
+}
+
 @MainActor
 final class TestProviderRuntime: ProviderRuntime {
     let provider: Provider

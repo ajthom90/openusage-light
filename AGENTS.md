@@ -6,8 +6,8 @@ OpenUsage Light is a SwiftPM-based macOS menu-bar app that displays usage limits
 
 - Swift 6.2, SwiftUI content hosted in an AppKit-owned status item and panel.
 - `AccountStore` persists account metadata. `CredentialVault` stores credentials in the app's own Keychain service.
-- Users initiate all provider sign-ins from Settings → Accounts. Never discover credentials or accounts from other tools, and never read their files, Keychain items, SQLite databases, or environment variables.
-- Each account has one provider runtime. The runtime calls the provider API and maps its response to dashboard metrics. Do not add log scanning, spend estimates, external pricing, or reset-claim actions.
+- Users initiate all provider sign-ins from the popover's Accounts screen. Never discover credentials or accounts from other tools, and never read their files, Keychain items, SQLite databases, or environment variables.
+- Each account has one provider runtime. The runtime calls the provider API and maps its response to dashboard metrics. Do not add log scanning, spend estimates, or external pricing.
 - The dashboard shows provider-supplied limits and dollar values only. Keep provider order and account order defined in `ProviderCatalog`.
 
 ## Providers

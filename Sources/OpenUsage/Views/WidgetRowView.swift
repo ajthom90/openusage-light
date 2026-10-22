@@ -23,12 +23,13 @@ struct WidgetRowView: View {
     /// their neighbors — the list supplies it — and both densities use it to pull consecutive
     /// one-liners into a single cluster (Compact a step harder).
     var condensedTop: Bool = false
+    /// Backs the resets popover's claim flow on a Rate Limit Resets row. `nil` everywhere else (other
+    /// rows, share renders, reorder previews), which renders the timeline read-only.
+    var resetClaim: ResetClaimService?
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
     @Environment(\.reduceAnimations) private var reduceAnimations
-    /// Party easter egg: fill meter bars with the party gradient instead of the severity color. Off by
-    /// default everywhere else.
-    @Environment(\.popoverPartyMode) private var partyMode
+    @State private var resetsHover = HoverPopoverState()
 
     /// Both row fonts come from the density setting: point sizes — not just padding — are what make
     /// Compact read as a denser mode. The sizes are explicit because semantic
@@ -254,6 +255,31 @@ struct WidgetRowView: View {
     /// and an optional secondary line ("on-device estimate") beneath it.
     private var unboundedRow: some View {
         unboundedRowContent
+            // A refresh can replace the resets (count and expiries) while the popover is open; drop it so
+            // it never lingers over a stale timeline — except while the claim flow has the popover pinned:
+            // the claim's own refresh is what changes the resets, and dismissing on it would close the
+            // popover before the result banner ever renders. The pinned popover re-renders from the new
+            // data instead (the detail view reconciles its own state).
+            .onChange(of: data.expiriesAt) { _, _ in
+                if !resetsHover.isPinned { resetsHover.dismiss() }
+            }
+            .onDisappear { resetsHover.dismiss() }
+    }
+
+    /// The value column reveals the resets popover on hover, so it lights up under the pointer the way a
+    /// Finder / System Settings list row does — the native cue that "this is a target." Lit the moment the
+    /// pointer arrives (`overInline`, before the reveal dwell) and held lit while the popover is open, so
+    /// the value reads as the popover's source. Both flags live on `resetsHover`, so the panel's close
+    /// path (`dismissAll`) clears the highlight even though this view's state survives `orderOut`.
+    private var showValueHighlight: Bool {
+        hasResetsPopover && (resetsHover.overInline || resetsHover.isPresented)
+    }
+
+    /// Whether the value column reveals the resets popover. The resets row qualifies even at
+    /// "0 available" (empty `expiriesAt`), so its empty-state popover stays reachable — but only with real
+    /// data: a "No data" tile must not open a popover that reads as "zero credits".
+    private var hasResetsPopover: Bool {
+        data.showsResetExpiries && data.hasData
     }
 
     private var unboundedRowContent: some View {
@@ -269,7 +295,9 @@ struct WidgetRowView: View {
                         .contentTransition(.numericText())
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                        .hoverTooltip(data.unboundedValueTooltip)
+                        // The resets row drops its figures tooltip: the timeline popover replaces it,
+                        // and a text bubble and a popover fighting over one hover read as two surfaces.
+                        .hoverTooltip(hasResetsPopover ? nil : data.unboundedValueTooltip)
                 }
                 if let subtitle = data.unboundedSubtitle {
                     // Secondary, not tertiary: the subtitle is informational ("on-device estimate"),
@@ -281,6 +309,57 @@ struct WidgetRowView: View {
                 }
             }
             .multilineTextAlignment(.trailing)
+            // A quaternary chip behind the value — the app's subtle-fill token, in the shared 6pt
+            // continuous corner — signals the value is interactive before the popover even opens.
+            // Negative-inset so it hugs the figure without changing the row's height, and a quick opacity
+            // fade in/out matches macOS hover states.
+            .background {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(.quaternary)
+                    .padding(.horizontal, -7)
+                    .padding(.vertical, -4)
+                    .opacity(showValueHighlight ? 1 : 0)
+            }
+            .animation(.easeOut(duration: 0.12), value: showValueHighlight)
+            // Both the hover trigger and the popover anchor live on the value column, not the whole row:
+            // hovering the label (or empty gap) shouldn't reveal the timeline — only the figure it
+            // explains should — and the arrow then centers on that figure.
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                guard hasResetsPopover else {
+                    resetsHover.dismiss()
+                    return
+                }
+                if case .active = phase {
+                    resetsHover.inlineHover(true)
+                } else {
+                    resetsHover.inlineHover(false)
+                }
+            }
+            .motionAwareHoverPopover(
+                isPresented: Binding(
+                    get: { hasResetsPopover && resetsHover.isPresented },
+                    // A click-outside dismiss removes the detail view without an `.ended` hover event,
+                    // so a plain assignment would strand `overDetail == true` and block future hides.
+                    set: { if !$0 { resetsHover.dismiss() } }
+                ),
+                reduceAnimations: reduceAnimations
+            ) {
+                RateLimitResetsDetail(
+                    count: data.resetCreditCount,
+                    expiries: data.expiriesAt,
+                    onHoverChange: { inside in resetsHover.detailHover(inside) },
+                    onPinChange: { pinned in resetsHover.setPinned(pinned) },
+                    // An account whose provider has nothing to claim right now (a Claude account with no
+                    // next grant) shows the read-only timeline.
+                    claim: resetClaim.flatMap { service in
+                        service.isClaimable ? { expiry, redeemRequestID in
+                            await service.claim(creditExpiringAt: expiry, redeemRequestID: redeemRequestID)
+                        } : nil
+                    },
+                    confirmDetail: resetClaim?.confirmDetail
+                )
+            }
         }
     }
 
@@ -318,63 +397,8 @@ struct WidgetRowView: View {
         }
     }
 
-    /// Full-width capsule meter — the Tahoe-era level-indicator form (capsule, full-height
-    /// leading-anchored fill, like the redesigned Slider / Control Center). Deliberately NOT the
-    /// native linear `Gauge`/`ProgressView`, which Tahoe left as the thin legacy bar. The fill is
-    /// a flat **system color** carrying the pace verdict (blue = well within limits, yellow =
-    /// projected to land inside the last 10%, red = projected to run out; `Theme.meterFill` /
-    /// `MeterState.severity`) at full strength on the opaque popover surface; the earlier
-    /// provider-brand gradient was removed deliberately so the bar's color always reads as state.
-    /// Empty + colorless without data. A thin tick marks the even-pace line — where usage would sit
-    /// if it burned evenly across the reset window — on yellow and red bars always, and on blue when
-    /// "always show pacing" is on. The tick rides in an overlay so it pokes out top and bottom without
-    /// changing the bar's height. Hovering shows the pace projection (`MeterState.tooltip`).
+    /// Full-width capsule meter; see `UsageMeterBar`.
     private func meter(_ state: WidgetData.MeterState) -> some View {
-        let tick = data.paceTick(for: state)
-        return GeometryReader { proxy in
-            // Track + fill define the bar's height; the tick rides in an `.overlay` so its taller frame
-            // pokes out top and bottom without stretching the capsules. (As a ZStack sibling it grew the
-            // stack and the flexible capsules stretched with it, so a tick'd bar read as a thicker bar.)
-            ZStack(alignment: .leading) {
-                // Semantic quaternary fill (not an opacity-faded color) so the track stays vibrant
-                // on glass and adapts to Increase Contrast / Reduce Transparency.
-                Capsule().fill(.quaternary)
-                Capsule()
-                    .fill(partyMode ? PartyMode.meterFill : severityColor(state.severity))
-                    .frame(width: fillWidth(track: proxy.size.width))
-            }
-            .overlay(alignment: .leading) {
-                if let tick {
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.primary.opacity(0.55))
-                        .frame(width: Self.paceTickWidth, height: density.meterHeight + Self.paceTickOverhang)
-                        .offset(x: paceTickOffset(track: proxy.size.width, fraction: tick))
-                }
-            }
-        }
-        .frame(height: density.meterHeight)
-        .animation(Motion.spring, value: data.fraction)
-        .accessibilityHidden(true)
-        .hoverTooltip(state.tooltip)
-    }
-
-    private static let paceTickWidth: CGFloat = 2
-    /// How much taller than the bar the tick is, so it pokes out slightly above and below (half each
-    /// end). The bar itself stays at `meterHeight` regardless — the tick lives in an overlay.
-    private static let paceTickOverhang: CGFloat = 4
-
-    /// Leading offset that centers the tick on its fraction, clamped so the tick never pokes past
-    /// either rounded end of the track.
-    private func paceTickOffset(track: CGFloat, fraction: Double) -> CGFloat {
-        let centered = track * fraction - Self.paceTickWidth / 2
-        return min(max(centered, 0), max(track - Self.paceTickWidth, 0))
-    }
-
-    /// Fill width with a minimum-visible rule: any non-zero fraction renders at least a full circle
-    /// (width = bar height) so 1–2% never squashes into an invisible sliver — the same idea as the
-    /// menu-bar bars' minimum fill.
-    private func fillWidth(track: CGFloat) -> CGFloat {
-        guard data.hasData, data.fraction > 0 else { return 0 }
-        return max(density.meterHeight, track * data.fraction)
+        UsageMeterBar(data: data, state: state)
     }
 }

@@ -22,6 +22,15 @@ enum TimeFormatSetting: String, Hashable, Sendable, CaseIterable, UserDefaultsBa
 
     /// Short time string ("5:30 PM" / "17:30") honoring the override, via the locale's hour cycle.
     func shortTime(_ date: Date, base: Locale = .current) -> String {
+        date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: locale(base)))
+    }
+
+    /// Weekday and hour ("Tue 5 PM" / "Tue 17") honoring the override.
+    func weekdayHour(_ date: Date, base: Locale = .current) -> String {
+        date.formatted(Date.FormatStyle(locale: locale(base)).weekday(.abbreviated).hour())
+    }
+
+    private func locale(_ base: Locale) -> Locale {
         var components = Locale.Components(locale: base)
         switch self {
         case .auto:
@@ -31,8 +40,6 @@ enum TimeFormatSetting: String, Hashable, Sendable, CaseIterable, UserDefaultsBa
         case .twentyFourHour:
             components.hourCycle = .zeroToTwentyThree
         }
-        return date.formatted(
-            Date.FormatStyle(date: .omitted, time: .shortened, locale: Locale(components: components))
-        )
+        return Locale(components: components)
     }
 }

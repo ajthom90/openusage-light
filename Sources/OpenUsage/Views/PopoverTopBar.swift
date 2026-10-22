@@ -18,13 +18,17 @@ struct PopoverTopBar: View {
         switch screen {
         case .dashboard:
             EmptyView()
-        case .customize:
-            if let providerID = layout.customizeProviderID {
-                navigationBar(title: customizeTitle, back: customizeBack) {
+        case .accounts:
+            if let providerID = layout.customizeProviderID, let provider = layout.provider(id: providerID) {
+                navigationBar(back: accountsBack) {
+                    AccountTitle(provider: provider)
+                } trailing: {
                     resetButton(for: providerID)
                 }
             } else {
-                navigationBar(title: customizeTitle, back: customizeBack) {
+                navigationBar(back: accountsBack) {
+                    Text("Accounts")
+                } trailing: {
                     resetAllButton
                 }
                 .alert("Reset All Customization?", isPresented: $isPresentingResetAllConfirm) {
@@ -33,23 +37,21 @@ struct PopoverTopBar: View {
                     }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("Turns providers back on for the tools you have installed and resets every provider's metrics and order. Are you sure?")
+                    Text("Resets every account's metrics, stars, and order. Your accounts stay signed in.")
                 }
             }
         case .settings:
-            navigationBar(title: "Settings") {
+            navigationBar {
                 withAnimation(Motion.modeSwitch) { layout.screen = .dashboard }
+            } title: {
+                Text("Settings")
             } trailing: {
                 EmptyView()
             }
         }
     }
 
-    private var customizeTitle: String {
-        layout.customizeProviderID.flatMap { layout.provider(id: $0)?.displayName } ?? "Customize"
-    }
-
-    private func customizeBack() {
+    private func accountsBack() {
         if layout.customizeProviderID != nil {
             withAnimation(Motion.spring) { layout.customizeProviderID = nil }
         } else {
@@ -57,15 +59,17 @@ struct PopoverTopBar: View {
         }
     }
 
-    private func navigationBar<Trailing: View>(
-        title: String,
+    private func navigationBar<Title: View, Trailing: View>(
         back: @escaping () -> Void,
+        @ViewBuilder title: () -> Title,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
         ZStack {
-            Text(title)
+            title()
                 .font(.headline)
                 .lineLimit(1)
+                // Keeps a long title, or the rename field that replaces it, clear of the buttons.
+                .padding(.horizontal, 40)
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: 0) {
@@ -105,8 +109,8 @@ struct PopoverTopBar: View {
         .glassButtonStyle()
         .buttonBorderShape(.circle)
         .controlSize(.large)
-        .hoverTooltip("Reset \(layout.provider(id: providerID)?.displayName ?? providerID)")
-        .accessibilityLabel("Reset")
+        .hoverTooltip("Reset Metrics")
+        .accessibilityLabel("Reset Metrics")
     }
 
     private var resetAllButton: some View {
@@ -123,5 +127,39 @@ struct PopoverTopBar: View {
         .controlSize(.large)
         .hoverTooltip("Reset All Customization")
         .accessibilityLabel("Reset All Customization")
+    }
+}
+
+/// The Accounts detail title: the account's name, which a click turns into an inline rename field
+/// (`AccountRenameStore`). A hover highlight marks it as clickable.
+private struct AccountTitle: View {
+    let provider: Provider
+
+    @Environment(AccountRenameStore.self) private var renaming
+    @State private var isHovered = false
+
+    var body: some View {
+        if let edit = renaming.edit, edit.providerID == provider.id {
+            InlineRenameField(renaming: renaming, edit: edit)
+                .multilineTextAlignment(.center)
+        } else {
+            Button {
+                renaming.begin(provider.id)
+            } label: {
+                Text(provider.accountLabel.flatMap { $0.isEmpty ? nil : $0 } ?? provider.displayName)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(.quaternary)
+                            .opacity(isHovered ? 1 : 0)
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovered = $0 }
+            .hoverTooltip("Rename Account")
+            .accessibilityLabel("\(provider.fullName), Rename Account")
+        }
     }
 }

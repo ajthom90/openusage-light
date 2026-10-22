@@ -12,7 +12,7 @@ struct PopoverFooter: View {
     @ViewBuilder
     var body: some View {
         Group {
-            if screen == .customize {
+            if screen == .accounts {
                 EmptyView()
             } else {
                 HStack(alignment: .center, spacing: 8) {

@@ -665,6 +665,26 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertTrue(store.placed.contains { $0.descriptorID == "\(account.cardID).session" })
     }
 
+    func testFreshDefaultLayoutTucksTheResetsRowBehindEachAccountsCaret() {
+        let accounts = [Account(kind: .claude, label: "Work"), Account(kind: .codex, label: "Work")]
+        let providers = ProviderCatalog.make(accounts: accounts, vault: InMemoryCredentialVault())
+        let cardIDs = accounts.map(\.cardID)
+        let store = LayoutStore(
+            registry: WidgetRegistry.from(providers),
+            defaults: makeDefaults("ResetsDefaults"),
+            storageKey: "layout",
+            defaultMetricIDs: DefaultLayout.expandingAccounts(DefaultLayout.metricIDs, providerIDs: cardIDs),
+            defaultExpandedMetricIDs: DefaultLayout.expandingAccounts(DefaultLayout.expandedMetricIDs, providerIDs: cardIDs)
+        )
+
+        for cardID in cardIDs {
+            let resetsID = "\(cardID).rateLimitResets"
+            XCTAssertTrue(store.isMetricEnabled(resetsID), resetsID)
+            XCTAssertTrue(store.placed.contains { $0.descriptorID == resetsID }, resetsID)
+            XCTAssertTrue(store.expandedMetricIDs.contains(resetsID), resetsID)
+        }
+    }
+
     func testMetricOrderPersistsWhileMetricIsDisabled() {
         let defaults = makeDefaults("DisabledMetricOrder")
         let store = LayoutStore(
@@ -1088,24 +1108,22 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertEqual(store.placed.map(\.descriptorID), before)
     }
 
-    // MARK: - Customize master/detail (L1 list + L2 detail)
+    // MARK: - Accounts master/detail (L1 list + L2 detail)
 
-    func testCustomizeProviderRowsIncludesAllProviders() {
+    func testAccountListIncludesAllProviders() {
         let store = LayoutStore(
             registry: .mock,
             defaults: makeDefaults("RowsIncludeDisabled"),
             storageKey: "layout"
         )
-        XCTAssertEqual(store.customizeProviderRows.map(\.id), MockData.providers.map(\.id))
+        XCTAssertEqual(store.orderedProviders().map(\.id), MockData.providers.map(\.id))
     }
 
-    func testCustomizeProviderRowsCarriesMetricCounts() {
-        let store = makeStore("RowCounts")
-        for row in store.customizeProviderRows {
-            XCTAssertEqual(row.metricCount, MockData.descriptors(for: row.id).count)
-            XCTAssertEqual(store.metricCount(for: row.id), row.metricCount)
-        }
-        XCTAssertEqual(store.metricCount(for: "missing"), 0)
+    func testAccountListFollowsReorder() {
+        let store = makeStore("AccountListReorder")
+        XCTAssertTrue(store.reorderProvider(dragged: "cursor", target: "claude"))
+        XCTAssertEqual(store.orderedProviders().map(\.id), ["cursor", "claude", "codex"])
+        XCTAssertEqual(store.displayGroups.map(\.provider.id), ["cursor", "claude", "codex"])
     }
 
     func testCustomizeDetailReturnsMetrics() {
@@ -1138,17 +1156,17 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertNil(store.customizeDetail(for: "nope"))
     }
 
-    func testCustomizeProviderIDClearsWhenLeavingCustomize() {
+    func testCustomizeProviderIDClearsWhenLeavingAccounts() {
         let store = makeStore("RouteClears")
-        store.screen = .customize
+        store.screen = .accounts
         store.customizeProviderID = "claude"
         XCTAssertEqual(store.customizeProviderID, "claude")
 
         store.screen = .dashboard
-        XCTAssertNil(store.customizeProviderID, "leaving Customize resets the L2 selection back to the list")
+        XCTAssertNil(store.customizeProviderID, "leaving Accounts resets the L2 selection back to the list")
 
         // A direct jump to Settings also clears it — never strand a detail selection on another screen.
-        store.screen = .customize
+        store.screen = .accounts
         store.customizeProviderID = "codex"
         store.screen = .settings
         XCTAssertNil(store.customizeProviderID)

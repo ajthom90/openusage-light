@@ -120,6 +120,17 @@ private struct MenuBarTextStrip: View {
             ForEach(content.groups, id: \.providerID) { group in
                 HStack(spacing: 4) {
                     glyph(group.icon)
+                        .overlay(alignment: .bottomTrailing) {
+                            if let badge = group.badge {
+                                badgeView(badge)
+                                    .offset(x: Self.badgeOverhang.width, y: Self.badgeOverhang.height)
+                            }
+                        }
+                        .compositingGroup()
+                        // The renderer draws only inside layout bounds, so reserve the badge's overhang
+                        // (vertically on both sides, keeping the mark centred on its values) or it is cut off.
+                        .padding(.trailing, group.badge == nil ? 0 : Self.badgeOverhang.width)
+                        .padding(.vertical, group.badge == nil ? 0 : Self.badgeOverhang.height)
                     metricsView(group.metrics)
                 }
             }
@@ -154,6 +165,27 @@ private struct MenuBarTextStrip: View {
     /// floating small in the middle. `ProviderIconShape` already normalizes every mark to its true
     /// bounding box, so a near-zero `inset` here makes each provider fill this box uniformly.
     private static let glyphSide: CGFloat = 16
+
+    /// How far an account badge reaches past the mark's bottom-trailing corner.
+    private static let badgeOverhang = CGSize(width: 5, height: 2.5)
+
+    /// The account tag on the mark's corner: a filled pill with the letters knocked out, ringed by a
+    /// knocked-out gap so it reads against the mark beneath it. All black-on-clear, so the template
+    /// tint keeps working in light and dark menu bars.
+    private func badgeView(_ badge: String) -> some View {
+        let label = Text(badge)
+            .font(.system(size: 6.5, weight: .heavy))
+            .padding(.horizontal, 2)
+            .frame(minWidth: 8, minHeight: 8)
+        return ZStack {
+            Capsule().fill(Color.black)
+                .padding(-1.25)
+                .blendMode(.destinationOut)
+            Capsule().fill(Color.black)
+            label.foregroundStyle(Color.black).blendMode(.destinationOut)
+        }
+        .fixedSize()
+    }
 
     @ViewBuilder
     private func glyph(_ icon: IconSource) -> some View {

@@ -2,16 +2,40 @@ import Foundation
 
 @MainActor
 final class AccountProviderRuntime: ProviderRuntime {
-    let account: Account
-    let provider: Provider
-    private let vault: any CredentialVault
-    private let http: any HTTPClient
+    private(set) var account: Account
+    private(set) var provider: Provider
+    let vault: any CredentialVault
+    let http: any HTTPClient
+    let now: () -> Date
+    /// Claude's plan from `/api/oauth/profile`, looked up once per access token. The in-app login never
+    /// receives a plan, so the profile is the only source of it.
+    private var claudePlan: (accessToken: String, plan: String)?
+    /// Claude's reset-grants state, carried across refreshes (see `AccountProviderRuntime+ClaudeResets`).
+    var claudeResetGrants = ClaudeResetGrantsState()
+    /// The Codex credit each claim's idempotency key was matched to (see `AccountProviderRuntime+CodexResets`).
+    var codexMatchedCreditIDs: [String: String] = [:]
 
-    init(account: Account, vault: any CredentialVault, http: any HTTPClient = URLSessionHTTPClient()) {
+    init(
+        account: Account,
+        vault: any CredentialVault,
+        http: any HTTPClient = URLSessionHTTPClient(),
+        now: @escaping () -> Date = Date.init
+    ) {
         self.account = account
         self.vault = vault
         self.http = http
-        provider = Provider(
+        self.now = now
+        provider = Self.provider(for: account)
+    }
+
+    /// Picks up a rename without replacing the runtime.
+    func update(_ account: Account) {
+        self.account = account
+        provider = Self.provider(for: account)
+    }
+
+    private static func provider(for account: Account) -> Provider {
+        Provider(
             id: account.cardID,
             displayName: account.kind.displayName,
             icon: account.kind.iconSource,
@@ -28,7 +52,8 @@ final class AccountProviderRuntime: ProviderRuntime {
                 .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly"),
                 .percent(id: "\(prefix).sonnet", provider: provider, title: "Sonnet"),
                 .percent(id: "\(prefix).fable", provider: provider, title: "Fable"),
-                .boundedDollars(id: "\(prefix).extra", provider: provider, title: "Extra Usage", metricLabel: "Extra usage spent", limit: 100)
+                .boundedDollars(id: "\(prefix).extra", provider: provider, title: "Extra Usage", metricLabel: "Extra usage spent", limit: 100),
+                Self.rateLimitResets(id: "\(prefix).rateLimitResets", provider: provider)
             ]
         case .codex:
             [
@@ -36,7 +61,8 @@ final class AccountProviderRuntime: ProviderRuntime {
                 .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly"),
                 .percent(id: "\(prefix).spark", provider: provider, title: "Spark"),
                 .percent(id: "\(prefix).sparkWeekly", provider: provider, title: "Spark Weekly"),
-                .combined(id: "\(prefix).credits", provider: provider, title: "Extra Usage", metricLabel: "Credits")
+                .combined(id: "\(prefix).credits", provider: provider, title: "Extra Usage", metricLabel: "Credits"),
+                Self.rateLimitResets(id: "\(prefix).rateLimitResets", provider: provider)
             ]
         case .cursor:
             [
@@ -97,16 +123,58 @@ final class AccountProviderRuntime: ProviderRuntime {
         }
     }
 
+    /// The row behind each Claude and Codex card's resets popover, where the account's resets are claimed.
+    private static func rateLimitResets(id: String, provider: Provider) -> WidgetDescriptor {
+        .values(id: id, provider: provider, title: "Rate Limit Resets", metricLabel: "Rate Limit Resets",
+                traySuffix: "resets", showsResetExpiries: true)
+    }
+
+    /// The resets popover's claim seam for this account, or `nil` for providers without reset claims.
+    /// Claude always spends the grant Anthropic names next, so the picked node's expiry only matters to
+    /// Codex.
+    func resetClaimService(
+        refreshAccount: @escaping @MainActor () async -> WidgetDataStore.RefreshOutcome
+    ) -> ResetClaimService? {
+        switch account.kind {
+        case .claude:
+            let status = claudeResetGrants.check?.status
+            return ResetClaimService(
+                accountID: account.cardID,
+                isClaimable: status?.claimableGrantID != nil,
+                confirmDetail: status?.confirmDetail,
+                claimReset: { [self] _, redeemRequestID in await claimClaudeResetGrant(redeemRequestID: redeemRequestID) },
+                refreshAccount: refreshAccount
+            )
+        case .codex:
+            return ResetClaimService(
+                accountID: account.cardID,
+                isClaimable: true,
+                confirmDetail: nil,
+                claimReset: { [self] expiry, redeemRequestID in
+                    await claimCodexResetCredit(expiringAt: expiry, redeemRequestID: redeemRequestID)
+                },
+                refreshAccount: refreshAccount
+            )
+        case .cursor, .antigravity, .copilot, .grok, .ollama, .opencodeGo, .openrouter, .zai:
+            return nil
+        }
+    }
+
     func refresh() async -> ProviderSnapshot {
         do {
-            guard let credential = try await loadOffMainActor({ [vault, account] in try vault.load(account.id) }) else {
-                throw LoginError.cancelled
-            }
-            let result = try await refresh(credential)
+            let result = try await refresh(try await loadCredential())
             return ProviderSnapshot.make(provider: provider, plan: result.plan, lines: result.lines, refreshedAt: Date())
         } catch {
             return ProviderSnapshot.error(provider: provider, error: error)
         }
+    }
+
+    /// The account's own credential from the vault; the only credential a refresh or claim ever uses.
+    func loadCredential() async throws -> AccountCredential {
+        guard let credential = try await loadOffMainActor({ [vault, account] in try vault.load(account.id) }) else {
+            throw LoginError.cancelled
+        }
+        return credential
     }
 
     private func refresh(_ credential: AccountCredential) async throws -> (plan: String?, lines: [MetricLine]) {
@@ -124,45 +192,77 @@ final class AccountProviderRuntime: ProviderRuntime {
         }
     }
 
-    private func refreshClaude(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
+    static let claudeConfig = ClaudeOAuthConfig(
+        usageURL: URL(string: "https://api.anthropic.com/api/oauth/usage")!,
+        refreshURL: URL(string: "https://platform.claude.com/v1/oauth/token")!,
+        clientID: ClaudeLogin.clientID
+    )
+
+    /// The account's Claude tokens, refreshed and saved back to the vault first when they've expired.
+    func claudeTokens(_ credential: AccountCredential) async throws -> OAuthTokens {
         guard case .oauth(var tokens) = credential else { throw LoginError.invalidResponse }
-        let config = ClaudeOAuthConfig(
-            usageURL: URL(string: "https://api.anthropic.com/api/oauth/usage")!,
-            refreshURL: URL(string: "https://platform.claude.com/v1/oauth/token")!,
-            clientID: ClaudeLogin.clientID
-        )
-        if tokens.expiresAt.map({ $0 <= Date() }) == true, let refreshToken = tokens.refreshToken {
-            let response = try await ClaudeUsageClient(httpClient: http).refreshToken(refreshToken, config: config)
+        if tokens.expiresAt.map({ $0 <= now() }) == true, let refreshToken = tokens.refreshToken {
+            let response = try await ClaudeUsageClient(httpClient: http).refreshToken(refreshToken, config: Self.claudeConfig)
             guard (200..<300).contains(response.statusCode) else { throw ClaudeUsageError.requestFailed(response.statusCode) }
             let refreshed = try JSONDecoder().decode(ClaudeRefreshResponse.self, from: response.body)
             tokens.accessToken = refreshed.accessToken
             if let refresh = refreshed.refreshToken { tokens.refreshToken = refresh }
-            tokens.expiresAt = refreshed.expiresIn.map { Date().addingTimeInterval($0) }
+            tokens.expiresAt = refreshed.expiresIn.map { now().addingTimeInterval($0) }
             try await save(.oauth(tokens))
         }
+        return tokens
+    }
+
+    private func refreshClaude(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
+        let tokens = try await claudeTokens(credential)
+        let config = Self.claudeConfig
         let response = try await ClaudeUsageClient(httpClient: http).fetchUsage(accessToken: tokens.accessToken, config: config)
         let oauth = ClaudeOAuth(
             accessToken: tokens.accessToken, refreshToken: tokens.refreshToken,
             expiresAt: tokens.expiresAt?.timeIntervalSince1970,
             subscriptionType: tokens.extras["subscription_type"], rateLimitTier: tokens.extras["rate_limit_tier"]
         )
-        let mapped = try ClaudeUsageMapper.mapUsageResponse(response, credentials: oauth)
-        return (mapped.plan, mapped.lines)
+        var mapped = try ClaudeUsageMapper.mapUsageResponse(response, credentials: oauth)
+        if let resets = await claudeResetGrantsLine(accessToken: tokens.accessToken) {
+            mapped.lines.append(resets)
+        }
+        return (await claudeLivePlan(oauth, config: config) ?? mapped.plan, mapped.lines)
     }
 
-    private func refreshCodex(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
+    private func claudeLivePlan(_ oauth: ClaudeOAuth, config: ClaudeOAuthConfig) async -> String? {
+        if let claudePlan, claudePlan.accessToken == oauth.accessToken { return claudePlan.plan }
+        do {
+            let response = try await ClaudeUsageClient(httpClient: http).fetchProfile(accessToken: oauth.accessToken, config: config)
+            let profile = try ClaudeUsageClient.decodeProfile(response)
+            guard let plan = ClaudeUsageMapper.formatLivePlan(profile: profile, credentials: oauth) else { return nil }
+            claudePlan = (oauth.accessToken, plan)
+            return plan
+        } catch {
+            AppLog.warn(LogTag.plugin("claude"), "plan lookup failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// The account's Codex tokens, refreshed and saved back to the vault first when they've expired.
+    func codexTokens(_ credential: AccountCredential) async throws -> OAuthTokens {
         guard case .oauth(var tokens) = credential else { throw LoginError.invalidResponse }
-        let client = CodexUsageClient(http: http)
-        if tokens.expiresAt.map({ $0 <= Date() }) == true, let refreshToken = tokens.refreshToken {
-            let refreshed = try await client.refreshToken(refreshToken)
+        if tokens.expiresAt.map({ $0 <= now() }) == true, let refreshToken = tokens.refreshToken {
+            let refreshed = try await CodexUsageClient(http: http).refreshToken(refreshToken)
             tokens.accessToken = refreshed.accessToken
             if let refresh = refreshed.refreshToken { tokens.refreshToken = refresh }
             tokens.expiresAt = ProviderParse.number(ProviderParse.jwtPayload(refreshed.accessToken)?["exp"])
                 .map(Date.init(timeIntervalSince1970:))
             try await save(.oauth(tokens))
         }
-        let response = try await client.fetchUsage(accessToken: tokens.accessToken, accountID: tokens.extras["chatgpt_account_id"])
-        let mapped = try CodexUsageMapper.mapUsageResponse(response)
+        return tokens
+    }
+
+    private func refreshCodex(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
+        let tokens = try await codexTokens(credential)
+        let accountID = tokens.extras["chatgpt_account_id"]
+        let response = try await CodexUsageClient(http: http).fetchUsage(accessToken: tokens.accessToken, accountID: accountID)
+        let resetCredits = await codexResetCredits(after: response, accessToken: tokens.accessToken, accountID: accountID)
+        let mapped = try CodexUsageMapper.mapUsageResponse(response, resetCredits: resetCredits, now: now())
         return (mapped.plan, mapped.lines)
     }
 

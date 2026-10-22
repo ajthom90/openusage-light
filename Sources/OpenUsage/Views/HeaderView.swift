@@ -2,10 +2,10 @@ import AppKit
 import SwiftUI
 
 /// The dashboard footer's trailing control: a single **Options ⌄** menu button in Liquid Glass. The
-/// earlier split button ("Customize" + separate chevron) confused people — two tap targets in one
-/// capsule read as one — so everything now lives in one obvious menu: Customize / Settings / Share
-/// Screenshot / Check for Updates / Report an Issue / About / Quit. Customize leads because it's the
-/// screen users reach for most; Settings stays one click away (and always via ⌘,).
+/// earlier split button (a screen button + separate chevron) confused people — two tap targets in one
+/// capsule read as one — so everything now lives in one obvious menu: Accounts / Settings / Share
+/// Screenshot / Report an Issue / About / Quit. Accounts leads because it's the screen users reach for
+/// most; Settings stays one click away (and always via ⌘,).
 ///
 /// The capsule is a `.buttonStyle(.plain)` `Menu` with one `interactiveGlass(in: Capsule())` treatment
 /// behind it — the system `.buttonStyle(.glass)` renders flat on a `Menu` (its own button chrome wins),
@@ -13,11 +13,11 @@ import SwiftUI
 /// the glass for contrast; macOS 15 uses that frosted capsule as its fallback. The menu renders in its
 /// own `NSMenu`-backed window, which the panel's outside-click policy keeps the popover open for.
 ///
-/// Only the dashboard shows this; the Customize and Settings screens carry their own top-leading back
+/// Only the dashboard shows this; the Accounts and Settings screens carry their own top-leading back
 /// button (`PopoverTopBar`) to return home — the macOS-native place for it — so the footer control
 /// simply drops away there.
 ///
-/// Shortcuts survive: ⌘, (Settings), ⏎ (Customize) and Esc are handled by the always-on
+/// Shortcuts survive: ⌘, (Settings), ⏎ (Accounts) and Esc are handled by the always-on
 /// `PopoverKeyReader` monitor, so they fire from every screen (including Settings, whose footer shows
 /// only the identity line — no actions). The menu items only carry their ⌘ key-equivalents as labels
 /// and fire while the menu is open, so the monitor and the items never double-fire. ⌘Q (Quit) is
@@ -75,17 +75,17 @@ struct HeaderView: View {
         .fixedSize()
     }
 
-    /// The menu's items, mirroring their in-popover entry points. Customize leads, then Settings.
+    /// The menu's items, mirroring their in-popover entry points. Accounts leads, then Settings.
     /// `autoenablesItems` has no SwiftUI equivalent, so the Check for Updates item disables itself when
     /// Sparkle can't currently check — e.g. dev builds with no feed, or while a check is already in
-    /// flight. Customize and Settings carry their key equivalents so the menu shows the shortcuts: when
+    /// flight. Accounts and Settings carry their key equivalents so the menu shows the shortcuts: when
     /// the menu is open the items handle them; when it's closed the `PopoverKeyReader` monitor
     /// handles (and consumes) them first, so the equivalents can't double-fire. Same split as the Quit
     /// ⌘Q item below.
     @ViewBuilder
     private var menuItems: some View {
-        Button { toggle(.customize) } label: {
-            Label("Customize", systemImage: "slider.horizontal.3")
+        Button { toggle(.accounts) } label: {
+            Label("Accounts", systemImage: "person.crop.circle")
         }
         .keyboardShortcut(.return, modifiers: [])
 
@@ -128,7 +128,7 @@ struct HeaderView: View {
                     .disabled(true)
             } else {
                 ForEach(groups) { group in
-                    Button(group.provider.displayName) { shareCard(group) }
+                    Button(group.provider.fullName) { shareCard(group) }
                 }
             }
         } label: {

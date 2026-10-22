@@ -40,7 +40,7 @@ final class ReduceAnimationsSettingTests: XCTestCase {
             ([.dashboard, .settings], -320, 0),
             ([.settings], 0, 0),
             ([.dashboard], 0, 640),
-            ([.dashboard, .customize], -160, 640)
+            ([.dashboard, .accounts], -160, 640)
         ]
 
         for item in cases {
@@ -54,10 +54,10 @@ final class ReduceAnimationsSettingTests: XCTestCase {
     func testSettingsChromeOnlyMountsWhileItsPageIsVisibleOrSliding() {
         XCTAssertTrue(DashboardView.settingsChromeIsVisible(pages: [.settings]))
         XCTAssertTrue(DashboardView.settingsChromeIsVisible(pages: [.dashboard, .settings]))
-        XCTAssertTrue(DashboardView.settingsChromeIsVisible(pages: [.customize, .settings]))
+        XCTAssertTrue(DashboardView.settingsChromeIsVisible(pages: [.accounts, .settings]))
         XCTAssertFalse(DashboardView.settingsChromeIsVisible(pages: [.dashboard]))
-        XCTAssertFalse(DashboardView.settingsChromeIsVisible(pages: [.customize]))
-        XCTAssertFalse(DashboardView.settingsChromeIsVisible(pages: [.dashboard, .customize]))
+        XCTAssertFalse(DashboardView.settingsChromeIsVisible(pages: [.accounts]))
+        XCTAssertFalse(DashboardView.settingsChromeIsVisible(pages: [.dashboard, .accounts]))
     }
 
     func testNormalMotionKeepsScreenTransitionPagerUntilCompletion() {
