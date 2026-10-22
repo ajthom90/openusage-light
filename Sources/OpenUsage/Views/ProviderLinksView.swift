@@ -1,15 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// The row of per-provider quick-link buttons (e.g. "Status", "Console") shown in a provider card's
-/// expanded area. Lays out up to three across; extra links wrap to the next row. Each button opens its
-/// URL in the default browser. Mirrors the legacy Tauri `provider-card` quick-links row, adapted to the
-/// native card's expanded area (issue #596 — "bring back provider buttons").
+/// The row of per-provider quick-link buttons (e.g. "Status", "Dashboard") shown under an account's
+/// lines when the account is clicked. Up to three across; extra links wrap. Each button opens its URL
+/// in the default browser. Flush with the metric lines above it.
 struct ProviderLinksView: View {
     let links: [ProviderLink]
-    /// Matches the metric-row inset so the button row lines up with the rows above/below it.
-    private static let horizontalInset: CGFloat = 14
-
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     /// Hard ceiling from #596: never more than three buttons across, regardless of how many links a
@@ -28,8 +24,7 @@ struct ProviderLinksView: View {
                 linkButton(link)
             }
         }
-        .padding(.horizontal, Self.horizontalInset)
-        .padding(.top, density.textRowPadding)
+        .padding(.top, density.textRowPadding + 2)
         .padding(.bottom, density.textRowPadding)
     }
 
@@ -49,7 +44,7 @@ struct ProviderLinksView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .glassButtonStyle()
         .controlSize(.small)
         .accessibilityLabel("\(link.label), opens in browser")
     }

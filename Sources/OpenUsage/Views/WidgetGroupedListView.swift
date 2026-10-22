@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
 /// Every account shows one line per metric that has data, fed by the same `WidgetDataStore` the menu
-/// bar uses.
+/// bar uses. Clicking an account shows its provider's quick links.
 ///
 /// Right-click a provider's card for provider actions, an account for account actions, and a metric
 /// line for metric actions. Metric lines reorder by dragging within their account; accounts reorder
@@ -18,6 +18,8 @@ struct WidgetGroupedListView: View {
 
     @State private var frameStore = ReorderFrameStore()
     @State private var activeMetricID: String?
+    /// Accounts showing their quick links. Per popover session; not persisted.
+    @State private var expandedAccountIDs: Set<String> = []
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
@@ -58,6 +60,12 @@ struct WidgetGroupedListView: View {
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
             resetClaim: account.resets == nil ? nil : container.resetClaim(for: account.id),
+            isExpanded: expandedAccountIDs.contains(account.id),
+            onToggleExpanded: {
+                withAnimation(Motion.spring) {
+                    if expandedAccountIDs.remove(account.id) == nil { expandedAccountIDs.insert(account.id) }
+                }
+            }
         ) { line in
             metricLine(line, in: account)
         }

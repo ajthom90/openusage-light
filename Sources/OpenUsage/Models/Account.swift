@@ -34,6 +34,30 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
 
     var iconSource: IconSource { .providerMark(rawValue) }
 
+    /// The provider's quick links, revealed by clicking an account on the dashboard. The same links
+    /// OpenUsage ships.
+    var links: [ProviderLink] {
+        switch self {
+        case .claude: [.init(label: "Status", url: "https://status.anthropic.com/"),
+                       .init(label: "Dashboard", url: "https://claude.ai/settings/usage")]
+        case .codex: [.init(label: "Status", url: "https://status.openai.com/"),
+                      .init(label: "Dashboard", url: "https://chatgpt.com/settings/usage")]
+        case .cursor: [.init(label: "Status", url: "https://status.cursor.com/"),
+                       .init(label: "Dashboard", url: "https://www.cursor.com/dashboard")]
+        case .antigravity: []
+        case .copilot: [.init(label: "Status", url: "https://www.githubstatus.com/"),
+                        .init(label: "Dashboard", url: "https://github.com/settings/billing")]
+        case .grok: [.init(label: "Usage", url: "https://grok.com/?_s=usage")]
+        case .ollama: [.init(label: "Usage", url: "https://ollama.com/settings"),
+                       .init(label: "API Keys", url: "https://ollama.com/settings/keys")]
+        case .opencodeGo: [.init(label: "Dashboard", url: "https://opencode.ai/auth")]
+        case .openrouter: [.init(label: "Activity", url: "https://openrouter.ai/activity"),
+                           .init(label: "Credits", url: "https://openrouter.ai/settings/credits")]
+        case .zai: [.init(label: "Dashboard", url: "https://z.ai/manage-apikey/coding-plan/personal/my-plan"),
+                    .init(label: "API Keys", url: "https://z.ai/manage-apikey/apikey-list")]
+        }
+    }
+
     var authMethod: ProviderAuthMethod {
         switch self {
         case .claude, .codex, .cursor, .antigravity, .copilot, .grok: .oauth

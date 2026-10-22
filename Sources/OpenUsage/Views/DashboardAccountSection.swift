@@ -2,7 +2,8 @@ import SwiftUI
 
 /// One account inside its provider's card: the account line (name, status, reset count, plan) over its
 /// metric lines. The whole block is the account's target: the pointer lights it the way a menu item
-/// lights, and it takes the account's right-click menu.
+/// lights, a click shows or hides the provider's quick links below the lines, and it takes the
+/// account's right-click menu.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
     var plan: String?
@@ -10,6 +11,8 @@ struct DashboardAccountSection<Line: View>: View {
     var refreshing = false
     var staleness: StalenessHint?
     var resetClaim: ResetClaimService?
+    var isExpanded = false
+    var onToggleExpanded: (() -> Void)?
     @ViewBuilder var line: (DashboardLine) -> Line
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
@@ -20,6 +23,10 @@ struct DashboardAccountSection<Line: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             accountLine
             ForEach(account.lines) { line($0) }
+            if isExpanded, !links.isEmpty {
+                ProviderLinksView(links: links)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.vertical, 4)
         .background {
@@ -31,8 +38,15 @@ struct DashboardAccountSection<Line: View>: View {
         .animation(.easeOut(duration: 0.12), value: isHovered)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+        .onTapGesture { if canExpand { onToggleExpanded?() } }
         .accessibilityElement(children: .contain)
+        .accessibilityAction(named: isExpanded ? "Hide Links" : "Show Links") {
+            if canExpand { onToggleExpanded?() }
+        }
     }
+
+    private var links: [ProviderLink] { account.provider.visibleLinks }
+    private var canExpand: Bool { onToggleExpanded != nil && !links.isEmpty }
 
     /// How far the hover highlight reaches past the content edge, toward the card edge.
     static var highlightOutset: CGFloat { 6 }

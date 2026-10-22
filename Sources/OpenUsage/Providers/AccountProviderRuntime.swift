@@ -39,7 +39,8 @@ final class AccountProviderRuntime: ProviderRuntime {
             id: account.cardID,
             displayName: account.kind.displayName,
             icon: account.kind.iconSource,
-            accountLabel: account.label
+            accountLabel: account.label,
+            links: account.kind.links
         )
     }
 
