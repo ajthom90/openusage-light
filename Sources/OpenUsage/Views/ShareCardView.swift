@@ -56,8 +56,7 @@ struct ShareCardView: View {
 
     // MARK: - Body
 
-    /// The provider's visible metric rows in the shared card surface, reusing `WidgetRowView` so the
-    /// exported card matches the live dashboard exactly. Toggles are nil (static render). An empty
+    /// The provider's visible metric rows in the shared card surface, drawn by `WidgetRowView`. An empty
     /// provider falls back to a quiet placeholder so the card never renders blank.
     @ViewBuilder
     private var metricsCard: some View {

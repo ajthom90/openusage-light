@@ -520,8 +520,8 @@ extension WidgetData {
         }
     }
 
-    /// True when the bounded primary row's trailing text is a concrete reset countdown (so the row makes
-    /// it the clickable toggle). False for limit/suffix context, fresh session windows, or no reset date.
+    /// True when the bounded primary row's trailing text is a concrete reset countdown. False for
+    /// limit/suffix context, fresh session windows, or no reset date.
     func hasResetLabel(now: Date = Date()) -> Bool {
         hasData && subtitleOverride == nil && resetsAt != nil && !isFreshSessionWindow(now: now)
     }
@@ -539,21 +539,6 @@ extension WidgetData {
         return resetDisplayMode == .absolute
             ? Formatters.resetRelativeLabel(until: resetsAt, now: now)
             : Formatters.resetAbsoluteLabel(at: resetsAt, now: now)
-    }
-
-    /// True when the bounded headline is a flippable Used/Left reading (so the row makes it the
-    /// clickable meter-style toggle). False for unbounded rows, overridden values, and no-data rows.
-    var hasMeterStyleToggle: Bool {
-        hasData && isBounded && valueTextOverride == nil
-    }
-
-    /// Hover tooltip for the bounded headline: the *opposite* meter style from what's shown
-    /// (e.g. headline "95% left" → tooltip "5% used"), mirroring `resetTooltip`'s flip pattern.
-    var meterStyleTooltip: String? {
-        guard hasMeterStyleToggle, let limit else { return nil }
-        let opposite = displayMode == .remaining ? used : max(0, limit - used)
-        let word = (displayMode == .remaining ? WidgetDisplayMode.used : .remaining).label.lowercased()
-        return "\((valuePrefix ?? "") + format(opposite)) \(word)"
     }
 }
 
