@@ -19,12 +19,12 @@ struct AddAccountSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             if let provider = flow.provider {
                 if provider.authMethod == .apiKey {
-                    APIKeyStep(flow: flow, provider: provider, cancel: cancel)
+                    APIKeyStep(flow: flow, provider: provider, cancel: { flow.back() })
                 } else {
-                    BrowserSignInStep(flow: flow, provider: provider, cancel: cancel)
+                    BrowserSignInStep(flow: flow, provider: provider, cancel: { flow.back() })
                 }
             } else {
-                ProviderChoiceStep(flow: flow, cancel: cancel)
+                ProviderChoiceStep(flow: flow, cancel: { dismiss() })
             }
         }
         .frame(width: 300)
@@ -35,11 +35,6 @@ struct AddAccountSheet: View {
         .onChange(of: flow.isFinished) { _, isFinished in
             if isFinished { dismiss() }
         }
-    }
-
-    private func cancel() {
-        flow.cancel()
-        dismiss()
     }
 }
 
@@ -233,7 +228,7 @@ private struct SheetHeader: View {
 }
 
 /// Cancel and the step's default button at the bottom trailing edge. Escape cancels and Return
-/// presses the default button.
+/// presses the default button. On a provider's step, Cancel goes back to the provider list.
 private struct SheetButtons<Primary: View>: View {
     let cancel: () -> Void
     @ViewBuilder let primary: Primary

@@ -86,6 +86,43 @@ final class AddAccountFlowTests: XCTestCase {
         XCTAssertTrue(store.accounts.isEmpty)
     }
 
+    func testBackStopsTheSignInAndReturnsToTheListWithTheProviderSelected() async throws {
+        let store = makeStore()
+        let url = try XCTUnwrap(URL(string: "https://example.com/authorize"))
+        let cancelled = CancellationFlag()
+        let flow = AddAccountFlow(store: store) { _ in
+            StubLogin(prompt: .browser(url, acceptsPastedCode: true)) { _ in
+                do {
+                    try await Task.sleep(for: .seconds(30))
+                } catch {
+                    await cancelled.set()
+                    throw error
+                }
+                return ("late", .oauth(OAuthTokens(accessToken: "access")))
+            }
+        }
+        flow.selection = .codex
+        flow.continueWithSelection()
+        try await waitUntil { flow.prompt != nil }
+        flow.pastedCode = "half-typed"
+
+        flow.back()
+
+        XCTAssertNil(flow.provider)
+        XCTAssertEqual(flow.selection, .codex)
+        XCTAssertNil(flow.prompt)
+        XCTAssertNil(flow.errorMessage)
+        XCTAssertFalse(flow.isWorking)
+        XCTAssertEqual(flow.pastedCode, "")
+        XCTAssertFalse(flow.isFinished)
+        for _ in 0..<200 where !(await cancelled.isSet) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let loginWasCancelled = await cancelled.isSet
+        XCTAssertTrue(loginWasCancelled, "back() left the sign-in running")
+        XCTAssertTrue(store.accounts.isEmpty)
+    }
+
     private func makeStore(vault: InMemoryCredentialVault = InMemoryCredentialVault()) -> AccountStore {
         let suite = "AddAccountFlowTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -99,6 +136,11 @@ final class AddAccountFlowTests: XCTestCase {
         }
         XCTAssertTrue(condition(), "Timed out waiting for the add-account flow")
     }
+}
+
+private actor CancellationFlag {
+    private(set) var isSet = false
+    func set() { isSet = true }
 }
 
 private struct StubLogin: ProviderLogin {

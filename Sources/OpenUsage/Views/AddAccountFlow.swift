@@ -65,6 +65,19 @@ final class AddAccountFlow {
         run(provider, input: input)
     }
 
+    /// Returns from the provider's step to the provider list, stopping its sign-in and keeping that
+    /// provider selected.
+    func back() {
+        cancel()
+        provider = nil
+        prompt = nil
+        errorMessage = nil
+        isWorking = false
+        apiKey = ""
+        accountName = ""
+        pastedCode = ""
+    }
+
     func cancel() {
         task?.cancel()
         task = nil
