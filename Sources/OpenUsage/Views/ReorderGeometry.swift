@@ -5,6 +5,8 @@ struct ReorderLift {
         case dashboardMetric(data: WidgetData)
         case accountRow(provider: Provider)
         case customizeMetric(title: String)
+        /// A dashboard account or provider card, drawn by the dashboard itself.
+        case view(AnyView)
     }
 
     let id: String
@@ -66,12 +68,14 @@ struct ReorderLiftPreview: View {
             accountRowPreview(provider)
         case .customizeMetric(let title):
             customizeMetricPreview(title)
+        case .view(let view):
+            view
         }
     }
 
     private func dashboardMetricPreview(_ data: WidgetData) -> some View {
         DashboardMetricLine(data: data)
-            .padding(.horizontal, density.cardPadding)
+            .padding(.horizontal, density.panelPadding)
             .liftedRowSurface()
     }
 

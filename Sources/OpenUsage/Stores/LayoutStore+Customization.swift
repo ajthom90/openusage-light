@@ -89,6 +89,26 @@ extension LayoutStore {
         }
     }
 
+    /// Move a whole provider card: every account of `dragged`'s provider family moves, in its own order,
+    /// to `target`'s place. Accounts of one family stay together in the saved order afterwards.
+    @discardableResult
+    func reorderFamily(dragged: String, target: String) -> Bool {
+        recordingUndoStep {
+            var families: [String] = []
+            var members: [String: [String]] = [:]
+            for id in orderedProviderIDs() {
+                let family = DashboardFamily.familyID(of: id)
+                if members[family] == nil { families.append(family) }
+                members[family, default: []].append(id)
+            }
+            guard let next = Self.reordered(families, dragged: dragged, target: target) else { return false }
+            providerOrder = next.flatMap { members[$0] ?? [] }
+            persistProviderOrder()
+            syncPlacedOrder()
+            return true
+        }
+    }
+
     /// Reorder metrics within one provider when `dragged` is dropped onto `target` (both descriptor ids of
     /// that provider). Operates on the provider's full metric order so disabled metrics keep their place too.
     /// Returns whether the order actually changed — the drag gestures key haptics off it.

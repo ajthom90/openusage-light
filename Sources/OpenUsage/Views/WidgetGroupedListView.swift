@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
+/// The dashboard display: one section per provider, holding each of its accounts (`DashboardFamily`).
 /// Every account shows one line per metric that has data, fed by the same `WidgetDataStore` the menu
 /// bar uses. Hovering a card shows its provider's quick links.
 ///
 /// Right-click a provider's card for provider actions, an account for account actions, and a metric
-/// line for metric actions. Metric lines reorder by dragging within their account; accounts reorder
-/// on the Accounts screen.
+/// line for metric actions. Everything reorders by dragging: a card by its header, an account by its
+/// name line within its card, a metric line within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -18,17 +18,24 @@ struct WidgetGroupedListView: View {
 
     @State private var frameStore = ReorderFrameStore()
     @State private var activeMetricID: String?
+    @State private var activeAccountID: String?
+    @State private var activeFamilyID: String?
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        VStack(alignment: .leading, spacing: density.panelPadding) {
+        VStack(alignment: .leading, spacing: density.providerSectionSpacing) {
             ForEach(families) { family in
-                DashboardProviderCard(family: family) { account in
-                    accountSection(account, group: groups.first { $0.provider.id == account.id })
+                DashboardProviderCard(
+                    family: family,
+                    handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
+                ) { account in
+                    accountSection(account, group: groups.first { $0.provider.id == account.id }, family: family.id)
                 }
                 .contextMenu { providerMenu(family) }
+                .opacity(activeFamilyID == Self.familyFrameID(family.id) ? 0 : 1)
+                .reorderFrame(id: Self.familyFrameID(family.id), in: .named(reorderSpaceName))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -50,7 +57,23 @@ struct WidgetGroupedListView: View {
         return account.lines.map(\.id)
     }
 
-    private func accountSection(_ account: DashboardAccount, group: ProviderGroup?) -> some View {
+    private func accountSection(_ account: DashboardAccount, group: ProviderGroup?, family: String) -> some View {
+        plainAccountSection(
+            account,
+            handle: { AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family))) }
+        ) { line in
+            metricLine(line, in: account)
+        }
+        .contextMenu { accountMenu(account, group: group) }
+        .opacity(activeAccountID == account.id ? 0 : 1)
+        .reorderFrame(id: account.id, in: .named(reorderSpaceName))
+    }
+
+    private func plainAccountSection<Line: View>(
+        _ account: DashboardAccount,
+        handle: @escaping (AnyView) -> AnyView = { $0 },
+        @ViewBuilder line: @escaping (DashboardLine) -> Line
+    ) -> some View {
         DashboardAccountSection(
             account: account,
             plan: dataStore.plan(for: account.id),
@@ -58,10 +81,9 @@ struct WidgetGroupedListView: View {
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
             resetClaim: account.resets == nil ? nil : container.resetClaim(for: account.id),
-        ) { line in
-            metricLine(line, in: account)
-        }
-        .contextMenu { accountMenu(account, group: group) }
+            handle: handle,
+            line: line
+        )
     }
 
     private func metricLine(_ line: DashboardLine, in account: DashboardAccount) -> some View {
@@ -163,6 +185,57 @@ struct WidgetGroupedListView: View {
             },
             orderedIDs: { visibleLineIDs(for: accountID) },
             reorder: { layout.reorderMetric(dragged: line.id, target: $0, in: accountID) }
+        )
+    }
+
+    // MARK: - Account and card reordering
+
+    private static func familyFrameID(_ familyID: String) -> String { "family:\(familyID)" }
+
+    private func liveFamilies() -> [DashboardFamily] {
+        DashboardFamily.make(groups: layout.displayGroups, line: resolveLine)
+    }
+
+    private func plainLine(_ line: DashboardLine) -> some View {
+        DashboardMetricLine(data: line.data)
+    }
+
+    private func accountDragGesture(for account: DashboardAccount, family: String) -> some Gesture {
+        reorderDragGesture(
+            id: account.id,
+            coordinateSpaceName: reorderSpaceName,
+            frameStore: frameStore,
+            active: $activeAccountID,
+            lift: $reorderLift,
+            makeLift: { value in
+                let preview = plainAccountSection(account, line: plainLine)
+                    .padding(.horizontal, density.panelPadding)
+                    .liftedRowSurface()
+                return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
+            },
+            orderedIDs: { liveFamilies().first { $0.id == family }?.accounts.map(\.id) ?? [] },
+            reorder: { layout.reorderProvider(dragged: account.id, target: $0) }
+        )
+    }
+
+    private func familyDragGesture(for family: DashboardFamily) -> some Gesture {
+        let frameID = Self.familyFrameID(family.id)
+        return reorderDragGesture(
+            id: frameID,
+            coordinateSpaceName: reorderSpaceName,
+            frameStore: frameStore,
+            active: $activeFamilyID,
+            lift: $reorderLift,
+            makeLift: { value in
+                let preview = DashboardProviderCard(family: family) { plainAccountSection($0, line: plainLine) }
+                    .padding(density.panelPadding)
+                    .liftedRowSurface()
+                return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
+            },
+            orderedIDs: { liveFamilies().map { Self.familyFrameID($0.id) } },
+            reorder: { target in
+                layout.reorderFamily(dragged: family.id, target: String(target.dropFirst("family:".count)))
+            }
         )
     }
 }

@@ -11,6 +11,9 @@ struct DashboardAccountSection<Line: View>: View {
     var refreshing = false
     var staleness: StalenessHint?
     var resetClaim: ResetClaimService?
+    /// Wraps the account line, so the dashboard can attach the account's drag gesture to it (and not to
+    /// the metric lines, which have their own).
+    var handle: (AnyView) -> AnyView = { $0 }
     @ViewBuilder var line: (DashboardLine) -> Line
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
@@ -19,7 +22,7 @@ struct DashboardAccountSection<Line: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            accountLine
+            handle(AnyView(accountLine.contentShape(Rectangle())))
             ForEach(account.lines) { line($0) }
         }
         .padding(.vertical, highlightOutset)
@@ -35,10 +38,10 @@ struct DashboardAccountSection<Line: View>: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// How far the hover highlight reaches past the content toward the card edge: all the way to one
+    /// How far the hover highlight reaches past the content toward the popover edge: all the way to one
     /// highlight inset short of it. Also the block's vertical padding, so the highlight wraps the
     /// content evenly on every side.
-    private var highlightOutset: CGFloat { density.cardPadding - density.accountHighlightInset }
+    private var highlightOutset: CGFloat { density.panelPadding - density.accountHighlightInset }
 
     private var accountLine: some View {
         HStack(spacing: 6) {

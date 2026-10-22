@@ -74,8 +74,6 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     /// Height of an account's name line on the dashboard.
     var accountLineHeight: CGFloat { self == .compact ? 20 : 24 }
 
-    /// Inner padding of a dashboard provider card.
-    var cardPadding: CGFloat { self == .compact ? 10 : 14 }
 
     /// Gap between a provider header and its card.
     var headerToCardSpacing: CGFloat { self == .compact ? 2 : 4 }
@@ -87,16 +85,18 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     var controlRowPadding: CGFloat { self == .compact ? 6 : 9 }
 
     /// The popover's one outer spacing: the inset from the panel edge to its content on every side, on
-    /// every screen, and the gap between provider cards. One value, so the space around a card is the
-    /// same as the space between cards.
+    /// every screen.
     var panelPadding: CGFloat { self == .compact ? 10 : 14 }
 
-    /// How far an account's hover highlight sits inside its card's edge. The highlight's corners are
-    /// concentric with the card's (`Theme.cardCornerRadius` minus this inset), and neighboring
-    /// accounts' highlights meet edge to edge, the way menu items do.
+    /// Space between provider sections on the dashboard, on top of the accounts' own padding, so a new
+    /// provider reads as a bigger break than a new account.
+    var providerSectionSpacing: CGFloat { self == .compact ? 10 : 16 }
+
+    /// How far an account's hover highlight sits inside the popover's edge. Neighboring accounts'
+    /// highlights meet edge to edge, the way menu items do.
     var accountHighlightInset: CGFloat { self == .compact ? 4 : 6 }
 
-    /// Extra space under a provider card's header, on top of the first account's own padding.
+    /// Extra space under a provider section's header, on top of the first account's own padding.
     var headerBottomPadding: CGFloat { self == .compact ? 3 : 4 }
 
     /// Estimated Customize control-row height for the pre-measurement height seed
