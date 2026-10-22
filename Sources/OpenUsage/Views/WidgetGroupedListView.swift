@@ -20,6 +20,8 @@ struct WidgetGroupedListView: View {
     @State private var activeMetricID: String?
     @State private var activeAccountID: String?
     @State private var activeFamilyID: String?
+    /// Expanded account rows, kept across popover openings and launches.
+    @AppStorage("dashboard.expandedAccounts") private var expandedAccountsRaw = ""
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
     var body: some View {
@@ -60,6 +62,8 @@ struct WidgetGroupedListView: View {
     private func accountSection(_ account: DashboardAccount, group: ProviderGroup?, family: String) -> some View {
         plainAccountSection(
             account,
+            isExpanded: isExpanded(account.id),
+            onToggleExpanded: { toggleExpanded(account.id) },
             handle: { AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family))) }
         ) { line in
             metricLine(line, in: account)
@@ -71,6 +75,8 @@ struct WidgetGroupedListView: View {
 
     private func plainAccountSection<Line: View>(
         _ account: DashboardAccount,
+        isExpanded: Bool = false,
+        onToggleExpanded: (() -> Void)? = nil,
         handle: @escaping (AnyView) -> AnyView = { $0 },
         @ViewBuilder line: @escaping (DashboardLine) -> Line
     ) -> some View {
@@ -81,6 +87,8 @@ struct WidgetGroupedListView: View {
             refreshing: dataStore.refreshingProviderIDs.contains(account.id),
             staleness: dataStore.stalenessHint(for: account.id),
             resetClaim: account.resets == nil ? nil : container.resetClaim(for: account.id),
+            isExpanded: isExpanded,
+            onToggleExpanded: onToggleExpanded,
             handle: handle,
             line: line
         )
@@ -190,6 +198,18 @@ struct WidgetGroupedListView: View {
 
     // MARK: - Account and card reordering
 
+    private var expandedAccountIDs: Set<String> {
+        Set(expandedAccountsRaw.split(separator: ",").map(String.init))
+    }
+
+    private func isExpanded(_ accountID: String) -> Bool { expandedAccountIDs.contains(accountID) }
+
+    private func toggleExpanded(_ accountID: String) {
+        var ids = expandedAccountIDs
+        if ids.remove(accountID) == nil { ids.insert(accountID) }
+        withAnimation(Motion.spring) { expandedAccountsRaw = ids.sorted().joined(separator: ",") }
+    }
+
     private static func familyFrameID(_ familyID: String) -> String { "family:\(familyID)" }
 
     private func liveFamilies() -> [DashboardFamily] {
@@ -208,8 +228,7 @@ struct WidgetGroupedListView: View {
             active: $activeAccountID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = plainAccountSection(account, line: plainLine)
-                    .padding(.horizontal, density.panelPadding)
+                let preview = plainAccountSection(account, isExpanded: isExpanded(account.id), line: plainLine)
                     .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
@@ -227,9 +246,9 @@ struct WidgetGroupedListView: View {
             active: $activeFamilyID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardProviderCard(family: family) { plainAccountSection($0, line: plainLine) }
-                    .padding(density.panelPadding)
-                    .liftedRowSurface()
+                let preview = DashboardProviderCard(family: family) {
+                    plainAccountSection($0, isExpanded: isExpanded($0.id), line: plainLine)
+                }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().map { Self.familyFrameID($0.id) } },

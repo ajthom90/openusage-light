@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// One account inside its provider's card: the account line (name and status on the left; plan and
-/// reset count as plain text on the right, "Max 5x · ↺ 2 resets") over its metric lines. The whole
-/// block is the account's target: the pointer lights it the way a menu item lights, and it takes the
-/// account's right-click menu.
+/// One account as a row of its provider's grouped box, built on the native `DisclosureGroup`.
+///
+/// Collapsed, the row is a summary: the disclosure triangle, the account's name, plan, and reset
+/// count, then its first metric (the one the user ordered first) as a small meter, value, and reset
+/// time. Expanded, the summary keeps the name, plan, and resets, and every metric line shows below.
+/// A click anywhere on the summary toggles it; the row takes the account's right-click menu.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
     var plan: String?
@@ -11,8 +13,10 @@ struct DashboardAccountSection<Line: View>: View {
     var refreshing = false
     var staleness: StalenessHint?
     var resetClaim: ResetClaimService?
-    /// Wraps the account line, so the dashboard can attach the account's drag gesture to it (and not to
-    /// the metric lines, which have their own).
+    var isExpanded = false
+    var onToggleExpanded: (() -> Void)?
+    /// Wraps the summary, so the dashboard can attach the account's drag gesture to it (and not to the
+    /// metric lines, which have their own).
     var handle: (AnyView) -> AnyView = { $0 }
     @ViewBuilder var line: (DashboardLine) -> Line
 
@@ -21,48 +25,61 @@ struct DashboardAccountSection<Line: View>: View {
     @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            handle(AnyView(accountLine.contentShape(Rectangle())))
-            ForEach(account.lines) { line($0) }
+        DisclosureGroup(isExpanded: Binding(get: { isExpanded }, set: { _ in onToggleExpanded?() })) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(account.lines) { line($0) }
+            }
+            .padding(.top, 2)
+            // Lines up the metric labels with the account name, past the disclosure triangle.
+            .padding(.leading, Self.disclosureIndent)
+        } label: {
+            handle(AnyView(
+                summary
+                    // The native label stops short of the row's trailing edge; reach it, so the
+                    // summary's numbers line up with the expanded lines' numbers.
+                    .padding(.trailing, -Self.disclosureLabelTrailingGap)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onToggleExpanded?() }
+            ))
         }
-        .padding(.vertical, highlightOutset)
-        .background {
-            RoundedRectangle(cornerRadius: Theme.cardCornerRadius - density.accountHighlightInset, style: .continuous)
-                .fill(.fill.tertiary)
-                .padding(.horizontal, -highlightOutset)
-                .opacity(isHovered ? 1 : 0)
-        }
-        .animation(.easeOut(duration: 0.12), value: isHovered)
-        .contentShape(Rectangle())
+        .padding(.horizontal, density.groupedRowInset)
+        .padding(.vertical, density.groupedRowPadding)
+        .background(rowFill)
         .onHover { isHovered = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovered)
         .accessibilityElement(children: .contain)
     }
 
-    /// How far the hover highlight reaches past the content toward the popover edge: all the way to one
-    /// highlight inset short of it. Also the block's vertical padding, so the highlight wraps the
-    /// content evenly on every side.
-    private var highlightOutset: CGFloat { density.panelPadding - density.accountHighlightInset }
+    /// The width the native disclosure triangle and its gap take before the label, measured on macOS 27.
+    static var disclosureIndent: CGFloat { 12 }
+    /// The gap the native disclosure label leaves before the row's trailing edge, measured on macOS 27.
+    static var disclosureLabelTrailingGap: CGFloat { 4 }
 
-    private var accountLine: some View {
+    /// Expanded rows sit on a slightly deeper fill, and the pointer lights a row the same way, so the
+    /// open account and the one under the pointer both read at a glance.
+    private var rowFill: some ShapeStyle {
+        isExpanded || isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(.clear)
+    }
+
+    private var summary: some View {
         HStack(spacing: 6) {
             name
-            status
-            Spacer(minLength: 8)
-            HStack(spacing: 4) {
-                if let plan {
-                    Text(plan)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                if let resets = account.resets {
-                    if plan != nil {
-                        Text("·").foregroundStyle(.tertiary)
-                    }
-                    ResetCountChip(data: resets, claim: resetClaim)
-                }
+            if let plan {
+                Text(plan)
+                    .font(.system(size: density.supportingPointSize))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .font(.system(size: density.supportingPointSize))
-            .layoutPriority(1)
+            if let resets = account.resets {
+                ResetCountChip(data: resets, claim: resetClaim, compact: true)
+                    .font(.system(size: density.supportingPointSize))
+            }
+            status
+            Spacer(minLength: 6)
+            if !isExpanded, let first = account.lines.first {
+                DashboardHeadlineMetric(data: first.data)
+            }
         }
         .frame(height: density.accountLineHeight)
     }
@@ -71,11 +88,11 @@ struct DashboardAccountSection<Line: View>: View {
     private var name: some View {
         if let renaming, let edit = renaming.edit, edit.providerID == account.id {
             InlineRenameField(renaming: renaming, edit: edit)
-                .font(.system(size: density.headerPointSize - 1, weight: .medium))
+                .font(.system(size: density.headerPointSize - 1, weight: .semibold))
                 .fixedSize()
         } else {
             Text(account.name)
-                .font(.system(size: density.headerPointSize - 1, weight: .medium))
+                .font(.system(size: density.headerPointSize - 1, weight: .semibold))
                 .lineLimit(1)
         }
     }
@@ -98,5 +115,50 @@ struct DashboardAccountSection<Line: View>: View {
                 .hoverTooltip(staleness.tooltip)
                 .accessibilityLabel(staleness.tooltip)
         }
+    }
+}
+
+/// A collapsed account's first metric, trailing its summary: a short meter, value, and reset time, in
+/// the same value and reset columns as the expanded lines. Drops the meter when the row is too narrow.
+struct DashboardHeadlineMetric: View {
+    let data: WidgetData
+
+    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            content(meter: true)
+            content(meter: false)
+        }
+        .font(.system(size: density.supportingPointSize))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func content(meter: Bool) -> some View {
+        HStack(spacing: 8) {
+            if data.isBounded {
+                if meter {
+                    UsageMeterBar(data: data, state: data.meterState())
+                        .frame(width: 32)
+                }
+                Text(data.valueText)
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .contentTransition(.numericText())
+                    .frame(width: DashboardMetricLine.valueWidth, alignment: .trailing)
+                // Same value and reset columns as the expanded lines, so numbers line up row to row.
+                Text(data.compactResetText() ?? "")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .frame(width: DashboardMetricLine.resetWidth, alignment: .trailing)
+            } else {
+                Text(data.unboundedDetail)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+        }
+        .fixedSize()
     }
 }

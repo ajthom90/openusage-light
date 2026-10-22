@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// One provider's section on the dashboard: the provider's mark and name, then each of its accounts,
-/// separated by space alone, drawn straight on the popover with no card around it. The mark sits flush
-/// with the account names and metric labels below it. Hovering the section reveals the provider's quick links (Status, Dashboard) at the header's trailing
+/// One provider's section on the dashboard, laid out like a System Settings group: a small section
+/// header (mark and name) over one grouped box holding each account as a row, with inset hairlines
+/// between rows. Hovering the section reveals the provider's quick links (Status, Dashboard) at the header's trailing
 /// edge, as small text links that open in the browser.
 struct DashboardProviderCard<Account: View>: View {
     let family: DashboardFamily
@@ -17,13 +17,18 @@ struct DashboardProviderCard<Account: View>: View {
     @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: density.headerToCardSpacing + 2) {
             handle(AnyView(header))
-            // Accounts stack edge to edge: each carries its own vertical padding, so its hover
-            // highlight meets its neighbor's.
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(family.accounts) { account($0) }
+                ForEach(Array(family.accounts.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 {
+                        Divider().padding(.leading, density.groupedRowInset)
+                    }
+                    account(item)
+                }
             }
+            .clipShape(Theme.cardShape)
+            .cardSurface()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -34,17 +39,18 @@ struct DashboardProviderCard<Account: View>: View {
     private var header: some View {
         HStack(spacing: 6) {
             ProviderIcon(source: family.provider.icon, inset: 0.04)
-                .frame(width: density.headerIconSize, height: density.headerIconSize)
+                .frame(width: density.headerIconSize - 3, height: density.headerIconSize - 3)
                 .partyPulse(partyMode)
             Text(family.provider.displayName)
-                .font(.system(size: density.headerPointSize, weight: .semibold))
+                .font(.system(size: density.supportingPointSize, weight: .semibold))
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer(minLength: 8)
             ProviderHeaderLinks(links: family.provider.visibleLinks)
                 .opacity(isHovered ? 1 : 0)
                 .allowsHitTesting(isHovered)
         }
-        .padding(.bottom, density.headerBottomPadding)
+        .padding(.horizontal, density.groupedRowInset)
         .contentShape(Rectangle())
     }
 }

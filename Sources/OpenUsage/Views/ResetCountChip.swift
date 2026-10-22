@@ -7,6 +7,8 @@ import SwiftUI
 struct ResetCountChip: View {
     let data: WidgetData
     var claim: ResetClaimService?
+    /// "↺ 2" instead of "↺ 2 resets", for a tight summary row.
+    var compact = false
 
     @Environment(\.reduceAnimations) private var reduceAnimations
     @State private var hover = HoverPopoverState()
@@ -23,6 +25,7 @@ struct ResetCountChip: View {
                     .contentTransition(.numericText())
             }
             .foregroundStyle(tint.opacity(hover.overInline || hover.isPresented ? 1 : 0.85))
+            .fixedSize()
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -60,7 +63,8 @@ struct ResetCountChip: View {
     }
 
     private var label: String {
-        data.resetCreditCount == 1 ? "1 reset" : "\(data.resetCreditCount) resets"
+        if compact { return "\(data.resetCreditCount)" }
+        return data.resetCreditCount == 1 ? "1 reset" : "\(data.resetCreditCount) resets"
     }
 
     private static func tint(_ severity: WidgetData.MeterSeverity?) -> Color {

@@ -92,12 +92,13 @@ enum DensitySetting: String, Hashable, Sendable, CaseIterable {
     /// provider reads as a bigger break than a new account.
     var providerSectionSpacing: CGFloat { self == .compact ? 10 : 16 }
 
-    /// How far an account's hover highlight sits inside the popover's edge. Neighboring accounts'
-    /// highlights meet edge to edge, the way menu items do.
-    var accountHighlightInset: CGFloat { self == .compact ? 4 : 6 }
+    /// Leading and trailing inset of a row inside a dashboard grouped box, and of the section header and
+    /// the hairlines between rows, so they all line up.
+    var groupedRowInset: CGFloat { self == .compact ? 10 : 12 }
 
-    /// Extra space under a provider section's header, on top of the first account's own padding.
-    var headerBottomPadding: CGFloat { self == .compact ? 3 : 4 }
+    /// Vertical padding of an account row inside a dashboard grouped box.
+    var groupedRowPadding: CGFloat { self == .compact ? 5 : 7 }
+
 
     /// Estimated Customize control-row height for the pre-measurement height seed
     /// (row content ≈ 24pt + `controlRowPadding` × 2).
