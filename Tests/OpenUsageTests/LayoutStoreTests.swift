@@ -181,21 +181,15 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertEqual(store.placed.map(\.descriptorID), before)
     }
 
-    func testGlobalAndProviderResetsClearUndoHistory() {
-        for providerOnly in [false, true] {
-            let store = makeStore(providerOnly ? "UndoResetProvider" : "UndoResetAll")
-            store.setMetricEnabled("cursor.credits", true)
-            XCTAssertTrue(store.canUndo)
+    func testProviderResetClearsUndoHistory() {
+        let store = makeStore("UndoResetProvider")
+        store.setMetricEnabled("cursor.credits", true)
+        XCTAssertTrue(store.canUndo)
 
-            if providerOnly {
-                store.resetProvider("claude")
-            } else {
-                store.resetToDefault()
-            }
+        store.resetProvider("claude")
 
-            XCTAssertFalse(store.canUndo)
-            XCTAssertFalse(store.undo())
-        }
+        XCTAssertFalse(store.canUndo)
+        XCTAssertFalse(store.undo())
     }
 
     func testSavedEmptyLayoutDoesNotRestoreDefaults() {
@@ -308,7 +302,7 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertEqual(store.placed.map(\.descriptorID), ["claude.session"])
     }
 
-    func testAddAndResetCancelDragState() {
+    func testAddAndRemoveCancelDragState() {
         let store = makeStore("CancelDrag")
         let first = store.placed[0]
 
@@ -318,10 +312,6 @@ final class LayoutStoreTests: XCTestCase {
 
         store.draggingID = UUID()
         store.add(first.descriptorID)
-        XCTAssertNil(store.draggingID)
-
-        store.draggingID = UUID()
-        store.resetToDefault()
         XCTAssertNil(store.draggingID)
     }
 
@@ -449,46 +439,6 @@ final class LayoutStoreTests: XCTestCase {
 
         let reloaded = LayoutStore(registry: .mock, defaults: defaults, storageKey: "layout")
         XCTAssertTrue(reloaded.pinnedMetricIDs.isEmpty, "an explicitly emptied pin set must not be reseeded")
-    }
-
-    func testResetToDefaultRestoresDefaultPins() {
-        let store = makeStore("ResetPins")
-        for id in store.pinnedMetricIDs { store.setPinned(false, for: id) }
-        XCTAssertTrue(store.pinnedMetricIDs.isEmpty)
-
-        store.resetToDefault()
-
-        let expected = Set(DefaultLayout.pinnedMetricIDs.filter { MockData.descriptor($0) != nil })
-        XCTAssertEqual(store.pinnedMetricIDs, expected)
-    }
-
-    func testResetToDefaultRestoresProviderOrderAndMarksDefaultsSeeded() {
-        let defaults = makeDefaults("ResetSeeded")
-        let store = LayoutStore(
-            registry: .mock,
-            defaults: defaults,
-            storageKey: "layout",
-            defaultMetricIDs: ["claude.session", "claude.today"],
-            migrationBaselineMetricIDs: []
-        )
-        XCTAssertTrue(store.reorderProvider(dragged: "cursor", target: "claude"))
-
-        store.resetToDefault()
-        XCTAssertEqual(store.customizeGroups.map(\.provider.id), MockData.providers.map(\.id))
-        guard let today = store.placed.first(where: { $0.descriptorID == "claude.today" }) else {
-            return XCTFail("reset did not restore current defaults")
-        }
-
-        store.remove(today.id)
-
-        let reloaded = LayoutStore(
-            registry: .mock,
-            defaults: defaults,
-            storageKey: "layout",
-            defaultMetricIDs: ["claude.session", "claude.today"],
-            migrationBaselineMetricIDs: []
-        )
-        XCTAssertEqual(reloaded.placed.map(\.descriptorID), ["claude.session"])
     }
 
     /// A metric is either enabled or not: every enabled metric is in the provider's one list, in the

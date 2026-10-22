@@ -4,7 +4,8 @@ import SwiftUI
 /// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
 /// Every account shows its plan and reset tags and every metric that has data, fed by the same
 /// `WidgetDataStore` the menu bar uses. The ↺ tag is the one thing that reacts to hover or a click: it
-/// opens the account's resets timeline, where a reset is claimed.
+/// opens the account's resets timeline, where a reset is claimed. A double-click on an account's name
+/// renames it, the same as the menu's Rename.
 ///
 /// Right-click a provider's card, an account, or a metric line for its menu (`DashboardMenus`).
 /// Everything reorders by dragging: a card by its header, an account by its name line within its card,

@@ -2,8 +2,8 @@ import SwiftUI
 
 /// One account inside its provider's card: the account line (name, status, the ↺ resets tag, and the
 /// plan tag) over every metric line that has data, in the user's order. The ↺ tag is the one part that
-/// reacts to the pointer: it opens the resets timeline. Right-click the account for its menu; the name
-/// line drags it.
+/// reacts to hover or a click: it opens the resets timeline. A double-click on the name renames the
+/// account. Right-click the account for its menu; the name line drags it.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
     var plan: String?
@@ -32,7 +32,7 @@ struct DashboardAccountSection<Line: View>: View {
         .contentShape(Rectangle())
     }
 
-    private var accountLine: some View {
+    var accountLine: some View {
         HStack(spacing: 6) {
             name
             status
@@ -50,7 +50,7 @@ struct DashboardAccountSection<Line: View>: View {
     }
 
     @ViewBuilder
-    private var name: some View {
+    var name: some View {
         if let renaming, let edit = renaming.edit, edit.providerID == account.id {
             InlineRenameField(renaming: renaming, edit: edit)
                 .font(.system(size: 13, weight: .medium))
@@ -59,6 +59,7 @@ struct DashboardAccountSection<Line: View>: View {
             Text(account.name)
                 .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
+                .onTapGesture(count: 2) { renaming?.begin(account.id) }
         }
     }
 

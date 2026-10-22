@@ -97,13 +97,6 @@ final class MenuBarPinTests: XCTestCase {
         XCTAssertTrue(store.isPinned("a.m1"))
     }
 
-    func testResetToDefaultClearsPins() {
-        let store = makeStore("reset")
-        store.setPinned(true, for: "a.m1")
-        store.resetToDefault()
-        XCTAssertTrue(store.pinnedMetricIDs.isEmpty)
-    }
-
     func testInvalidPinnedIDsDroppedOnLoad() {
         let defaults = makeDefaults("invalid")
         defaults.set(["a.m1", "ghost.metric"], forKey: "layout.menuBarPins")

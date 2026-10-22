@@ -35,6 +35,11 @@ final class LayoutStore {
         get { navigation.customizeProviderID }
         set { navigation.customizeProviderID = newValue }
     }
+    /// Whether the Add Account sheet is showing over the account list.
+    var isAddingAccount: Bool {
+        get { navigation.isAddingAccount }
+        set { navigation.isAddingAccount = newValue }
+    }
     /// Placed widget being drag-reordered (transient). `PlacedWidget.id`, never persisted.
     var draggingID: UUID?
     /// Persisted provider display order (provider IDs). Drives both the dashboard groups and the
@@ -338,29 +343,9 @@ final class LayoutStore {
         persist()
     }
 
-    func resetToDefault() {
-        cancelDrag()
-        // Reset is its own deliberate action, not an undoable layout edit; the recorded snapshots
-        // describe the pre-reset layout, so the undo stack is dropped wholesale here.
-        undoHistory.clear()
-        placed = defaultMetricIDs
-            .filter { registry.descriptor(id: $0) != nil }
-            .map { PlacedWidget(descriptorID: $0) }
-        providerOrder = registry.providers.map(\.id)
-        persistProviderOrder()
-        metricOrderByProvider = LayoutOrdering.defaultMetricOrder(registry: registry)
-        persistMetricOrder()
-        pinnedMetricIDs = Set(defaultPinnedMetricIDs.filter { registry.descriptor(id: $0) != nil })
-        persistPins()
-        persistSeededDefaults(Set(LayoutOrdering.knownMetricIDs(defaultMetricIDs, registry: registry)))
-        persist()
-    }
-
     /// Reset a single provider's customization to default — its enabled metrics, metric order, and
-    /// pins — while leaving every other provider, and the overall provider
-    /// order, untouched. The per-provider counterpart to `resetToDefault` ("Reset all providers"): same
-    /// per-provider effect, scoped to one `providerID` instead of the whole layout. No-op for an
-    /// unknown provider.
+    /// pins — while leaving every other provider, and the overall provider order, untouched. No-op for
+    /// an unknown provider.
     func resetProvider(_ providerID: String) {
         guard registry.provider(id: providerID) != nil else { return }
         cancelDrag()

@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Accounts list (L1): every account in the user's saved order, grouped in one card the way
-/// Settings groups its rows, with Add Account below. Click a row to open that account (L2);
-/// drag its grip to reorder the accounts, which reorders the dashboard too.
+/// Settings groups its rows, with Add Account below; the top bar's + opens the same sheet. Click a row
+/// to open that account (L2); drag its grip to reorder the accounts, which reorders the dashboard too.
 struct AccountListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -11,9 +11,9 @@ struct AccountListView: View {
     let frameStore: ReorderFrameStore
 
     @State private var activeProviderID: String?
-    @State private var isAddingAccount = false
 
     var body: some View {
+        @Bindable var layout = layout
         let providers = layout.orderedProviders()
         VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
             if !providers.isEmpty {
@@ -27,14 +27,14 @@ struct AccountListView: View {
             addAccountButton
         }
         .animation(Motion.spring, value: providers.map(\.id))
-        .sheet(isPresented: $isAddingAccount) {
+        .sheet(isPresented: $layout.isAddingAccount) {
             AddAccountSheet(store: container.accounts)
         }
     }
 
     private var addAccountButton: some View {
         Button {
-            isAddingAccount = true
+            layout.isAddingAccount = true
         } label: {
             Label("Add Account", systemImage: "plus")
                 .font(.system(size: 13, weight: .semibold))

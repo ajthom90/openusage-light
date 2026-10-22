@@ -9,9 +9,6 @@ struct PopoverTopBar: View {
     let screen: PopoverScreen
     let height: CGFloat
     let horizontalPadding: CGFloat
-    let onResetAll: () -> Void
-
-    @Binding var isPresentingResetAllConfirm: Bool
 
     @ViewBuilder
     var body: some View {
@@ -29,15 +26,7 @@ struct PopoverTopBar: View {
                 navigationBar(back: accountsBack) {
                     Text("Accounts")
                 } trailing: {
-                    resetAllButton
-                }
-                .alert("Reset All Customization?", isPresented: $isPresentingResetAllConfirm) {
-                    Button("Reset All", role: .destructive) {
-                        withAnimation(Motion.spring) { onResetAll() }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Resets every account's metrics, stars, and order. Your accounts stay signed in.")
+                    addAccountButton
                 }
             }
         case .settings:
@@ -113,11 +102,12 @@ struct PopoverTopBar: View {
         .accessibilityLabel("Reset Metrics")
     }
 
-    private var resetAllButton: some View {
+    /// Opens the Add Account sheet, the same one as the account list's Add Account button.
+    private var addAccountButton: some View {
         Button {
-            isPresentingResetAllConfirm = true
+            layout.isAddingAccount = true
         } label: {
-            Image(systemName: "arrow.counterclockwise")
+            Image(systemName: "plus")
                 .font(.system(size: 13, weight: .semibold))
                 .frame(width: 16, height: 16)
                 .contentShape(Rectangle())
@@ -125,8 +115,8 @@ struct PopoverTopBar: View {
         .glassButtonStyle()
         .buttonBorderShape(.circle)
         .controlSize(.large)
-        .hoverTooltip("Reset All Customization")
-        .accessibilityLabel("Reset All Customization")
+        .hoverTooltip("Add Account")
+        .accessibilityLabel("Add Account")
     }
 }
 

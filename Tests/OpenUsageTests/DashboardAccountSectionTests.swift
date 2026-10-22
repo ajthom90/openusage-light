@@ -4,13 +4,22 @@ import XCTest
 @testable import OpenUsage
 
 /// The dashboard shows what it shows: no part of a card, an account, a metric line, or the plan tag
-/// reacts to hover or a click. The ↺ tag is the one exception: hovering it opens the resets popover.
-/// Dragging still reorders: the name line drags its account and a metric line drags itself.
+/// reacts to hover or a click. Two exceptions: hovering the ↺ tag opens the resets popover, and a
+/// double-click on the account's name renames it. Dragging still reorders: the name line drags its
+/// account and a metric line drags itself.
 @MainActor
 final class DashboardAccountSectionTests: XCTestCase {
     private final class Log {
         var accountDrags = 0
         var metricDrags = 0
+    }
+
+    /// The account the hosted section shows, saved so a rename can begin on it.
+    private struct Hosted {
+        let window: NSWindow
+        let host: NSView
+        let renaming: AccountRenameStore
+        let accountID: String
     }
 
     private let account: DashboardAccount = {
@@ -63,6 +72,10 @@ final class DashboardAccountSectionTests: XCTestCase {
         weekly.resetsAt = Date().addingTimeInterval(86_400)
 
         XCTAssertEqual(interactiveParts(section.body), [], "account")
+        // The account line's one handler is the double-click on its name (`onTapGesture(count: 2)`);
+        // the tests below prove a single click there does nothing.
+        XCTAssertEqual(interactiveParts(section.accountLine), ["TapGesture"], "account line")
+        XCTAssertEqual(interactiveParts(section.name), ["TapGesture"], "account name")
         XCTAssertEqual(interactiveParts(stale.body), [], "stale account")
         XCTAssertEqual(interactiveParts(card.body), [], "provider card")
         XCTAssertEqual(interactiveParts(DashboardMetricLine(data: weekly).body), [], "metric line")
@@ -126,9 +139,71 @@ final class DashboardAccountSectionTests: XCTestCase {
         XCTAssertEqual(log.accountDrags, 0)
     }
 
+    /// A double-click on the account's name opens the inline rename, as the right-click Rename does. A
+    /// single click there, or a double-click on the empty rest of the name line, does nothing.
+    func testDoubleClickingTheNameRenamesTheAccountAndASingleClickDoesNot() throws {
+        let log = Log()
+        let hosted = hostWithRenaming(log: log)
+        let name = Self.name(in: hosted.host)
+
+        click(name, hosted.window, hosted.host)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        XCTAssertNil(hosted.renaming.edit, "a single click on the name starts a rename")
+
+        doubleClick(CGPoint(x: hosted.host.bounds.width / 2, y: name.y), hosted.window, hosted.host)
+        XCTAssertNil(hosted.renaming.edit, "a double-click beside the name starts a rename")
+
+        doubleClick(name, hosted.window, hosted.host)
+        XCTAssertTrue(hosted.renaming.isRenaming(hosted.accountID), "a double-click on the name opens no rename")
+        XCTAssertEqual(hosted.renaming.draft, "Personal")
+        XCTAssertTrue(hosted.window.firstResponder is NSTextView, "the rename field doesn't take focus")
+        XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
+    }
+
+    /// Pressing on the name and moving lifts the account on the first move, with no wait for a second
+    /// click, and opens no rename.
+    func testDraggingTheNameDragsTheAccountAtOnce() {
+        let log = Log()
+        let hosted = hostWithRenaming(log: log)
+        let name = Self.name(in: hosted.host)
+
+        send(.leftMouseDown, at: name, hosted.window, hosted.host)
+        send(.leftMouseDragged, at: CGPoint(x: name.x, y: name.y + 12), hosted.window, hosted.host)
+        XCTAssertGreaterThan(log.accountDrags, 0, "the drag waited past the first move")
+        send(.leftMouseUp, at: CGPoint(x: name.x, y: name.y + 12), hosted.window, hosted.host)
+
+        // A second press-and-drag right after, which reads as the second click of a double-click, drags too.
+        log.accountDrags = 0
+        send(.leftMouseDown, at: name, hosted.window, hosted.host, clickCount: 2)
+        send(.leftMouseDragged, at: CGPoint(x: name.x, y: name.y + 12), hosted.window, hosted.host, clickCount: 2)
+        XCTAssertGreaterThan(log.accountDrags, 0, "a drag on the second click didn't lift the account")
+        send(.leftMouseUp, at: CGPoint(x: name.x, y: name.y + 12), hosted.window, hosted.host, clickCount: 2)
+
+        XCTAssertEqual(log.metricDrags, 0)
+        XCTAssertNil(hosted.renaming.edit, "a drag on the name started a rename")
+    }
+
     private func host(log: Log) -> (NSWindow, NSView) {
+        let hosted = hostWithRenaming(log: log)
+        return (hosted.window, hosted.host)
+    }
+
+    /// The section as the dashboard hosts it: the name line carries the account's drag, every metric
+    /// line its own, and the environment holds the rename store with the account saved in it.
+    private func hostWithRenaming(log: Log) -> Hosted {
+        let name = "OpenUsageTests.DashboardAccountSection.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+        let accounts = AccountStore(defaults: defaults, vault: InMemoryCredentialVault())
+        let stored = accounts.add(kind: .claude, label: "Personal", credential: .apiKey("key"))
+        let renaming = AccountRenameStore(accounts: accounts)
+        let shown = DashboardAccount(
+            provider: Provider(id: stored.cardID, displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"),
+            lines: account.lines,
+            resets: account.resets
+        )
         let view = DashboardAccountSection(
-            account: account,
+            account: shown,
             plan: "Max 5x",
             handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })) }
         ) { line in
@@ -138,6 +213,7 @@ final class DashboardAccountSectionTests: XCTestCase {
                 .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.metricDrags += 1 })
         }
         .frame(width: 292)
+        .environment(renaming)
         .environment(\.colorScheme, .light)
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
@@ -151,7 +227,12 @@ final class DashboardAccountSectionTests: XCTestCase {
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
         addTeardownBlock { window.close() }
-        return (window, host)
+        return Hosted(window: window, host: host, renaming: renaming, accountID: stored.cardID)
+    }
+
+    /// A point on the account's name, at the leading edge of the name line.
+    private static func name(in host: NSView) -> CGPoint {
+        CGPoint(x: DashboardBox.inset + 10, y: DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2)
     }
 
     /// The ↺ tag's center: it sits just before the plan tag at the account line's trailing edge.
@@ -196,6 +277,15 @@ final class DashboardAccountSectionTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
     }
 
+    private func doubleClick(_ point: CGPoint, _ window: NSWindow, _ host: NSView) {
+        send(.mouseMoved, at: point, window, host)
+        send(.leftMouseDown, at: point, window, host)
+        send(.leftMouseUp, at: point, window, host)
+        send(.leftMouseDown, at: point, window, host, clickCount: 2)
+        send(.leftMouseUp, at: point, window, host, clickCount: 2)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+    }
+
     private func drag(from start: CGPoint, _ window: NSWindow, _ host: NSView) {
         let end = CGPoint(x: start.x, y: start.y + 12)
         send(.leftMouseDown, at: start, window, host)
@@ -204,7 +294,7 @@ final class DashboardAccountSectionTests: XCTestCase {
     }
 
     /// `point` is top-left based, in the host's coordinates.
-    private func send(_ type: NSEvent.EventType, at point: CGPoint, _ window: NSWindow, _ host: NSView) {
+    private func send(_ type: NSEvent.EventType, at point: CGPoint, _ window: NSWindow, _ host: NSView, clickCount: Int = 1) {
         let event = NSEvent.mouseEvent(
             with: type,
             location: NSPoint(x: point.x, y: host.bounds.height - point.y),
@@ -213,7 +303,7 @@ final class DashboardAccountSectionTests: XCTestCase {
             windowNumber: window.windowNumber,
             context: nil,
             eventNumber: 0,
-            clickCount: type == .mouseMoved ? 0 : 1,
+            clickCount: type == .mouseMoved ? 0 : clickCount,
             pressure: type == .leftMouseDown || type == .leftMouseDragged ? 1 : 0
         )!
         window.sendEvent(event)

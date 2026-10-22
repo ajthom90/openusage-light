@@ -48,7 +48,6 @@ struct DashboardView: View {
     /// Settings is expensive to mount because each menu picker creates an `NSPopUpButton`. Keep its
     /// view tree alive after the first visit so later screen switches don't rebuild those controls.
     @State private var hasVisitedSettings = false
-    @State private var isPresentingResetAllConfirm = false
     private static let reorderSpace = "popoverReorderSpace"
     private static let popoverWidth: CGFloat = 320
     /// Fixed height of the Accounts / Settings back nav bar — the bar pins itself to exactly this height.
@@ -154,13 +153,6 @@ struct DashboardView: View {
                 layout.cancelDrag()
                 if screen == .settings { hasVisitedSettings = true }
             }
-            // The Reset All alert attaches to the Accounts L1 nav bar. Leaving the list — back to the
-            // dashboard or into a provider's L2 detail — unmounts that host, which dismisses the alert
-            // but leaves `isPresentingResetAllConfirm` `true`. Drop it whenever L1 stops being visible
-            // so the destructive confirmation can't reappear stale on return without a fresh tap.
-            .onChange(of: layout.screen == .accounts && layout.customizeProviderID == nil) { _, isL1Visible in
-                if !isL1Visible { isPresentingResetAllConfirm = false }
-            }
             // Each screen switch: pin to the outgoing screen for one render (`slideProgress = 0`),
             // then spring to the incoming one on the next runloop tick. Deferring the animation one
             // tick is what makes it animate — setting 0 then 1 in the same closure collapses to a
@@ -258,9 +250,6 @@ struct DashboardView: View {
         // since the layout store survives the popover and only the timer clears it.
         layout.clearShareConfirmation()
         layout.clearCustomizationNotice()
-        // Dismiss a pending Reset All confirmation if the popover closes mid-alert — the SwiftUI tree
-        // survives `orderOut`, so without this the sheet would reappear stale on the next open.
-        isPresentingResetAllConfirm = false
         // Drop the driven height so the next open re-establishes it (un-animated) from the reopened
         // screen's measurement instead of springing from this session's last value. Until then the
         // 0 sentinel keeps `PanelHeightModifier` from pushing, so the controller's opening guess stands.
@@ -420,9 +409,7 @@ struct DashboardView: View {
                         layout: layout,
                         screen: screen,
                         height: Self.topBarHeight,
-                        horizontalPadding: PanelMetrics.margin,
-                        onResetAll: { layout.resetToDefault() },
-                        isPresentingResetAllConfirm: $isPresentingResetAllConfirm
+                        horizontalPadding: PanelMetrics.margin
                     )
                 }
             }

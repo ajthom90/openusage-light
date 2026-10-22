@@ -6,9 +6,9 @@ OpenUsage Light is a native macOS menu-bar app for seeing usage limits across AI
 
 ## Accounts
 
-Open Accounts from the menu-bar panel's Options menu (or press Return), click Add Account, choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open Browser and Copy Link, so you can pick which browser to use. If sign-in fails, Try Again starts it over. You can add multiple accounts for the same provider.
+Open Accounts from the menu-bar panel's Options menu (or press Return), click Add Account (or the + at the top), choose a provider, then complete its browser, device-code, or API-key sign-in. Browser sign-in shows Open Browser and Copy Link, so you can pick which browser to use. If sign-in fails, Try Again starts it over. You can add multiple accounts for the same provider.
 
-To rename an account, choose Rename from its right-click menu on the dashboard, or click the name at the top of its page in Accounts. Return or a click elsewhere saves the new name, and Esc cancels. Remove Account is at the bottom of the account's page in Accounts.
+To rename an account, double-click its name on the dashboard, choose Rename from its right-click menu, or click the name at the top of its page in Accounts. Return or a click elsewhere saves the new name, and Esc cancels. Remove Account is at the bottom of the account's page in Accounts.
 
 Account metadata is stored in the app's UserDefaults domain. OAuth tokens and API keys are stored in this app's own Keychain service. OpenUsage Light does not read credentials, files, Keychain items, databases, or environment variables belonging to other tools.
 
@@ -18,7 +18,7 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-The dashboard has one card per provider. Each account shows its name with its plan as a tag on the right, then every metric that has data, in the order you set. Apart from the ↺ tag, nothing on the dashboard reacts to hover or a click. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
+The dashboard has one card per provider. Each account shows its name with its plan as a tag on the right, then every metric that has data, in the order you set. Apart from the ↺ tag and a double-click on an account's name, nothing on the dashboard reacts to hover or a click. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
 
 Right-click for actions:
 
