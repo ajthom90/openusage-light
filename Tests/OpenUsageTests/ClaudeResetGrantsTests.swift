@@ -90,11 +90,4 @@ final class ClaudeResetGrantsTests: XCTestCase {
         XCTAssertTrue(userAgent.hasPrefix("claude-cli/"), userAgent)
         XCTAssertTrue(userAgent.hasSuffix("(external, cli)"), userAgent)
     }
-
-    func testPopoverEntriesStayDistinctWhenResetsShareADeadline() {
-        let deadline = now.addingTimeInterval(10 * 86_400)
-        let entries = RateLimitResetsDetail.entries(from: [deadline, deadline], now: now)
-        XCTAssertEqual(entries.map(\.number), [1, 2])
-        XCTAssertEqual(Set(entries.map(\.key)).count, 2)
-    }
 }

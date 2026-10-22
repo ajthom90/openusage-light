@@ -1,18 +1,20 @@
+import AppKit
 import SwiftUI
 
-/// The dashboard display: one section per provider, holding each of its accounts (`DashboardFamily`).
-/// Every account shows its plan beside its name and every metric that has data, fed by the same
-/// `WidgetDataStore` the menu bar uses. Hovering a card shows its provider's quick links.
+/// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
+/// Every account shows its plan and reset tags and every metric that has data, fed by the same
+/// `WidgetDataStore` the menu bar uses. Nothing reacts to hover or a click.
 ///
-/// Right-click a provider's card for provider actions, an account for account actions, and a metric
-/// line for metric actions. Everything reorders by dragging: a card by its header, an account by its
-/// name line within its card, a metric line within its account.
+/// Right-click a provider's card, an account, or a metric line for its menu (`DashboardMenus`).
+/// Everything reorders by dragging: a card by its header, an account by its name line within its card,
+/// a metric line within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
     @Environment(WidgetDataStore.self) private var dataStore
     @Environment(AccountRenameStore.self) private var renaming
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.popoverIsVisible) private var popoverIsVisible
     let reorderSpaceName: String
     @Binding var reorderLift: ReorderLift?
 
@@ -20,28 +22,30 @@ struct WidgetGroupedListView: View {
     @State private var activeMetricID: String?
     @State private var activeAccountID: String?
     @State private var activeFamilyID: String?
+    /// The reset the user picked from an account's menu, awaiting confirmation.
+    @State private var pendingReset: PendingReset?
+    /// One idempotency key per reset credit, minted the first time it's claimed and reused for any
+    /// retry, so a retried claim can never spend a second credit.
+    @State private var redeemRequestIDs: [String: String] = [:]
+
+    private struct PendingReset {
+        let accountID: String
+        let expiry: Date
+        let detail: String?
+    }
 
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        // One label column for the whole dashboard, so every bar starts at the same x.
-        let labelWidth = DashboardMetricLine.labelWidth(
-            for: families.flatMap(\.accounts).flatMap(\.lines).map(\.data.dashboardTitle)
-        )
         VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
             ForEach(families) { family in
                 DashboardProviderCard(
                     family: family,
-                    handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family, labelWidth: labelWidth))) }
+                    handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
                 ) { account in
-                    accountSection(
-                        account,
-                        group: groups.first { $0.provider.id == account.id },
-                        family: family.id,
-                        labelWidth: labelWidth
-                    )
+                    accountSection(account, group: groups.first { $0.provider.id == account.id }, family: family.id)
                 }
-                .contextMenu { providerMenu(family) }
+                .contextMenu { DashboardMenu(sections: DashboardMenus.provider(family), perform: perform) }
                 .opacity(activeFamilyID == Self.familyFrameID(family.id) ? 0 : 1)
                 .reorderFrame(id: Self.familyFrameID(family.id), in: .named(reorderSpaceName))
             }
@@ -49,6 +53,20 @@ struct WidgetGroupedListView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onPreferenceChange(ReorderFramePreferenceKey.self) { frameStore.frames = $0 }
         .animation(Motion.spring, value: families.map(\.id))
+        .alert(
+            "Use a Reset?",
+            isPresented: Binding(get: { pendingReset != nil }, set: { if !$0 { pendingReset = nil } }),
+            presenting: pendingReset
+        ) { pending in
+            Button("Reset") { claim(pending) }
+            Button("Cancel", role: .cancel) {}
+        } message: { pending in
+            Text(pending.detail ?? "Immediately reset your usage limits. This can't be undone.")
+        }
+        // The view tree survives the popover closing; a confirmation left open would reappear stale.
+        .onChange(of: popoverIsVisible) { _, visible in
+            if !visible { pendingReset = nil }
+        }
     }
 
     private func resolveLine(_ widget: PlacedWidget) -> DashboardLine? {
@@ -65,21 +83,32 @@ struct WidgetGroupedListView: View {
         return account.lines.map(\.id)
     }
 
-    private func accountSection(
-        _ account: DashboardAccount,
-        group: ProviderGroup?,
-        family: String,
-        labelWidth: CGFloat
-    ) -> some View {
+    /// Metrics the user hid from this account that have something to show.
+    private func hiddenMetricIDs(for accountID: String) -> [String] {
+        layout.orderedSupportedMetrics(for: accountID)
+            .filter { !layout.isMetricEnabled($0.id) && dataStore.data(for: $0).hasData }
+            .map(\.id)
+    }
+
+    private func accountSection(_ account: DashboardAccount, group: ProviderGroup?, family: String) -> some View {
         plainAccountSection(
             account,
-            handle: {
-                AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family, labelWidth: labelWidth)))
-            }
+            handle: { AnyView($0.highPriorityGesture(accountDragGesture(for: account, family: family))) }
         ) { line in
-            metricLine(line, in: account, labelWidth: labelWidth)
+            metricLine(line, in: account)
         }
-        .contextMenu { accountMenu(account, group: group) }
+        .contextMenu {
+            DashboardMenu(
+                sections: DashboardMenus.account(
+                    account,
+                    status: dataStore.headerNotice(for: account.id) ?? dataStore.stalenessHint(for: account.id)?.tooltip,
+                    canShare: group != nil,
+                    canClaimReset: container.resetClaim(for: account.id)?.isClaimable ?? false,
+                    hasHiddenMetrics: !hiddenMetricIDs(for: account.id).isEmpty
+                ),
+                perform: perform
+            )
+        }
         .opacity(activeAccountID == account.id ? 0 : 1)
         .reorderFrame(id: account.id, in: .named(reorderSpaceName))
     }
@@ -101,71 +130,68 @@ struct WidgetGroupedListView: View {
     }
 
     /// A metric line with its right-click menu. It drags to reorder within its account.
-    private func metricLine(
-        _ line: DashboardLine,
-        in account: DashboardAccount,
-        labelWidth: CGFloat
-    ) -> some View {
-        DashboardMetricLine(
-            data: line.data,
-            labelWidth: labelWidth,
-            resetClaim: line.data.showsResetExpiries ? container.resetClaim(for: account.id) : nil
-        )
-        .contentShape(Rectangle())
-        .opacity(activeMetricID == line.id ? 0 : 1)
-        .highPriorityGesture(metricDragGesture(for: line, accountID: account.id, labelWidth: labelWidth))
-        .contextMenu { lineMenu(line.descriptor, providerID: account.id) }
-        .reorderFrame(id: line.id, in: .named(reorderSpaceName))
+    private func metricLine(_ line: DashboardLine, in account: DashboardAccount) -> some View {
+        DashboardMetricLine(data: line.data)
+            .contentShape(Rectangle())
+            .opacity(activeMetricID == line.id ? 0 : 1)
+            .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
+            .contextMenu {
+                DashboardMenu(
+                    sections: DashboardMenus.metric(line.descriptor, isStarred: layout.isPinned(line.descriptor.id)),
+                    perform: perform
+                )
+            }
+            .reorderFrame(id: line.id, in: .named(reorderSpaceName))
     }
 
-    @ViewBuilder
-    private func providerMenu(_ family: DashboardFamily) -> some View {
-        Button("Refresh \(family.provider.displayName)") {
+    // MARK: - Menu commands
+
+    private func perform(_ command: DashboardCommand) {
+        switch command {
+        case .refresh(let accountIDs):
             Task {
-                for account in family.accounts {
-                    await dataStore.refreshOnUserRequest(providerID: account.id)
-                }
+                for id in accountIDs { await dataStore.refreshOnUserRequest(providerID: id) }
             }
+        case .manageAccounts:
+            openAccounts(nil)
+        case .open(let url):
+            NSWorkspace.shared.open(url)
+        case .rename(let accountID):
+            renaming.begin(accountID)
+        case .editAccount(let accountID):
+            openAccounts(accountID)
+        case .shareScreenshot(let accountID):
+            guard let group = layout.displayGroups.first(where: { $0.provider.id == accountID }) else { return }
+            _ = ShareCardRenderer.share(group: group, dataStore: dataStore, layout: layout, appearance: colorScheme)
+        case .useReset(let accountID, let expiry):
+            pendingReset = PendingReset(
+                accountID: accountID,
+                expiry: expiry,
+                detail: container.resetClaim(for: accountID)?.confirmDetail
+            )
+        case .showHiddenMetrics(let accountID):
+            layout.showMetrics(hiddenMetricIDs(for: accountID))
+        case .toggleStar(let descriptorID):
+            if layout.isPinned(descriptorID) || layout.canPin(descriptorID) {
+                layout.togglePin(descriptorID)
+            } else {
+                layout.notePinDenied(descriptorID)
+            }
+        case .hide(let descriptorID):
+            layout.setMetricEnabled(descriptorID, false)
         }
-        Button("Manage Accounts…") { openAccounts(nil) }
     }
 
-    @ViewBuilder
-    private func accountMenu(_ account: DashboardAccount, group: ProviderGroup?) -> some View {
-        Button("Refresh") {
-            Task { await dataStore.refreshOnUserRequest(providerID: account.id) }
+    /// Claims the confirmed reset, then says how it went in the footer's notice pill.
+    private func claim(_ pending: PendingReset) {
+        guard let service = container.resetClaim(for: pending.accountID), service.isClaimable else { return }
+        let key = "\(pending.accountID)|\(pending.expiry.timeIntervalSince1970)"
+        let redeemRequestID = redeemRequestIDs[key] ?? UUID().uuidString
+        redeemRequestIDs[key] = redeemRequestID
+        Task {
+            let outcome = await service.claim(creditExpiringAt: pending.expiry, redeemRequestID: redeemRequestID)
+            layout.presentCustomizationNotice(outcome.message(), tone: outcome == .success ? .positive : .notice)
         }
-        Button("Rename Account") { renaming.begin(account.id) }
-        Button("Edit Account…") { openAccounts(account.id) }
-        if let group {
-            Divider()
-            Button("Share Screenshot") { _ = shareCard(group) }
-        }
-    }
-
-    /// Hide a metric, star it for the menu bar, refresh its account, or open the account on the
-    /// Accounts screen.
-    @ViewBuilder
-    private func lineMenu(_ descriptor: WidgetDescriptor, providerID: String) -> some View {
-        Button("Hide") {
-            layout.setMetricEnabled(descriptor.id, false)
-        }
-        if descriptor.pinnable {
-            Button(layout.isPinned(descriptor.id) ? "Unstar" : "Star for menu bar") {
-                if layout.isPinned(descriptor.id) {
-                    layout.setPinned(false, for: descriptor.id)
-                } else if layout.canPin(descriptor.id) {
-                    layout.setPinned(true, for: descriptor.id)
-                } else {
-                    layout.notePinDenied(descriptor.id)
-                }
-            }
-        }
-        Divider()
-        Button("Refresh") {
-            Task { await dataStore.refreshOnUserRequest(providerID: providerID) }
-        }
-        Button("Edit Account…") { openAccounts(providerID) }
     }
 
     /// Opens the Accounts screen, on one account's page when `providerID` is set.
@@ -176,18 +202,9 @@ struct WidgetGroupedListView: View {
         }
     }
 
-    /// Renders the account's branded share card and copies the PNG to the clipboard, in the popover's
-    /// own appearance. The footer's "Share Screenshot" submenu uses the same path.
-    private func shareCard(_ group: ProviderGroup) -> Bool {
-        ShareCardRenderer.share(
-            group: group,
-            dataStore: dataStore,
-            layout: layout,
-            appearance: colorScheme
-        )
-    }
+    // MARK: - Reordering
 
-    private func metricDragGesture(for line: DashboardLine, accountID: String, labelWidth: CGFloat) -> some Gesture {
+    private func metricDragGesture(for line: DashboardLine, accountID: String) -> some Gesture {
         reorderDragGesture(
             id: line.id,
             coordinateSpaceName: reorderSpaceName,
@@ -195,7 +212,7 @@ struct WidgetGroupedListView: View {
             active: $activeMetricID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardMetricLine(data: line.data, labelWidth: labelWidth)
+                let preview = DashboardMetricLine(data: line.data)
                     .padding(.horizontal, 4)
                     .liftedRowSurface()
                 return ReorderLift.make(id: line.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
@@ -205,15 +222,13 @@ struct WidgetGroupedListView: View {
         )
     }
 
-    // MARK: - Account and card reordering
-
     private static func familyFrameID(_ familyID: String) -> String { "family:\(familyID)" }
 
     private func liveFamilies() -> [DashboardFamily] {
         DashboardFamily.make(groups: layout.displayGroups, line: resolveLine)
     }
 
-    private func accountDragGesture(for account: DashboardAccount, family: String, labelWidth: CGFloat) -> some Gesture {
+    private func accountDragGesture(for account: DashboardAccount, family: String) -> some Gesture {
         reorderDragGesture(
             id: account.id,
             coordinateSpaceName: reorderSpaceName,
@@ -221,11 +236,8 @@ struct WidgetGroupedListView: View {
             active: $activeAccountID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = plainAccountSection(account) {
-                    DashboardMetricLine(data: $0.data, labelWidth: labelWidth)
-                }
-                .padding(.vertical, DashboardBox.verticalPadding)
-                .liftedRowSurface()
+                let preview = plainAccountSection(account) { DashboardMetricLine(data: $0.data) }
+                    .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().first { $0.id == family }?.accounts.map(\.id) ?? [] },
@@ -233,7 +245,7 @@ struct WidgetGroupedListView: View {
         )
     }
 
-    private func familyDragGesture(for family: DashboardFamily, labelWidth: CGFloat) -> some Gesture {
+    private func familyDragGesture(for family: DashboardFamily) -> some Gesture {
         let frameID = Self.familyFrameID(family.id)
         return reorderDragGesture(
             id: frameID,
@@ -243,9 +255,7 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let preview = DashboardProviderCard(family: family) {
-                    plainAccountSection($0) {
-                        DashboardMetricLine(data: $0.data, labelWidth: labelWidth)
-                    }
+                    plainAccountSection($0) { DashboardMetricLine(data: $0.data) }
                 }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },

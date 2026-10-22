@@ -61,6 +61,20 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertFalse(store.canUndo, "undo must not record itself")
     }
 
+    func testShowMetricsTurnsHiddenMetricsBackOnAsOneUndoStep() {
+        let store = makeStore("ShowMetrics")
+        store.setMetricEnabled("claude.weekly", false)
+        store.setMetricEnabled("claude.extra", false)
+
+        store.showMetrics(["claude.weekly", "claude.extra"])
+        XCTAssertTrue(store.isMetricEnabled("claude.weekly"))
+        XCTAssertTrue(store.isMetricEnabled("claude.extra"))
+
+        XCTAssertTrue(store.undo())
+        XCTAssertFalse(store.isMetricEnabled("claude.weekly"), "one undo hides both again")
+        XCTAssertFalse(store.isMetricEnabled("claude.extra"))
+    }
+
     func testUndoReversesMetricReorder() {
         let store = makeStore("UndoReorderMetric")
         for id in ["claude.session", "claude.weekly", "claude.extra", "claude.today"] {

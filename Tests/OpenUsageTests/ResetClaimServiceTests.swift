@@ -103,7 +103,7 @@ final class ResetClaimServiceTests: XCTestCase {
         XCTAssertEqual(refresh, .failed, "the post-claim refresh runs despite the backoff")
     }
 
-    func testErrorsMapToTheAdviceTheBannerGives() {
+    func testErrorsMapToTheAdviceTheMessageGives() {
         XCTAssertEqual(ResetClaimFailure(ClaudeAuthError.tokenExpired), .signInExpired)
         XCTAssertEqual(ResetClaimFailure(CodexAuthError.sessionExpired), .signInExpired)
         XCTAssertEqual(ResetClaimFailure(LoginError.cancelled), .signInExpired)
@@ -113,9 +113,9 @@ final class ResetClaimServiceTests: XCTestCase {
         XCTAssertEqual(ResetClaimFailure(ClaudeUsageError.requestFailed(500)), .refused)
     }
 
-    func testEveryOutcomeGetsAPlainBanner() {
+    func testEveryOutcomeGetsAPlainMessage() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let banners: [(ResetClaimOutcome, String)] = [
+        let messages: [(ResetClaimOutcome, String)] = [
             (.success, "Reset claimed. Enjoy!"),
             (.nothingToReset, "Your usage doesn't need a reset yet"),
             (.noCredit, "That reset is no longer available"),
@@ -126,8 +126,8 @@ final class ResetClaimServiceTests: XCTestCase {
             (.failed(.connection), "Couldn't connect. Check your internet connection and try again."),
             (.failed(.refused), "Couldn't reset usage. Please try again.")
         ]
-        for (outcome, text) in banners {
-            XCTAssertEqual(RateLimitResetsDetail.banner(for: outcome, now: now).text, text, "\(outcome)")
+        for (outcome, text) in messages {
+            XCTAssertEqual(outcome.message(now: now), text, "\(outcome)")
         }
     }
 

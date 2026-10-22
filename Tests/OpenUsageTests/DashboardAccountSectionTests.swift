@@ -3,8 +3,9 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// An account isn't a click target. Its name line drags it, each metric line drags itself, and the Resets
-/// value is the one thing that acts on a click: it opens the resets timeline.
+/// The dashboard shows what it shows: no part of a card, an account, a metric line, or its tags reacts
+/// to hover or a click. Dragging still reorders: the name line drags its account and a metric line
+/// drags itself.
 @MainActor
 final class DashboardAccountSectionTests: XCTestCase {
     private final class Log {
@@ -12,10 +13,8 @@ final class DashboardAccountSectionTests: XCTestCase {
         var metricDrags = 0
     }
 
-    private static let labelWidth: CGFloat = 60
-
     private let account: DashboardAccount = {
-        var lines = ["Session", "Weekly", "Fable"].map { title in
+        let lines = ["Session", "Weekly", "Fable"].map { title in
             let data = WidgetData(title: title, icon: .providerMark("claude"), kind: .percent, used: 30, limit: 100)
             return DashboardLine(descriptor: WidgetDescriptor(id: title, providerID: "claude", metricLabel: title, sample: data), data: data)
         }
@@ -23,39 +22,90 @@ final class DashboardAccountSectionTests: XCTestCase {
         resets.values = [MetricValue(number: 2, kind: .count, label: "available")]
         resets.showsResetExpiries = true
         resets.expiriesAt = [Date().addingTimeInterval(9 * 86_400)]
-        lines.append(DashboardLine(descriptor: WidgetDescriptor(id: "resets", providerID: "claude", metricLabel: "Rate Limit Resets", sample: resets), data: resets))
         return DashboardAccount(
             provider: Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"),
-            lines: lines
+            lines: lines,
+            resets: resets
         )
     }()
 
-    func testClickOnTheResetsValueOpensItsPopover() {
+    /// SwiftUI names every modifier and control in a view's body type: `_HoverRegionModifier` for
+    /// `onHover`, `TapGesture` for `onTapGesture`, `Button`, and this app's `HoverTooltipModifier`.
+    private static let interactive = ["Hover", "TapGesture", "Button", "Popover", "Tooltip", "Help"]
+
+    private func interactiveParts(_ body: some View) -> [String] {
+        let type = String(reflecting: Swift.type(of: body))
+        return Self.interactive.filter { type.contains($0) }
+    }
+
+    func testTheDetectorSeesHoverAndTapHandlers() {
+        XCTAssertEqual(interactiveParts(Text("x").onHover { _ in }), ["Hover"])
+        XCTAssertEqual(interactiveParts(Text("x").onContinuousHover { _ in }), ["Hover"])
+        XCTAssertEqual(interactiveParts(Text("x").onTapGesture {}), ["TapGesture"])
+        XCTAssertEqual(interactiveParts(Button("x") {}), ["Button"])
+        XCTAssertFalse(interactiveParts(Text("x").hoverTooltip("y")).isEmpty)
+        XCTAssertFalse(interactiveParts(Text("x").help("y")).isEmpty)
+    }
+
+    func testNoDashboardViewHasAHoverOrTapHandler() {
+        let section = DashboardAccountSection(account: account, plan: "Max 5x", notice: "Refresh failed") {
+            DashboardMetricLine(data: $0.data)
+        }
+        let stale = DashboardAccountSection(
+            account: account, plan: "Max 5x", staleness: StalenessHint(label: "1h ago", tooltip: "Last updated 1 hour ago")
+        ) { _ in EmptyView() }
+        let card = DashboardProviderCard(family: DashboardFamily(id: "claude", provider: account.provider, accounts: [account])) { _ in
+            EmptyView()
+        }
+        var credits = WidgetData(title: "Extra Usage", icon: .providerMark("codex"), kind: .count, used: 452, limit: nil)
+        credits.values = [MetricValue(number: 452, kind: .count, label: "credits")]
+        var weekly = account.lines[1].data
+        weekly.resetsAt = Date().addingTimeInterval(86_400)
+
+        XCTAssertEqual(interactiveParts(section.body), [], "account")
+        XCTAssertEqual(interactiveParts(stale.body), [], "stale account")
+        XCTAssertEqual(interactiveParts(card.body), [], "provider card")
+        XCTAssertEqual(interactiveParts(DashboardMetricLine(data: weekly).body), [], "metric line")
+        XCTAssertEqual(interactiveParts(DashboardMetricLine(data: credits).body), [], "metric line without a limit")
+        XCTAssertEqual(interactiveParts(ResetCountTag(data: account.resets!).body), [], "resets tag")
+        XCTAssertEqual(interactiveParts(PlanTag(plan: "Max 5x").body), [], "plan tag")
+    }
+
+    /// A click anywhere on an account (its name, the ↺ tag, the plan tag, a metric's value) opens
+    /// nothing, starts no drag, and changes nothing on screen.
+    func testClicksChangeNothing() throws {
         let log = Log()
         let (window, host) = host(log: log)
-        let resetsLine = DashboardMetricLine.height * 4.5
+        let before = try pixels(host)
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
-        func popoverIsOpen() -> Bool { NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
-
-        click(CGPoint(x: DashboardBox.textInset + 4, y: resetsLine), window, host)
-        XCTAssertFalse(popoverIsOpen(), "a click on the label opens nothing")
-
-        click(CGPoint(x: DashboardBox.textInset + Self.labelWidth + DashboardMetricLine.columnSpacing + 8, y: resetsLine), window, host)
-        XCTAssertTrue(popoverIsOpen(), "a click on the value opens the resets popover")
+        let nameLine = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+        let firstMetric = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight + DashboardMetricLine.height / 2
+        let points = [
+            CGPoint(x: DashboardBox.inset + 10, y: nameLine),
+            CGPoint(x: host.bounds.width - DashboardBox.inset - 20, y: nameLine),
+            CGPoint(x: host.bounds.width - DashboardBox.inset - 80, y: nameLine),
+            CGPoint(x: host.bounds.width - DashboardBox.inset - 80, y: firstMetric),
+        ]
+        for point in points {
+            click(point, window, host)
+        }
+        XCTAssertFalse(NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) }, "a click opened a window")
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
+        XCTAssertEqual(try pixels(host), before, "a click changed what the account shows")
     }
 
     func testTheNameLineDragsTheAccountAndAMetricLineDragsItself() {
         let log = Log()
         let (window, host) = host(log: log)
-        let row = DashboardMetricLine.height
-        // The empty end of the name line belongs to it too.
-        drag(from: CGPoint(x: host.bounds.width - 20, y: row / 2), window, host)
+        let nameLine = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+        // The empty middle of the name line belongs to it too.
+        drag(from: CGPoint(x: host.bounds.width / 2, y: nameLine), window, host)
         XCTAssertGreaterThan(log.accountDrags, 0)
         XCTAssertEqual(log.metricDrags, 0)
 
         log.accountDrags = 0
-        drag(from: CGPoint(x: host.bounds.width / 2, y: row * 1.5), window, host)
+        let firstMetric = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight + DashboardMetricLine.height / 2
+        drag(from: CGPoint(x: host.bounds.width / 2, y: firstMetric), window, host)
         XCTAssertGreaterThan(log.metricDrags, 0)
         XCTAssertEqual(log.accountDrags, 0)
     }
@@ -67,16 +117,17 @@ final class DashboardAccountSectionTests: XCTestCase {
             handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })) }
         ) { line in
             // As the dashboard wires it: every metric line carries its own drag.
-            DashboardMetricLine(data: line.data, labelWidth: Self.labelWidth)
+            DashboardMetricLine(data: line.data)
                 .contentShape(Rectangle())
                 .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.metricDrags += 1 })
         }
-        .frame(width: 300)
-        .environment(\.hoverTooltipsDisabled, true)
+        .frame(width: 292)
+        .environment(\.colorScheme, .light)
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
         let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .aqua)
         window.contentView = host
         // Off every screen: the window must be ordered in to take events, never seen.
         window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
@@ -86,7 +137,15 @@ final class DashboardAccountSectionTests: XCTestCase {
         return (window, host)
     }
 
+    private func pixels(_ host: NSView) throws -> Data {
+        host.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+    }
+
     private func click(_ point: CGPoint, _ window: NSWindow, _ host: NSView) {
+        send(.mouseMoved, at: point, window, host)
         send(.leftMouseDown, at: point, window, host)
         send(.leftMouseUp, at: point, window, host)
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
@@ -109,8 +168,8 @@ final class DashboardAccountSectionTests: XCTestCase {
             windowNumber: window.windowNumber,
             context: nil,
             eventNumber: 0,
-            clickCount: 1,
-            pressure: type == .leftMouseUp ? 0 : 1
+            clickCount: type == .mouseMoved ? 0 : 1,
+            pressure: type == .leftMouseDown || type == .leftMouseDragged ? 1 : 0
         )!
         window.sendEvent(event)
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))

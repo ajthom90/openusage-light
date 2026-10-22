@@ -1,10 +1,8 @@
-import AppKit
 import SwiftUI
 
-/// One provider's section on the dashboard, laid out like a grouped form: a section header (mark and
-/// name) over one grouped box holding its accounts, separated by space alone. The mark, the account names,
-/// and the metric labels share one leading edge. Hovering the section reveals the provider's quick links
-/// (Status, Dashboard) at the header's trailing edge, as small text links that open in the browser.
+/// One provider's card on the dashboard: the provider's mark and name inside the card, then each of its
+/// accounts, separated by space alone. The mark sits flush with the account names and metric labels
+/// below it. Nothing reacts to the pointer; right-click the card for the provider's menu.
 struct DashboardProviderCard<Account: View>: View {
     let family: DashboardFamily
     /// Wraps the header, so the dashboard can attach the card's drag gesture to it.
@@ -13,84 +11,47 @@ struct DashboardProviderCard<Account: View>: View {
 
     /// Party easter egg: pulse the provider mark.
     @Environment(\.popoverPartyMode) private var partyMode
-    @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: PanelMetrics.headerSpacing) {
+        VStack(alignment: .leading, spacing: DashboardBox.headerGap) {
             handle(AnyView(header))
             VStack(alignment: .leading, spacing: DashboardBox.accountSpacing) {
                 ForEach(family.accounts) { account($0) }
             }
-            .padding(.vertical, DashboardBox.verticalPadding)
-            .cardSurface()
         }
+        .padding(.top, DashboardBox.topPadding)
+        .padding(.bottom, DashboardBox.bottomPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
-        .animation(.easeOut(duration: 0.15), value: isHovered)
+        .cardSurface()
     }
 
     private var header: some View {
         HStack(spacing: 6) {
             ProviderIcon(source: family.provider.icon, inset: 0.04)
-                .frame(width: 14, height: 14)
+                .frame(width: 16, height: 16)
                 .partyPulse(partyMode)
             Text(family.provider.displayName)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 14, weight: .semibold))
                 .lineLimit(1)
-            Spacer(minLength: 8)
-            ProviderHeaderLinks(links: family.provider.visibleLinks)
-                .opacity(isHovered ? 1 : 0)
-                .allowsHitTesting(isHovered)
         }
-        .padding(.horizontal, DashboardBox.textInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DashboardBox.inset)
         .contentShape(Rectangle())
     }
 }
 
-/// Where things sit inside a provider's grouped box. Text sits `textInset` in from the box's sides, and
-/// the section header is inset the same, so the provider's mark lines up with the names and labels below.
+/// Where things sit inside a provider's card. Everything is `inset` in from the card's sides, so the
+/// provider's mark lines up with the account names and metric labels below it.
 enum DashboardBox {
-    static let textInset: CGFloat = 14
-    /// Above the first account and below the last.
-    static let verticalPadding: CGFloat = 4
-    /// Between two accounts.
-    static let accountSpacing: CGFloat = 8
-}
-
-/// The provider's quick links in the card header: "Status ↗  Dashboard ↗" in small secondary text that
-/// brightens under the pointer.
-private struct ProviderHeaderLinks: View {
-    let links: [ProviderLink]
-
-    var body: some View {
-        HStack(spacing: 10) {
-            ForEach(links, id: \.self) { HeaderLink(link: $0) }
-        }
-    }
-}
-
-private struct HeaderLink: View {
-    let link: ProviderLink
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button {
-            if let url = URL(string: link.url) { NSWorkspace.shared.open(url) }
-        } label: {
-            HStack(spacing: 2) {
-                Text(link.label)
-                Image(systemName: "arrow.up.right")
-                    .imageScale(.small)
-            }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .accessibilityLabel("\(link.label), opens in browser")
-    }
+    static let inset: CGFloat = 14
+    /// Above the header.
+    static let topPadding: CGFloat = 12
+    /// Between the header and the first account, on top of the account's own padding.
+    static let headerGap: CGFloat = 4
+    /// Above and below each account's content.
+    static let accountPadding: CGFloat = 4
+    /// Between two accounts, on top of their own padding.
+    static let accountSpacing: CGFloat = 6
+    /// Below the last account, on top of its own padding.
+    static let bottomPadding: CGFloat = 8
 }

@@ -5,7 +5,7 @@ final class ProviderLinksTests: XCTestCase {
     @MainActor
     func testAccountProvidersCarryTheirQuickLinks() {
         let runtime = AccountProviderRuntime(account: Account(kind: .claude, label: "AM 1"), vault: InMemoryCredentialVault())
-        XCTAssertEqual(runtime.provider.visibleLinks.map(\.label), ["Status", "Dashboard"])
+        XCTAssertEqual(runtime.provider.visibleLinks.map(\.label), ["Status Page", "Usage Dashboard"])
     }
 
     func testEveryLinkIsAnHTTPSURL() {

@@ -165,6 +165,13 @@ final class LayoutStore {
         }
     }
 
+    /// Turn several metrics back on as one undoable step: the dashboard's Show Hidden Metrics.
+    func showMetrics(_ descriptorIDs: [String]) {
+        recordingUndoStep {
+            for id in descriptorIDs { add(id) }
+        }
+    }
+
     // MARK: - Undo (#603)
 
     /// Whether there's at least one customization step to walk back. Drives the Customize Undo button's

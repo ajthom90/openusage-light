@@ -13,8 +13,8 @@ struct UsageMeterBar: View {
     /// Party easter egg: fill the bar with the party gradient instead of the severity color.
     @Environment(\.popoverPartyMode) private var partyMode
 
-    /// The height of AppKit's small determinate progress bar.
-    static let height: CGFloat = 6
+    /// A thin 5 pt capsule, as in the card dashboard Robin chose.
+    static let height: CGFloat = 5
     private static let paceTickWidth: CGFloat = 2
     private static let paceTickOverhang: CGFloat = 4
 
