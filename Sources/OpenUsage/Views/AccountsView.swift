@@ -49,9 +49,7 @@ struct AccountsView: View {
     }
 
     /// Both levels share one ZStack so the outgoing and incoming level overlap while they slide instead
-    /// of stacking, and each fades as it moves: the Liquid Glass Add Account button is drawn by the
-    /// system glass layer, which does not follow a bare offset, so without the fade it lingers in place
-    /// until the transition ends.
+    /// of stacking.
     private var content: some View {
         ZStack(alignment: .top) {
             level
@@ -68,14 +66,14 @@ struct AccountsView: View {
                 reorderLift: $reorderLift,
                 frameStore: frameStore
             )
-            .transition(.move(edge: .trailing).combined(with: .opacity))
+            .transition(.move(edge: .trailing))
         } else {
             AccountListView(
                 reorderSpaceName: reorderSpaceName,
                 reorderLift: $reorderLift,
                 frameStore: frameStore
             )
-            .transition(.move(edge: .leading).combined(with: .opacity))
+            .transition(.move(edge: .leading))
         }
     }
 }

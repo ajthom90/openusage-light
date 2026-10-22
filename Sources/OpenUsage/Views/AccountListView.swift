@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Accounts list (L1): every account in the user's saved order, grouped in one card the way
-/// Settings groups its rows, with Add Account below; the top bar's + opens the same sheet. Click a row
-/// to open that account (L2); drag its grip to reorder the accounts, which reorders the dashboard too.
+/// Settings groups its rows; the top bar's + opens the Add Account sheet. Click a row to open that
+/// account (L2); drag its grip to reorder the accounts, which reorders the dashboard too.
 struct AccountListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -15,34 +15,16 @@ struct AccountListView: View {
     var body: some View {
         @Bindable var layout = layout
         let providers = layout.orderedProviders()
-        VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
-            if !providers.isEmpty {
-                VStack(spacing: 0) {
-                    ForEach(providers) { provider in
-                        accountRow(provider)
-                    }
-                }
-                .cardSurface()
+        VStack(spacing: 0) {
+            ForEach(providers) { provider in
+                accountRow(provider)
             }
-            addAccountButton
         }
+        .cardSurface()
         .animation(Motion.spring, value: providers.map(\.id))
         .sheet(isPresented: $layout.isAddingAccount) {
             AddAccountSheet(store: container.accounts)
         }
-    }
-
-    private var addAccountButton: some View {
-        Button {
-            layout.isAddingAccount = true
-        } label: {
-            Label("Add Account", systemImage: "plus")
-                .font(.system(size: 13, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 3)
-        }
-        .glassButtonStyle(prominent: true)
-        .controlSize(.large)
     }
 
     private func accountRow(_ provider: Provider) -> some View {

@@ -102,7 +102,7 @@ struct PopoverTopBar: View {
         .accessibilityLabel("Reset Metrics")
     }
 
-    /// Opens the Add Account sheet, the same one as the account list's Add Account button.
+    /// Opens the account list's Add Account sheet.
     private var addAccountButton: some View {
         Button {
             layout.isAddingAccount = true

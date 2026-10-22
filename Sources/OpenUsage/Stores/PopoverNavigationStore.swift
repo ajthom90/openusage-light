@@ -60,7 +60,7 @@ final class PopoverNavigationStore {
     /// shows that account's name and metric sections. UI-only (not persisted): cleared when leaving
     /// Accounts (see `screen`'s didSet) and on popover close.
     var customizeProviderID: String?
-    /// Whether the Add Account sheet is showing over the account list. Both the top bar's + and the
-    /// list's Add Account button open it. Cleared when leaving Accounts, so it never reopens stale.
+    /// Whether the Add Account sheet is showing over the account list. The top bar's + opens it.
+    /// Cleared when leaving Accounts, so it never reopens stale.
     var isAddingAccount = false
 }

@@ -3,8 +3,7 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// The Accounts list's top bar: its trailing + opens the same Add Account sheet as the list's Add
-/// Account button.
+/// The Accounts list's top bar: its trailing + opens the Add Account sheet, the screen's only way in.
 @MainActor
 final class PopoverTopBarTests: XCTestCase {
     func testTheAccountsBarsTrailingButtonOpensAddAccount() async throws {
