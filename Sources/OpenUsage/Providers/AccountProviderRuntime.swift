@@ -68,8 +68,8 @@ final class AccountProviderRuntime: ProviderRuntime {
         case .cursor:
             [
                 .percent(id: "\(prefix).usage", provider: provider, title: "Total usage", metricLabel: "Total usage"),
-                .percent(id: "\(prefix).auto", provider: provider, title: "Auto"),
-                .percent(id: "\(prefix).api", provider: provider, title: "API"),
+                .percent(id: "\(prefix).auto", provider: provider, title: "Auto", metricLabel: "Cursor Models"),
+                .percent(id: "\(prefix).api", provider: provider, title: "API", metricLabel: "Other Models"),
                 .percent(id: "\(prefix).onDemand", provider: provider, title: "On-demand"),
                 .percent(id: "\(prefix).grokBot", provider: provider, title: "Grok Bot usage")
             ]
@@ -309,9 +309,12 @@ final class AccountProviderRuntime: ProviderRuntime {
             try await save(.oauth(tokens))
         }
         let usageResponse = try await client.fetchUsage(accessToken: tokens.accessToken)
-        guard (200..<300).contains(usageResponse.statusCode),
-              let usage = ProviderParse.jsonObject(usageResponse.body)?["usage"] as? [String: Any]
-        else {
+        try ProviderAuthRetry.requireSuccess(
+            usageResponse,
+            authExpired: CursorAuthError.tokenExpired,
+            requestFailed: { CursorUsageError.requestFailed($0) }
+        )
+        guard let usage = ProviderParse.jsonObject(usageResponse.body) else {
             throw CursorUsageError.invalidResponse
         }
         let planResponse = try? await client.fetchPlan(accessToken: tokens.accessToken)
@@ -372,21 +375,22 @@ final class AccountProviderRuntime: ProviderRuntime {
             try await save(.oauth(tokens))
         }
         let client = AntigravityUsageClient(http: http)
+        let codeAssist: Data? = if case .ok(let data) = await client.loadCodeAssist(token: tokens.accessToken) { data } else { nil }
+        let project = codeAssist.flatMap(AntigravityUsageMapper.parseProject)
         let response = await client.cloudCodeAllHosts(
             path: AntigravityUsageClient.quotaSummaryPath,
             token: tokens.accessToken,
             userAgent: AntigravityUsageClient.clientUserAgent,
-            body: [:],
+            body: project.map { ["project": $0] } ?? [:],
             isComplete: AntigravityUsageMapper.isCompleteSummary
         )
-        guard case .ok(let bodies) = response,
-              let lines = AntigravityUsageMapper.parseQuotaSummaries(bodies)
-        else { throw LoginError.invalidResponse }
-        let planResponse = await client.loadCodeAssist(token: tokens.accessToken)
-        let plan: String?
-        if case .ok(let data) = planResponse { plan = AntigravityUsageMapper.parseLoadCodeAssistPlan(data) }
-        else { plan = nil }
-        return (plan, lines)
+        switch response {
+        case .authFailed: throw AntigravityError.authExpired
+        case .unavailable: throw AntigravityError.unavailable
+        case .ok(let bodies):
+            guard let lines = AntigravityUsageMapper.parseQuotaSummaries(bodies) else { throw AntigravityError.invalidResponse }
+            return (codeAssist.flatMap(AntigravityUsageMapper.parseLoadCodeAssistPlan), lines)
+        }
     }
 
     private func refreshOllama(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {

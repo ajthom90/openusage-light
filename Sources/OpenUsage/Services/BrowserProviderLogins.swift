@@ -198,8 +198,7 @@ struct AntigravityLogin: ProviderLogin {
             return (label, .oauth(OAuthTokens(
                 accessToken: token.accessToken,
                 refreshToken: token.refreshToken,
-                expiresAt: token.expiry,
-                extras: ["project_id": "rising-fact-p41fc"]
+                expiresAt: token.expiry
             )))
         } catch {
             server.cancel()
