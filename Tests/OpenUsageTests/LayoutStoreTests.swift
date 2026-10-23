@@ -49,15 +49,15 @@ final class LayoutStoreTests: XCTestCase {
 
     func testUndoReversesEnable() {
         let store = makeStore("UndoEnable")
-        // cursor.credits is not in DefaultLayout.metricIDs, so it starts disabled in the mock.
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"))
+        // cursor.today is not in DefaultLayout.metricIDs, so it starts disabled in the mock.
+        XCTAssertFalse(store.isMetricEnabled("cursor.today"))
 
-        store.setMetricEnabled("cursor.credits", true)
-        XCTAssertTrue(store.isMetricEnabled("cursor.credits"))
+        store.setMetricEnabled("cursor.today", true)
+        XCTAssertTrue(store.isMetricEnabled("cursor.today"))
         XCTAssertTrue(store.canUndo)
 
         XCTAssertTrue(store.undo())
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"), "undo turns an enabled metric back off")
+        XCTAssertFalse(store.isMetricEnabled("cursor.today"), "undo turns an enabled metric back off")
         XCTAssertFalse(store.canUndo, "undo must not record itself")
     }
 
@@ -125,7 +125,7 @@ final class LayoutStoreTests: XCTestCase {
     func testUndoWalksBackMultipleMixedSteps() {
         let store = makeStore("UndoMultiStep")
         // Distinct, real changes: enable an off metric, pin an unpinned one, remove an on metric.
-        store.setMetricEnabled("cursor.credits", true)  // step 1: enable
+        store.setMetricEnabled("cursor.today", true)  // step 1: enable
         store.setPinned(true, for: "cursor.usage")      // step 2: pin
         store.setMetricEnabled("claude.session", false) // step 3: remove
 
@@ -136,10 +136,10 @@ final class LayoutStoreTests: XCTestCase {
 
         XCTAssertTrue(store.undo())                      // undo pin
         XCTAssertFalse(store.isPinned("cursor.usage"))
-        XCTAssertTrue(store.isMetricEnabled("cursor.credits"))
+        XCTAssertTrue(store.isMetricEnabled("cursor.today"))
 
         XCTAssertTrue(store.undo())                      // undo enable
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"))
+        XCTAssertFalse(store.isMetricEnabled("cursor.today"))
 
         XCTAssertFalse(store.canUndo)
         XCTAssertFalse(store.undo())
@@ -162,9 +162,9 @@ final class LayoutStoreTests: XCTestCase {
 
     func testNoOpActionDoesNotRecordUndoStep() {
         let store = makeStore("UndoNoOp")
-        store.setMetricEnabled("cursor.credits", true)  // one real step
+        store.setMetricEnabled("cursor.today", true)  // one real step
         // Re-enabling an already-on metric, or a self-target reorder, changes nothing → no step.
-        store.setMetricEnabled("cursor.credits", true)
+        store.setMetricEnabled("cursor.today", true)
         store.reorderMetric(dragged: "claude.weekly", target: "claude.weekly", in: "claude")
 
         // Exactly one undoable step (the original enable).
@@ -183,7 +183,7 @@ final class LayoutStoreTests: XCTestCase {
 
     func testProviderResetClearsUndoHistory() {
         let store = makeStore("UndoResetProvider")
-        store.setMetricEnabled("cursor.credits", true)
+        store.setMetricEnabled("cursor.today", true)
         XCTAssertTrue(store.canUndo)
 
         store.resetProvider("claude")
@@ -317,27 +317,27 @@ final class LayoutStoreTests: XCTestCase {
 
     func testAddAndRemoveTogglePlacement() {
         let store = makeStore("Toggle")
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"))
+        XCTAssertFalse(store.isMetricEnabled("cursor.today"))
 
-        store.add("cursor.credits")
-        XCTAssertTrue(store.isMetricEnabled("cursor.credits"))
+        store.add("cursor.today")
+        XCTAssertTrue(store.isMetricEnabled("cursor.today"))
 
-        guard let widget = store.placed.first(where: { $0.descriptorID == "cursor.credits" }) else {
+        guard let widget = store.placed.first(where: { $0.descriptorID == "cursor.today" }) else {
             return XCTFail("missing widget")
         }
         store.remove(widget.id)
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"))
+        XCTAssertFalse(store.isMetricEnabled("cursor.today"))
     }
 
     func testTogglingMetricDoesNotChangeCustomizeOrder() {
         let store = makeStore("ToggleKeepsOrder")
         let before = store.orderedSupportedMetrics(for: "cursor").map(\.id)
-        XCTAssertFalse(store.isMetricEnabled("cursor.credits"))
+        XCTAssertFalse(store.isMetricEnabled("cursor.today"))
 
-        store.setMetricEnabled("cursor.credits", true)
+        store.setMetricEnabled("cursor.today", true)
         XCTAssertEqual(store.orderedSupportedMetrics(for: "cursor").map(\.id), before)
 
-        store.setMetricEnabled("cursor.credits", false)
+        store.setMetricEnabled("cursor.today", false)
         XCTAssertEqual(store.orderedSupportedMetrics(for: "cursor").map(\.id), before)
     }
 
