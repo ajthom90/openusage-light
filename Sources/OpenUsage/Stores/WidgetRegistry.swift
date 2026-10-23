@@ -43,13 +43,22 @@ struct WidgetRegistry: Sendable {
         descriptorsByProvider[providerID] ?? []
     }
 
-    /// Saved order filtered to installed providers, with newly introduced providers appended.
+    /// The user's saved order filtered to current accounts. Each account not in it yet, taken in the order
+    /// the accounts were added, goes right after the last account of its provider, or to the bottom when
+    /// it is that provider's first.
     func orderedProviderIDs(savedOrder: [String]) -> [String] {
-        let defaults = providers.map(\.id)
-        let known = Set(defaults)
-        let saved = savedOrder.filter { known.contains($0) }
-        let savedIDs = Set(saved)
-        return saved + defaults.filter { !savedIDs.contains($0) }
+        let known = Set(providers.map(\.id))
+        var ordered = savedOrder.filter { known.contains($0) }
+        let savedIDs = Set(ordered)
+        for id in providers.map(\.id) where !savedIDs.contains(id) {
+            let family = DashboardFamily.familyID(of: id)
+            if let last = ordered.lastIndex(where: { DashboardFamily.familyID(of: $0) == family }) {
+                ordered.insert(id, at: last + 1)
+            } else {
+                ordered.append(id)
+            }
+        }
+        return ordered
     }
 
     @MainActor

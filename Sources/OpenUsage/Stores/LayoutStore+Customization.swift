@@ -17,8 +17,8 @@ extension LayoutStore {
 
     // MARK: - Provider grouping
 
-    /// Known providers in the user's saved order, with any not-yet-seen provider appended in registry order
-    /// so a newly added provider still shows up.
+    /// Accounts in the user's saved order. A new account joins the bottom of its provider's accounts, and
+    /// a provider's first account goes to the bottom of the list.
     func orderedProviderIDs() -> [String] {
         registry.orderedProviderIDs(savedOrder: providerOrder)
     }

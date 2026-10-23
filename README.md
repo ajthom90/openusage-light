@@ -26,7 +26,7 @@ Right-click for actions:
 - An account: Refresh, Rename, Edit Account…, and Share Screenshot. If the account line shows a warning or stale icon, the menu starts with the reason. Show Hidden Metrics appears when you have hidden any.
 - A metric: Star for Menu Bar (or Unstar) and Hide.
 
-Drag a card by its header, an account by its name, or a metric by its line to reorder them.
+Drag a card by its header, an account by its name, or a metric by its line to reorder them. A new provider goes to the bottom of the dashboard and the Accounts list, and a new account goes to the bottom of its provider's accounts.
 
 When the menu bar shows more than one account of a provider, each mark carries a two-character tag from the account's name. The tag keeps the account's number, so "Attention Machine 1" and "Attention Machine 2" read A1 and A2. Names that would share a tag show the first letter that differs, such as WO and WE for Work and Web.
 
