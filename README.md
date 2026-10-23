@@ -24,7 +24,7 @@ Right-click for actions:
 
 - A provider's card: Refresh, Manage Accounts…, and the provider's links, such as Status Page and Usage Dashboard.
 - An account: Refresh, Rename, Edit Account…, and Share Screenshot. If the account line shows a warning or stale icon, the menu starts with the reason. Show Hidden Metrics appears when you have hidden any.
-- A metric: Star for Menu Bar (or Unstar) and Hide.
+- A metric: Star for Menu Bar (or Unstar) and Hide. Hiding a metric, here or on the Accounts screen, also takes its star off the menu bar. Starring a hidden metric shows it again.
 
 On a card with one account, the header's menu combines the two: the warning reason if there is one, Refresh, Rename, Edit Account…, Manage Accounts…, Share Screenshot, Show Hidden Metrics, and the provider's links.
 

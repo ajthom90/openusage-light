@@ -16,6 +16,7 @@ struct LayoutInitialState {
     let pinnedMetricIDs: Set<String>
 
     let shouldPersistPlaced: Bool
+    let shouldPersistPins: Bool
     let seededDefaultsToPersist: Set<String>?
 }
 
@@ -46,11 +47,13 @@ enum LayoutBootstrap {
             LayoutOrdering.normalizedMetricOrder($0, registry: registry)
         } ?? LayoutOrdering.defaultMetricOrder(registry: registry)
 
-        // An existing value — including an empty array from a user who unpinned everything — wins.
-        let pinnedMetricIDs = Set(
-            (persistence.loadPins() ?? defaults.pinnedMetricIDs)
-                .filter { registry.descriptor(id: $0) != nil }
-        )
+        // An existing value — including an empty array from a user who unpinned everything — wins. Only
+        // shown metrics keep a star: a layout saved before hiding unstarred loses the stars of its
+        // hidden metrics, and the fix is saved.
+        let savedPins = persistence.loadPins()
+        let knownPins = Set((savedPins ?? defaults.pinnedMetricIDs).filter { registry.descriptor(id: $0) != nil })
+        let placedIDs = Set(seededResult.placed.map(\.descriptorID))
+        let pinnedMetricIDs = knownPins.intersection(placedIDs)
 
         return LayoutInitialState(
             placed: seededResult.placed,
@@ -58,6 +61,7 @@ enum LayoutBootstrap {
             metricOrderByProvider: metricOrderByProvider,
             pinnedMetricIDs: pinnedMetricIDs,
             shouldPersistPlaced: seededResult.shouldPersistPlaced,
+            shouldPersistPins: savedPins != nil && pinnedMetricIDs != knownPins,
             seededDefaultsToPersist: seededResult.shouldPersistSeededDefaults
                 ? seededResult.seededDefaults
                 : nil

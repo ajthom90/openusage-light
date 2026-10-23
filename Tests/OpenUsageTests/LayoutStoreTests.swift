@@ -441,6 +441,67 @@ final class LayoutStoreTests: XCTestCase {
         XCTAssertTrue(reloaded.pinnedMetricIDs.isEmpty, "an explicitly emptied pin set must not be reseeded")
     }
 
+    // MARK: - Hiding unstars
+
+    func testHidingAStarredMetricUnstarsItAndUndoRestoresBoth() {
+        let defaults = makeDefaults("HideUnstars")
+        let store = LayoutStore(registry: .mock, defaults: defaults, storageKey: "layout")
+        XCTAssertTrue(store.isPinned("claude.session"))
+        XCTAssertTrue(trayMetricIDs(store).contains("claude.session"))
+
+        store.setMetricEnabled("claude.session", false)
+        XCTAssertFalse(store.isPinned("claude.session"))
+        XCTAssertFalse(trayMetricIDs(store).contains("claude.session"), "the tray drops a hidden metric")
+        XCTAssertFalse(LayoutStore(registry: .mock, defaults: defaults, storageKey: "layout").isPinned("claude.session"),
+                       "the unstar is saved")
+
+        XCTAssertTrue(store.undo())
+        XCTAssertTrue(store.isMetricEnabled("claude.session"))
+        XCTAssertTrue(store.isPinned("claude.session"), "one undo restores the metric and its star")
+        XCTAssertTrue(trayMetricIDs(store).contains("claude.session"))
+        XCTAssertTrue(LayoutStore(registry: .mock, defaults: defaults, storageKey: "layout").isPinned("claude.session"))
+    }
+
+    func testShowingAHiddenMetricAgainDoesNotStarIt() {
+        let store = makeStore("ShowDoesNotStar")
+        store.setMetricEnabled("claude.session", false)
+        store.setMetricEnabled("claude.weekly", false)
+
+        store.setMetricEnabled("claude.session", true)
+        store.showMetrics(["claude.weekly"])
+        XCTAssertTrue(store.isMetricEnabled("claude.session"))
+        XCTAssertTrue(store.isMetricEnabled("claude.weekly"))
+        XCTAssertFalse(store.isPinned("claude.session"))
+        XCTAssertFalse(store.isPinned("claude.weekly"))
+    }
+
+    func testStarringAHiddenMetricShowsIt() {
+        let store = makeStore("StarShows")
+        store.setMetricEnabled("cursor.usage", false)
+
+        store.setPinned(true, for: "cursor.usage")
+        XCTAssertTrue(store.isPinned("cursor.usage"))
+        XCTAssertTrue(store.isMetricEnabled("cursor.usage"))
+        XCTAssertTrue(store.undo())
+        XCTAssertFalse(store.isPinned("cursor.usage"))
+        XCTAssertFalse(store.isMetricEnabled("cursor.usage"), "one undo takes back the star and the show")
+    }
+
+    /// A layout saved before hiding unstarred can hold a star on a hidden metric. Loading it drops that
+    /// star, keeps the others, and saves the fix.
+    func testSavedStarOnAHiddenMetricIsDroppedAtLoad() {
+        let defaults = makeDefaults("HiddenStarAtLoad")
+        let shown = DefaultLayout.metricIDs.filter { MockData.descriptor($0) != nil && $0 != "claude.session" }
+        saveStored(shown.map { PlacedWidget(descriptorID: $0) }, forKey: "layout", in: defaults)
+        defaults.set(["claude.session", "claude.weekly"], forKey: "layout.menuBarPins")
+
+        let store = LayoutStore(registry: .mock, defaults: defaults, storageKey: "layout")
+        XCTAssertFalse(store.isMetricEnabled("claude.session"))
+        XCTAssertEqual(store.pinnedMetricIDs, ["claude.weekly"])
+        XCTAssertFalse(trayMetricIDs(store).contains("claude.session"))
+        XCTAssertEqual(defaults.stringArray(forKey: "layout.menuBarPins"), ["claude.weekly"])
+    }
+
     /// A metric is either enabled or not: every enabled metric is in the provider's one list, in the
     /// saved metric order, and the Accounts detail lists the same order.
     func testDisplayGroupsListEveryEnabledMetricInMetricOrder() {
@@ -577,6 +638,11 @@ final class LayoutStoreTests: XCTestCase {
 
     private func makeStore(_ name: String) -> LayoutStore {
         LayoutStore(registry: .mock, defaults: makeDefaults(name), storageKey: "layout")
+    }
+
+    /// The metrics the menu bar strip shows, as `StatusItemImageUpdater` builds it.
+    private func trayMetricIDs(_ store: LayoutStore) -> [String] {
+        MenuBarContentBuilder.build(groups: store.pinnedGroups, data: { $0.sample }).groups.flatMap { $0.metrics.map(\.id) }
     }
 
     private func makeDefaults(_ name: String) -> UserDefaults {

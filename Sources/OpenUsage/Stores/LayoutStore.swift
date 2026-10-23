@@ -153,6 +153,7 @@ final class LayoutStore {
         pinnedMetricIDs = initial.pinnedMetricIDs
 
         if let seededDefaults = initial.seededDefaultsToPersist { persistSeededDefaults(seededDefaults) }
+        if initial.shouldPersistPins { persistPins() }
         syncPlacedOrder(persistChanges: initial.shouldPersistPlaced)
     }
 
@@ -304,13 +305,15 @@ final class LayoutStore {
     }
 
     /// Pin or unpin a metric for the menu bar. Pinning is a no-op when it would exceed a cap, so callers
-    /// can gate the control on `canPin` and trust this never over-pins. Undoable like the other layout
-    /// actions — the no-op guards mean a denied or redundant pin records no step.
+    /// can gate the control on `canPin` and trust this never over-pins. Pinning a hidden metric shows it,
+    /// since only shown metrics carry a star. Undoable like the other layout actions — the no-op guards
+    /// mean a denied or redundant pin records no step.
     func setPinned(_ pinned: Bool, for descriptorID: String) {
         recordingUndoStep {
             if pinned {
                 guard canPin(descriptorID), registry.descriptor(id: descriptorID) != nil else { return }
                 guard pinnedMetricIDs.insert(descriptorID).inserted else { return }
+                add(descriptorID)
             } else {
                 guard pinnedMetricIDs.remove(descriptorID) != nil else { return }
             }
@@ -336,11 +339,14 @@ final class LayoutStore {
         syncPlacedOrder()
     }
 
+    /// Hide a metric. Hiding also takes its star off, so the menu bar drops it too; showing it again
+    /// doesn't put the star back.
     func remove(_ id: UUID) {
         guard let index = placed.firstIndex(where: { $0.id == id }) else { return }
         cancelDrag()
-        placed.remove(at: index)
+        let descriptorID = placed.remove(at: index).descriptorID
         persist()
+        if pinnedMetricIDs.remove(descriptorID) != nil { persistPins() }
     }
 
     /// Reset a single provider's customization to default — its enabled metrics, metric order, and
@@ -371,7 +377,7 @@ final class LayoutStore {
 
         // Pins: swap this provider's entries for its defaults, leaving other providers' pins intact.
         pinnedMetricIDs.subtract(owned)
-        pinnedMetricIDs.formUnion(defaults(defaultPinnedMetricIDs))
+        pinnedMetricIDs.formUnion(defaults(defaultPinnedMetricIDs).filter(isMetricEnabled))
         persistPins()
 
         syncPlacedOrder() // persists `placed`
