@@ -49,13 +49,12 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
         case .copilot: [.init(label: "Status Page", url: "https://www.githubstatus.com/"),
                         .init(label: "Usage Dashboard", url: "https://github.com/settings/billing")]
         case .grok: [.init(label: "Usage Dashboard", url: "https://grok.com/?_s=usage")]
-        case .ollama: [.init(label: "Usage Dashboard", url: "https://ollama.com/settings"),
-                       .init(label: "API Keys", url: "https://ollama.com/settings/keys")]
-        case .opencodeGo: [.init(label: "Usage Dashboard", url: "https://opencode.ai/console")]
-        case .openrouter: [.init(label: "Activity", url: "https://openrouter.ai/activity"),
-                           .init(label: "Credits", url: "https://openrouter.ai/settings/credits")]
-        case .zai: [.init(label: "Usage Dashboard", url: "https://z.ai/manage-apikey/coding-plan/personal/my-plan"),
-                    .init(label: "API Keys", url: "https://z.ai/manage-apikey/apikey-list")]
+        case .ollama: [.init(label: "Usage Dashboard", url: "https://ollama.com/settings")]
+        case .opencodeGo: [.init(label: "Status Page", url: "https://status.opencode.ai/"),
+                           .init(label: "Usage Dashboard", url: "https://opencode.ai/console")]
+        case .openrouter: [.init(label: "Status Page", url: "https://status.openrouter.ai/"),
+                           .init(label: "Usage Dashboard", url: "https://openrouter.ai/activity")]
+        case .zai: [.init(label: "Usage Dashboard", url: "https://z.ai/manage-apikey/coding-plan/personal/my-plan")]
         }
     }
 

@@ -90,7 +90,7 @@ final class DashboardMenusTests: XCTestCase {
             .rename("claude@1"), .editAccount("claude@1"), .manageAccounts,
             .shareScreenshot("claude@1"),
             .showHiddenMetrics("claude@1"),
-            .open(URL(string: "https://status.anthropic.com/")!), .open(URL(string: "https://claude.ai/settings/usage")!),
+            .open(URL(string: "https://status.claude.com/")!), .open(URL(string: "https://claude.ai/settings/usage")!),
         ])
         XCTAssertEqual(
             titles(DashboardMenus.soleAccount(account(), status: nil, canShare: true, hasHiddenMetrics: false)),

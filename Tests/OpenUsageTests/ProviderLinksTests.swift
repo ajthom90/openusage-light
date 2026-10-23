@@ -31,9 +31,22 @@ final class ProviderLinksTests: XCTestCase {
         ])
     }
 
+    /// The right-click menu offers only Status Page and Usage Dashboard; key pages live on the Add
+    /// Account API-key step, never in the menu.
+    func testQuickLinksAreOnlyStatusAndUsageAndNeverAKeyPage() {
+        for kind in ProviderKind.allCases {
+            let labels = kind.links.map(\.label)
+            XCTAssertTrue(["Status Page", "Usage Dashboard"].starts(with: labels) || labels == ["Usage Dashboard"], "\(kind): \(labels)")
+            guard case .apiKey(let keyPage) = kind.authMethod, kind != .opencodeGo else { continue }
+            XCTAssertFalse(kind.links.contains { $0.url == keyPage.absoluteString }, "\(kind) links its key page")
+        }
+        // OpenCode has no key deep link: its Console is both the usage page and where keys are made.
+        XCTAssertEqual(ProviderKind.opencodeGo.links.map(\.label), ["Status Page", "Usage Dashboard"])
+    }
+
     /// opencode.ai/auth became OpenCode's OAuth authorize page, which shows an error when opened
     /// directly; the Go docs send subscribers to the Console for their usage.
     func testOpenCodeUsageDashboardIsTheConsole() {
-        XCTAssertEqual(ProviderKind.opencodeGo.links.map(\.url), ["https://opencode.ai/console"])
+        XCTAssertEqual(ProviderKind.opencodeGo.links.last?.url, "https://opencode.ai/console")
     }
 }
