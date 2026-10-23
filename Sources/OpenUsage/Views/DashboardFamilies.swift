@@ -9,6 +9,9 @@ struct DashboardFamily: Identifiable {
     /// The first account's provider, which supplies the card's mark and name.
     let provider: Provider
     var accounts: [DashboardAccount]
+
+    /// The card's account when it has exactly one. Its header then stands in for the account's name line.
+    var soleAccount: DashboardAccount? { accounts.count == 1 ? accounts[0] : nil }
 }
 
 struct DashboardAccount: Identifiable {

@@ -66,6 +66,38 @@ final class DashboardMenusTests: XCTestCase {
         XCTAssertEqual(menu[3][0].command, .showHiddenMetrics("claude@1"))
     }
 
+    /// A card with one account has no account line, so its menu carries the account's commands and the
+    /// provider's, with one Refresh.
+    func testAOneAccountCardsMenuMergesTheAccountAndProviderMenus() {
+        let menu = DashboardMenus.soleAccount(
+            account(),
+            status: "Couldn't refresh. Check your connection.",
+            canShare: true,
+            hasHiddenMetrics: true
+        )
+
+        XCTAssertEqual(titles(menu), [
+            ["Couldn't refresh. Check your connection."],
+            ["Refresh"],
+            ["Rename", "Edit Account…", "Manage Accounts…"],
+            ["Share Screenshot"],
+            ["Show Hidden Metrics"],
+            ["Status Page", "Usage Dashboard"],
+        ])
+        XCTAssertEqual(menu.flatMap { $0 }.map(\.command), [
+            nil,
+            .refresh(["claude@1"]),
+            .rename("claude@1"), .editAccount("claude@1"), .manageAccounts,
+            .shareScreenshot("claude@1"),
+            .showHiddenMetrics("claude@1"),
+            .open(URL(string: "https://status.anthropic.com/")!), .open(URL(string: "https://claude.ai/settings/usage")!),
+        ])
+        XCTAssertEqual(
+            titles(DashboardMenus.soleAccount(account(), status: nil, canShare: true, hasHiddenMetrics: false)),
+            [["Refresh"], ["Rename", "Edit Account…", "Manage Accounts…"], ["Share Screenshot"], ["Status Page", "Usage Dashboard"]]
+        )
+    }
+
     func testTheMetricMenuStarsAndHides() {
         let data = WidgetData(title: "Weekly", icon: .providerMark("claude"), kind: .percent, used: 10, limit: 100)
         var descriptor = WidgetDescriptor(id: "claude@1.weekly", providerID: "claude@1", metricLabel: "Weekly", sample: data)

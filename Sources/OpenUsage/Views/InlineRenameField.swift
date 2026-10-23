@@ -2,9 +2,10 @@ import AppKit
 import SwiftUI
 
 /// The text field an account's name turns into while `AccountRenameStore` has an edit open for it. It
-/// takes focus as it appears. Return, a click anywhere else in the panel, or focus moving away commits
-/// the edit; Esc cancels it. `PopoverKeyReader` leaves Return and Esc alone while a text field is
-/// editing, so they reach this field instead of navigating the popover.
+/// takes focus as it appears with the whole name selected, so typing replaces it. Return, a click
+/// anywhere else in the panel, or focus moving away commits the edit; Esc cancels it.
+/// `PopoverKeyReader` leaves Return and Esc alone while a text field is editing, so they reach this
+/// field instead of navigating the popover.
 ///
 /// The field's background is drawn outside its frame, so swapping it in for the label it replaces
 /// doesn't shift anything around it. Callers set the font and text alignment.
@@ -13,11 +14,12 @@ struct InlineRenameField: View {
     let edit: AccountRenameStore.Edit
 
     @FocusState private var isFocused: Bool
+    @State private var selection: TextSelection?
 
     private static let outset = CGSize(width: 4, height: 1)
 
     var body: some View {
-        TextField("Account Name", text: $renaming.draft)
+        TextField("Account Name", text: $renaming.draft, selection: $selection)
             .textFieldStyle(.plain)
             .lineLimit(1)
             .focused($isFocused)
@@ -26,7 +28,10 @@ struct InlineRenameField: View {
             .onChange(of: isFocused) { _, focused in
                 if !focused { renaming.commit(edit) }
             }
-            .onAppear { isFocused = true }
+            .onAppear {
+                isFocused = true
+                selection = TextSelection(range: renaming.draft.startIndex..<renaming.draft.endIndex)
+            }
             .padding(.horizontal, Self.outset.width)
             .padding(.vertical, Self.outset.height)
             .background {

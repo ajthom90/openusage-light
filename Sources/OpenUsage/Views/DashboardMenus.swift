@@ -20,20 +20,47 @@ struct DashboardMenuItem: Equatable {
 }
 
 /// The dashboard's right-click menus, one per thing you can click: a provider's card, an account, and a
-/// metric line. Each is a list of sections that render with dividers between them. Apart from the ↺
+/// metric line. A card with one account has no account line, so its card menu merges the two
+/// (`soleAccount`). Each is a list of sections that render with dividers between them. Apart from the ↺
 /// tag's resets popover, right-click is the only way to act on the dashboard.
 enum DashboardMenus {
     typealias Sections = [[DashboardMenuItem]]
 
     static func provider(_ family: DashboardFamily) -> Sections {
-        let links = family.provider.visibleLinks.compactMap { link in
-            URL(string: link.url).map { DashboardMenuItem(title: link.label, command: .open($0)) }
-        }
-        return [
+        [
             [DashboardMenuItem(title: "Refresh", command: .refresh(family.accounts.map(\.id)))],
             [DashboardMenuItem(title: "Manage Accounts…", command: .manageAccounts)],
-            links,
+            links(family.provider),
         ].filter { !$0.isEmpty }
+    }
+
+    /// The card menu of a provider with one account: the status line, then Refresh, then the commands
+    /// that edit the account and its provider's accounts, sharing, the view option, and the provider's
+    /// web pages last.
+    static func soleAccount(
+        _ account: DashboardAccount,
+        status: String?,
+        canShare: Bool,
+        hasHiddenMetrics: Bool
+    ) -> Sections {
+        [
+            status.map { [DashboardMenuItem(title: $0)] } ?? [],
+            [DashboardMenuItem(title: "Refresh", command: .refresh([account.id]))],
+            [
+                DashboardMenuItem(title: "Rename", command: .rename(account.id)),
+                DashboardMenuItem(title: "Edit Account…", command: .editAccount(account.id)),
+                DashboardMenuItem(title: "Manage Accounts…", command: .manageAccounts),
+            ],
+            canShare ? [DashboardMenuItem(title: "Share Screenshot", command: .shareScreenshot(account.id))] : [],
+            hasHiddenMetrics ? [DashboardMenuItem(title: "Show Hidden Metrics", command: .showHiddenMetrics(account.id))] : [],
+            links(account.provider),
+        ].filter { !$0.isEmpty }
+    }
+
+    private static func links(_ provider: Provider) -> [DashboardMenuItem] {
+        provider.visibleLinks.compactMap { link in
+            URL(string: link.url).map { DashboardMenuItem(title: link.label, command: .open($0)) }
+        }
     }
 
     /// `status` explains the account line's warning or stale icon.

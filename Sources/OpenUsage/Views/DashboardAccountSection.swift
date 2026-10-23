@@ -1,29 +1,27 @@
 import SwiftUI
 
-/// One account inside its provider's card: the account line (name, status, the ↺ resets tag, and the
-/// plan tag) over every metric line that has data, in the user's order. The ↺ tag is the one part that
-/// reacts to hover or a click: it opens the resets timeline. A double-click on the name renames the
-/// account. Right-click the account for its menu; the name line drags it.
+/// One account inside its provider's card: the account line (name, badges) over every metric line that
+/// has data, in the user's order. On a card with one account the provider's header carries the name and
+/// badges, and the account line is left out (`showsAccountLine`). The ↺ tag is the one part that reacts to hover
+/// or a click: it opens the resets timeline. A double-click on the name renames the account.
+/// Right-click the account for its menu; the name line drags it.
 struct DashboardAccountSection<Line: View>: View {
     let account: DashboardAccount
-    var plan: String?
-    var notice: String?
-    var refreshing = false
-    var staleness: StalenessHint?
-    var resetClaim: ResetClaimService?
+    var badges = AccountBadges()
+    var showsAccountLine = true
     /// Wraps the account line, so the dashboard can attach the account's drag gesture to it. Metric
     /// lines drag themselves.
     var handle: (AnyView) -> AnyView = { $0 }
     @ViewBuilder var line: (DashboardLine) -> Line
-
-    @Environment(AccountRenameStore.self) private var renaming: AccountRenameStore?
 
     /// Height of the account line.
     static var lineHeight: CGFloat { 24 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            handle(AnyView(accountLine))
+            if showsAccountLine {
+                handle(AnyView(accountLine))
+            }
             ForEach(account.lines) { line($0) }
         }
         .padding(.horizontal, DashboardBox.inset)
@@ -35,38 +33,56 @@ struct DashboardAccountSection<Line: View>: View {
     var accountLine: some View {
         HStack(spacing: 6) {
             name
-            status
+            badges.status
             Spacer(minLength: 8)
-            if let resets = account.resets {
-                ResetCountChip(data: resets, claim: resetClaim)
-            }
-            if let plan {
-                PlanTag(plan: plan)
-                    .layoutPriority(1)
-            }
+            badges.tags
         }
         .frame(height: Self.lineHeight)
         .contentShape(Rectangle())
     }
 
-    @ViewBuilder
-    var name: some View {
+    var name: AccountName {
+        AccountName(account: account, font: .system(size: 13, weight: .medium))
+    }
+}
+
+/// An account's name on the dashboard, on its account line or in a one-account card's header. A
+/// double-click opens the inline rename in its place, the same as the right-click Rename.
+struct AccountName: View {
+    let account: DashboardAccount
+    let font: Font
+
+    @Environment(AccountRenameStore.self) private var renaming: AccountRenameStore?
+
+    var body: some View {
         if let renaming, let edit = renaming.edit, edit.providerID == account.id {
             InlineRenameField(renaming: renaming, edit: edit)
-                .font(.system(size: 13, weight: .medium))
+                .font(font)
                 .fixedSize()
         } else {
             Text(account.name)
-                .font(.system(size: 13, weight: .medium))
+                .font(font)
                 .lineLimit(1)
                 .onTapGesture(count: 2) { renaming?.begin(account.id) }
         }
     }
+}
 
-    /// The account's refresh state. A warning or stale icon explains itself in the account's
-    /// right-click menu.
+/// What sits beside an account's name: its refresh state, then at the trailing edge the ↺ resets tag
+/// and the plan tag. On a card with one account they sit in the provider's header instead.
+@MainActor
+struct AccountBadges {
+    /// The account's Rate Limit Resets reading (`DashboardAccount.resets`).
+    var resets: WidgetData?
+    var plan: String?
+    var notice: String?
+    var refreshing = false
+    var staleness: StalenessHint?
+    var resetClaim: ResetClaimService?
+
+    /// The refresh state. A warning or stale icon explains itself in the right-click menu.
     @ViewBuilder
-    private var status: some View {
+    var status: some View {
         if refreshing {
             MotionAwareProgressView(controlSize: .mini)
                 .accessibilityLabel("Refreshing")
@@ -82,9 +98,20 @@ struct DashboardAccountSection<Line: View>: View {
                 .accessibilityLabel(staleness.tooltip)
         }
     }
+
+    @ViewBuilder
+    var tags: some View {
+        if let resets {
+            ResetCountChip(data: resets, claim: resetClaim)
+        }
+        if let plan {
+            PlanTag(plan: plan)
+                .layoutPriority(1)
+        }
+    }
 }
 
-/// The account's plan as a grey capsule at the trailing edge of the account line.
+/// The account's plan as a grey capsule at the trailing edge of the account line or one-account header.
 struct PlanTag: View {
     let plan: String
 
