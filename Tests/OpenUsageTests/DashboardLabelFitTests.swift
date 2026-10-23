@@ -11,9 +11,7 @@ final class DashboardLabelFitTests: XCTestCase {
     private let cardWidth = PanelMetrics.width - 2 * PanelMetrics.margin
 
     func testEveryProvidersMetricTitlesFitTheLabelColumn() {
-        // OPEN-23 renames Cursor's titles ("Grok Bot usage" is wider than the column); it drops this
-        // exclusion when it lands.
-        for kind in ProviderKind.allCases where kind != .cursor {
+        for kind in ProviderKind.allCases {
             let runtime = AccountProviderRuntime(account: Account(kind: kind, label: kind.displayName), vault: InMemoryCredentialVault())
             for descriptor in runtime.widgetDescriptors where !descriptor.sample.showsResetExpiries {
                 let title = descriptor.sample.title
