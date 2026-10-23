@@ -3,7 +3,7 @@ import SwiftUI
 /// Hover detail for a Rate Limit Resets row (Codex reset credits, Claude reset grants): a vertical
 /// timeline of each still-available reset, one node per credit, ordered soonest-expiry first. Each
 /// node is a single line — a numbered, severity-colored dot (the number IS the reset number; blue > 7
-/// days, yellow within a week, red within 48 hours — the same `expirySeverity` bands as the row's status
+/// days, orange within a week, red within 48 hours — the same `expirySeverity` bands as the row's status
 /// dot), the exact expiry time, and the countdown to it on the trailing edge. When no credits are
 /// available it shows a centered empty state. Presented via `.popover` deliberately without a title
 /// header (an owner call: the timeline is self-explanatory and the header cost a full row of the small
@@ -206,17 +206,11 @@ struct RateLimitResetsDetail: View {
 
     private func numberedDot(_ entry: Entry) -> some View {
         ZStack {
-            Circle().fill(Theme.meterFill(entry.severity)).frame(width: 18, height: 18)
+            Circle().fill(Theme.severityColor(entry.severity)).frame(width: 18, height: 18)
             Text("\(entry.number)")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Self.numberColor(entry.severity))
+                .foregroundStyle(.white)
         }
-    }
-
-    /// The number sits on a saturated system fill, so it takes the fill's paired foreground: dark on the
-    /// bright yellow, white on the blue and red.
-    private static func numberColor(_ severity: WidgetData.MeterSeverity) -> Color {
-        severity == .warning ? .black : .white
     }
 
     /// One timeline node's content (no dot — that lives on the rail): the read-only/claimable line, or,
@@ -340,7 +334,7 @@ struct RateLimitResetsDetail: View {
     }
 
     /// The result banner: a leading icon and a short line, tinted by outcome (green success, blue info,
-    /// amber/red for the unavailable and failure cases).
+    /// orange/red for the unavailable and failure cases).
     private func bannerView(_ banner: Banner) -> some View {
         HStack(spacing: 8) {
             Image(systemName: banner.icon)
@@ -426,13 +420,13 @@ struct RateLimitResetsDetail: View {
         case .success:
             return Banner(text: text, icon: "checkmark.circle.fill", tint: .green)
         case .nothingToReset:
-            return Banner(text: text, icon: "info.circle.fill", tint: .accentColor)
+            return Banner(text: text, icon: "info.circle.fill", tint: Theme.severityColor(.normal))
         case .unconfirmed:
-            return Banner(text: text, icon: "clock.fill", tint: .accentColor)
+            return Banner(text: text, icon: "clock.fill", tint: Theme.severityColor(.normal))
         case .noCredit, .unavailableNow:
-            return Banner(text: text, icon: "exclamationmark.triangle.fill", tint: .orange)
+            return Banner(text: text, icon: "exclamationmark.triangle.fill", tint: Theme.severityColor(.warning))
         case .failed:
-            return Banner(text: text, icon: "xmark.circle.fill", tint: .red)
+            return Banner(text: text, icon: "xmark.circle.fill", tint: Theme.severityColor(.critical))
         }
     }
 

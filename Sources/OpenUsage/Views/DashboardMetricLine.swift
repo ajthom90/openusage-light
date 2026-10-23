@@ -64,7 +64,7 @@ struct DashboardMetricLine: View {
             if state.severity == .critical {
                 Image(systemName: "flame.fill")
                     .font(.system(size: Self.fontSize - 3))
-                    .foregroundStyle(Theme.meterFill(.critical))
+                    .foregroundStyle(Theme.severityColor(.critical))
             }
             Text(data.valueText)
                 .fontWeight(.medium)

@@ -21,12 +21,12 @@ final class NotificationSettingsStore {
         didSet { defaults.set(underTenPercent, forKey: Self.underTenKey) }
     }
 
-    /// Alert when pace worsens from healthy (blue) to close-to-limit (yellow).
+    /// Alert when pace worsens from healthy (blue) to close-to-limit (orange).
     var healthyToClose: Bool {
         didSet { defaults.set(healthyToClose, forKey: Self.healthyToCloseKey) }
     }
 
-    /// Alert when pace worsens from close-to-limit (yellow) to running-out (red).
+    /// Alert when pace worsens from close-to-limit (orange) to running-out (red).
     var closeToRunningOut: Bool {
         didSet { defaults.set(closeToRunningOut, forKey: Self.closeToRunningOutKey) }
     }

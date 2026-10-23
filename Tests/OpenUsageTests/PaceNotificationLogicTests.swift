@@ -10,7 +10,7 @@ private extension PaceNotificationToggles {
 }
 
 /// Covers the pure milestone logic that decides when a quota notification fires: worsening pace edges
-/// (blue→yellow, yellow→red), the under-10%-remaining crossing, per-window dedup, reset rollover,
+/// (blue→orange, orange→red), the under-10%-remaining crossing, per-window dedup, reset rollover,
 /// recovery re-arming, the no-trustworthy-pace suppression, and the toggle gates. Mirrors CodexBar's
 /// QuotaWarningNotificationLogicTests.
 final class PaceNotificationLogicTests: XCTestCase {
@@ -168,7 +168,7 @@ final class PaceNotificationLogicTests: XCTestCase {
     }
 
     func testPerTriggerOffSuppressesOnlyThatMilestone() {
-        // Only the yellow→red trigger is off; blue→yellow still fires.
+        // Only the orange→red trigger is off; blue→orange still fires.
         let toggles = PaceNotificationToggles(underTenPercent: false, healthyToClose: true, closeToRunningOut: false)
         let state = step(healthy, toggles: toggles).newState
         let close = step(self.close, fraction: 0.05, from: state, toggles: toggles)

@@ -21,7 +21,7 @@ struct WidgetData: Hashable {
     /// Global relative/absolute reset display, stamped by `WidgetDataStore` (like `displayMode`).
     var resetDisplayMode: ResetDisplayMode = .relative
     /// Global "always show pacing" opt-in, stamped by `WidgetDataStore` (like `displayMode`). When on,
-    /// the blue/healthy row also shows the even-pace tick and its projection copy. Yellow and red rows
+    /// the blue/healthy row also shows the even-pace tick and its projection copy. Orange and red rows
     /// always show the tick when a reset window exists; this toggle only adds it on blue.
     var alwaysShowPacing: Bool = false
     var resetsAt: Date?
@@ -122,12 +122,12 @@ struct WidgetData: Hashable {
         /// edge where the run-out lands essentially at the reset, and whenever the projected cushion
         /// rounds to 0%
         /// (≤ limit, so there's no run-out time) — in both cases the flame shows alone rather than a
-        /// misleading "0s" or a "~0% spare" amber bar. `projectedFraction` (projected end-of-period
+        /// misleading "0s" or a "~0% spare" orange bar. `projectedFraction` (projected end-of-period
         /// usage ÷ limit) backs the tooltip's overage / "lands at the limit" copy.
         case runningOut(eta: String?, projectedFraction: Double)
         /// Projected to land inside the last 10% — cutting it close — but still with a cushion of at
-        /// least 1%. (A cushion that rounds to 0% promotes to `runningOut` instead, so amber never
-        /// shows "~0% spare".) Amber, a "~N% spare" note. `projectedFraction` backs the tooltip's
+        /// least 1%. (A cushion that rounds to 0% promotes to `runningOut` instead, so orange never
+        /// shows "~0% spare".) Orange, a "~N% spare" note. `projectedFraction` backs the tooltip's
         /// "% used at reset" copy.
         case closeToLimit(spare: String, projectedFraction: Double)
         /// On course to finish with ≥10% to spare. Blue. By default it carries no decoration; when
@@ -150,7 +150,7 @@ struct WidgetData: Hashable {
 
         /// Hover-tooltip detail shared by the bar, the spare note, and the flame: a short numeric
         /// projection of where pace lands at reset, adding the one figure the row doesn't already
-        /// show. Blue → the projected cushion ("~35% left at reset"); amber → projected usage
+        /// show. Blue → the projected cushion ("~35% left at reset"); orange → projected usage
         /// ("~92% used at reset"), the complement of the visible "~N% spare"; red → the overage
         /// ("~12% over limit at reset"), or "~100% used at reset" when projected to land right at
         /// the limit (the promoted-onTrack case, ≤ limit, so there's no overage). `nil` where there's
@@ -307,12 +307,12 @@ struct WidgetData: Hashable {
         return "\(valueText) \(word)"
     }
 
-    /// Color bands for reset-credit expiries: blue normally, amber under a week, red under 48 hours.
+    /// Color bands for reset-credit expiries: blue normally, orange under a week, red under 48 hours.
     /// A past-due expiry remains critical until the next refresh drops it from the available list.
     static let expiryWarningWindow: TimeInterval = 7 * 24 * 60 * 60
     static let expiryCriticalWindow: TimeInterval = 48 * 60 * 60
 
-    /// Severity band for a single expiry `timeRemaining` seconds out: red under 48h, amber under a
+    /// Severity band for a single expiry `timeRemaining` seconds out: red under 48h, orange under a
     /// week, blue beyond. Shared by the row's status dot (soonest expiry) and the resets popover's
     /// per-credit dots, so one credit can never read a different color in the two places.
     static func expirySeverity(secondsRemaining: TimeInterval) -> MeterSeverity {
@@ -402,22 +402,22 @@ extension WidgetData {
         return (limit, resetsAt, TimeInterval(periodDurationMs) / 1000)
     }
 
-    /// The meter's full visual state for `now` — the single source the row's color, amber tick,
+    /// The meter's full visual state for `now` — the single source the row's color, orange tick,
     /// and warning copy all read from, so they can't drift apart. Precedence, highest first:
     ///
     /// 1. **No data** → gray, empty.
     /// 2. **Spent** → red + "Limit reached", whenever the remainder rounds to zero at the
     ///    headline's precision (a visibly empty bar always reads spent, pace aside).
     /// 3. **Live pace verdict** (a reset window): blue `healthy` while ≥10% is projected to spare,
-    ///    amber `closeToLimit` (with the spare copy) when projected inside the last 10% *with a
+    ///    orange `closeToLimit` (with the spare copy) when projected inside the last 10% *with a
     ///    cushion of at least 1%*, red `runningOut` when projected to blow past the limit before reset
     ///    (with the run-out time) or to land right at it (cushion rounds to 0% → flame alone, no time).
-    /// 4. **Absolute level bands** (no window to project against): yellow once 80% of the limit is
+    /// 4. **Absolute level bands** (no window to project against): orange once 80% of the limit is
     ///    used, red once 10% or less is left, rounded to the whole percent the headline shows.
     ///
     /// Every band keys off the share *used*, never the displayed fraction, so the color and copy
     /// don't flip with the Used/Left toggle. The even-pace tick (`paceTick(for:)`) is independent:
-    /// yellow and red always show it when a reset window exists; blue only with "always show pacing".
+    /// orange and red always show it when a reset window exists; blue only with "always show pacing".
     func meterState(now: Date = Date()) -> MeterState {
         guard hasData, let limit, limit > 0 else { return hasData ? .level(.normal) : .noData }
         if roundedAtDisplayPrecision(limit - used) <= 0 { return .spent }
@@ -458,7 +458,7 @@ extension WidgetData {
     }
 
     /// Color from the share used when there's no trustworthy pace projection (no reset window, or a
-    /// projection deliberately distrusted near-empty): yellow at 80% used, red at 90%, blue below.
+    /// projection deliberately distrusted near-empty): orange at 80% used, red at 90%, blue below.
     /// Carries no projection copy or tick — a plain level reading.
     private func absoluteLevelState(used: Double, limit: Double) -> MeterState {
         let percentUsed = (min(max(used / limit, 0), 1) * 100).rounded()
@@ -469,7 +469,7 @@ extension WidgetData {
 
     /// Even-pace tick position on the bar (0...1), or `nil` when hidden. Always the elapsed fraction
     /// of the reset window, framed like the fill (Used view → share used at an even burn; Left view →
-    /// share remaining). Yellow and red pace states always show it; blue `healthy` only when
+    /// share remaining). Orange and red pace states always show it; blue `healthy` only when
     /// `alwaysShowPacing` is on. Spent, no-data, and rows without a reset window never show a tick.
     func paceTick(for state: MeterState, now: Date = Date()) -> Double? {
         switch state {

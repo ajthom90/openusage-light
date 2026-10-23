@@ -4,7 +4,7 @@ import SwiftUI
 /// section header (not per row), so a row shows only the metric. Two layouts:
 /// - **Bounded** (`limit != nil`, meter row): a label line (right-aligned flame + run-out time when
 ///   projected to run out before reset, or "~3% spare" when cutting it close), then a full-width
-///   capsule meter (color = pace verdict; in the amber state a tick splits the projected spare
+///   capsule meter (color = pace verdict; in the orange state a tick splits the projected spare
 ///   cushion off the bar; hovering shows the verdict), then a primary text row ("50% left" ⟷ "Resets in 4d 17h").
 ///   Mirrors the original OpenUsage card.
 /// - **Unbounded** (`limit == nil`, text-only row): **no bar**. Label on the left, a single right-aligned
@@ -100,7 +100,7 @@ struct WidgetRowView: View {
     }
 
     /// The single escalating warning slot, switching exhaustively over the state so the copy can
-    /// never contradict the bar. The flame cases share one builder; the amber and (always-show-pacing)
+    /// never contradict the bar. The flame cases share one builder; the orange and (always-show-pacing)
     /// blue cases are plain text.
     @ViewBuilder
     private func warning(_ state: WidgetData.MeterState) -> some View {
@@ -123,9 +123,9 @@ struct WidgetRowView: View {
                 .hoverTooltip(state.tooltip)
         case .healthy where data.alwaysShowPacing:
             // "Always show pacing" surfaces the projection on the otherwise-silent on-track row: the
-            // same quiet secondary note as the amber case, but the cushion ("~33% left at reset")
+            // same quiet secondary note as the orange case, but the cushion ("~33% left at reset")
             // rather than the spare. No flame (blue isn't a warning) and no hover tooltip — the copy
-            // already *is* the projection the amber case hides in its tooltip.
+            // already *is* the projection the orange case hides in its tooltip.
             if let projection = state.tooltip {
                 Spacer(minLength: 8)
                 Text(projection)
@@ -148,7 +148,7 @@ struct WidgetRowView: View {
         HStack(spacing: 3) {
             Image(systemName: "flame.fill")
                 .font(.subheadline)
-                .foregroundStyle(severityColor(state.severity))
+                .foregroundStyle(Theme.severityColor(state.severity))
                 .accessibilityHidden(true) // the warning text alongside carries the message
             if let text {
                 Text(text)
@@ -160,11 +160,6 @@ struct WidgetRowView: View {
         .foregroundStyle(.secondary)
         .hoverTooltip(state.tooltip)
         .accessibilityLabel(accessibility)
-    }
-
-    /// Bar/copy color for a severity, or the inactive gray when there's none (the no-data track).
-    private func severityColor(_ severity: WidgetData.MeterSeverity?) -> AnyShapeStyle {
-        severity.map(Theme.meterFill) ?? AnyShapeStyle(Color.secondary)
     }
 
     /// Primary line under the bar: value+mode word on the left ("50% left"), reset/limit context on
@@ -216,14 +211,14 @@ struct WidgetRowView: View {
         }
     }
 
-    /// Small blue/yellow/red status dot shown just before the value when the row carries reset-credit
+    /// Small blue/orange/red status dot shown just before the value when the row carries reset-credit
     /// expiries — colored by the soonest expiry. Renders nothing when no credit is available (an empty
     /// `expiriesAt`).
     @ViewBuilder
     private var expiryStatusDot: some View {
         if let severity = data.expirySeverity() {
             Circle()
-                .fill(severityColor(severity))
+                .fill(Theme.severityColor(severity))
                 .frame(width: 6, height: 6)
                 .accessibilityLabel(expiryStatusAccessibilityLabel(severity))
         }

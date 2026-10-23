@@ -11,7 +11,7 @@ struct ResetCountChip: View {
     @State private var hover = HoverPopoverState()
 
     var body: some View {
-        let tint = Self.tint(data.expirySeverity())
+        let tint = Theme.severityColor(data.expirySeverity())
         Button { hover.present() } label: {
             HStack(spacing: 3) {
                 Image(systemName: "arrow.counterclockwise")
@@ -59,13 +59,5 @@ struct ResetCountChip: View {
         }
         .onDisappear { hover.dismiss() }
         .accessibilityLabel(data.resetCreditCount == 1 ? "1 reset available" : "\(data.resetCreditCount) resets available")
-    }
-
-    private static func tint(_ severity: WidgetData.MeterSeverity?) -> Color {
-        switch severity {
-        case .critical: return Color(nsColor: .systemRed)
-        case .warning: return Color(nsColor: .systemOrange)
-        case .normal, nil: return .accentColor
-        }
     }
 }

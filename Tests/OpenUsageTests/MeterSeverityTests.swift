@@ -2,8 +2,8 @@ import XCTest
 @testable import OpenUsage
 
 /// Covers the meter fill's severity color, read off `MeterState.severity`. With a live reset window
-/// the color is a pace verdict (blue ahead / yellow cutting-it-close / red projected to run out);
-/// without one it falls back to the absolute level bands (yellow at 80% used, red at 10% left);
+/// the color is a pace verdict (blue ahead / orange cutting-it-close / red projected to run out);
+/// without one it falls back to the absolute level bands (orange at 80% used, red at 10% left);
 /// and a balance that rounds to empty is `spent` (red) ahead of either. It keys off the share
 /// *used*, regardless of the Used/Left display mode.
 final class MeterSeverityTests: XCTestCase {
@@ -48,9 +48,9 @@ final class MeterSeverityTests: XCTestCase {
     }
 
     func testRemainderRoundingToZeroIsSpentOverACalmerPace() {
-        // 99.6% used with 99.7% of the window gone projects to ~99.9% → "Close to limit"/amber by
+        // 99.6% used with 99.7% of the window gone projects to ~99.9% → "Close to limit"/orange by
         // pace. But the 0.4% remaining rounds to "0% left", so the balance reads empty — spent
-        // outranks the pace verdict, so the bar is red, not amber.
+        // outranks the pace verdict, so the bar is red, not orange.
         XCTAssertEqual(pacedData(used: 99.6, elapsed: 0.997).meterState(now: now), .spent)
     }
 

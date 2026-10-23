@@ -3,7 +3,7 @@ import Foundation
 struct ClaudeMappedUsage: Equatable, Sendable {
     var plan: String?
     var lines: [MetricLine]
-    /// Provider header notice (amber triangle + tooltip) riding along with this usage, e.g. the
+    /// Provider header notice (orange triangle + tooltip) riding along with this usage, e.g. the
     /// rate-limited warning. `nil` for a clean fetch.
     var warning: String?
 }
@@ -94,7 +94,7 @@ enum ClaudeUsageMapper {
         )
     }
 
-    /// Provider header warning (the amber triangle + tooltip) for the rate-limited state. The badge/note
+    /// Provider header warning (the orange triangle + tooltip) for the rate-limited state. The badge/note
     /// lines above only render when their metrics are enabled in the layout, so without this the default
     /// dashboard showed bare "No data" rows with no hint of why. Also warns the
     /// user off manual refreshes, which extend Anthropic's rate limiting.

@@ -108,7 +108,7 @@ final class WidgetDataStoreTests: XCTestCase {
 
     func testSoftWarningSurfacesOnHeaderWhilePartialDataStillLoads() async {
         // A *successful* snapshot carrying a `warning` (e.g. Claude's "Re-login for live usage" when the
-        // login lacks user:profile) surfaces as the header's amber triangle via `warningMessage(for:)`,
+        // login lacks user:profile) surfaces as the header's orange triangle via `warningMessage(for:)`,
         // while the partial data still loads and it is NOT treated as a hard refresh error.
         let provider = Provider(id: "test", displayName: "Test", icon: .providerMark("claude"))
         let meter = WidgetDescriptor(

@@ -96,7 +96,7 @@ final class WidgetDataStore {
     }
 
     /// Global "always show pacing" opt-in: when on, on-track rows surface their pace projection (the
-    /// blue/healthy row gains its "~N% left at reset" copy + an even-pace tick, the amber tick switches
+    /// blue/healthy row gains its "~N% left at reset" copy + an even-pace tick, the orange tick switches
     /// to the same even-pace line). Persisted across relaunch; defaults to `false` (every row unchanged).
     var alwaysShowPacing: Bool {
         didSet { defaults.set(alwaysShowPacing, forKey: Self.alwaysShowPacingKey) }
@@ -388,7 +388,7 @@ final class WidgetDataStore {
         snapshots[providerID]?.warning
     }
 
-    /// The provider header's amber-triangle notice: a hard refresh error takes precedence over a stale
+    /// The provider header's orange-triangle notice: a hard refresh error takes precedence over a stale
     /// soft warning from the last successful snapshot. After a failed refresh the store keeps the last
     /// good snapshot (so `warningMessage` still returns its warning) while `errorMessage` holds the
     /// current failure — the error must win, or a stale "Re-login for live usage" warning would hide a

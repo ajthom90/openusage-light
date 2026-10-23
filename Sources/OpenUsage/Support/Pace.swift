@@ -3,14 +3,14 @@ import Foundation
 /// Burn-rate pacing for a bounded metric, ported from the original OpenUsage
 /// (`src/lib/pace-status.ts`, `src/lib/pace-tooltip.ts`). Given how much of a quota is spent and how far
 /// through the reset window we are, it projects usage at the current rate to the end of the window.
-/// This drives the meter's severity color, the amber state's spare marker + "~3% spare" copy, the
+/// This drives the meter's severity color, the orange state's spare marker + "~3% spare" copy, the
 /// hover tooltip, and the "Runs out in …" projection.
 ///
 /// Pure logic (no SwiftUI) so it stays unit-testable; `WidgetData` exposes the view-facing strings.
 enum Pace {
     enum Status {
         case ahead     // projected to finish with ≥10% of the quota to spare → calm blue
-        case onTrack   // projected to land inside the last 10% — cutting it close → amber
+        case onTrack   // projected to land inside the last 10% — cutting it close → orange
         case behind    // projected to blow past the limit before reset → red
     }
 

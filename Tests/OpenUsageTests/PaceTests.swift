@@ -1,8 +1,8 @@
 import XCTest
 @testable import OpenUsage
 
-/// Locks the burn-rate pacing: the three-state thresholds (blue ahead / amber cutting-it-close /
-/// red behind), the even-pace tick on yellow/red (and blue when opted in), the "~N% spare" copy,
+/// Locks the burn-rate pacing: the three-state thresholds (blue ahead / orange cutting-it-close /
+/// red behind), the even-pace tick on orange/red (and blue when opted in), the "~N% spare" copy,
 /// the numeric projection-at-reset tooltip, and the run-out projection. All cases pin `now` and
 /// derive `resetsAt` from a target elapsed fraction so the math is deterministic.
 final class PaceTests: XCTestCase {
@@ -79,7 +79,7 @@ final class PaceTests: XCTestCase {
         return data.paceTick(for: state, now: now)
     }
 
-    /// The amber spare copy, present only in the `closeToLimit` state.
+    /// The orange spare copy, present only in the `closeToLimit` state.
     private func spare(_ data: WidgetData) -> String? {
         if case .closeToLimit(let spare, _) = data.meterState(now: now) { return spare }
         return nil

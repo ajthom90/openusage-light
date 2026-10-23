@@ -119,7 +119,7 @@ final class WidgetDataStoreNotificationTests: XCTestCase {
         XCTAssertEqual(recorder.posts.first?.0, "test.healthyToClose")
         XCTAssertEqual(recorder.posts.first?.1, "Cutting It Close")
 
-        // Staying yellow doesn't re-fire.
+        // Staying orange doesn't re-fire.
         await store.evaluateNotifications(now: base)
         XCTAssertEqual(recorder.posts.count, 1)
     }

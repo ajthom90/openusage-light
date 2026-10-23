@@ -10,7 +10,7 @@ struct ProviderSnapshot: Hashable, Sendable, Codable {
     /// A soft, non-blocking notice carried on a *successful* snapshot — e.g. Claude's "Re-login for live
     /// usage" when the saved login lacks the `user:profile` scope. Distinct from `errorCategory` (which is
     /// only on error snapshots): the refresh succeeded and partial data (spend tiles) still loads, so this
-    /// surfaces as the provider header's amber triangle rather than blanking the provider. Cached with the
+    /// surfaces as the provider header's orange triangle rather than blanking the provider. Cached with the
     /// snapshot; cleared on the next refresh when the condition resolves.
     var warning: String?
     /// Set only on error snapshots to classify provider failures. Always `nil` on success.

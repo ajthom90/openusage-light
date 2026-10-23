@@ -135,7 +135,7 @@ final class ResetDisplayTests: XCTestCase {
     }
 
     func testExpirySeverityTracksSoonestExpiry() {
-        // The reset-credit dot reflects the soonest expiry: blue normally, yellow under 7 days, red under
+        // The reset-credit dot reflects the soonest expiry: blue normally, orange under 7 days, red under
         // 48 hours.
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"),
@@ -149,7 +149,7 @@ final class ResetDisplayTests: XCTestCase {
         ]
         XCTAssertEqual(data.expirySeverity(now: now), .critical)
 
-        // Under 7 days but outside 48 hours -> yellow.
+        // Under 7 days but outside 48 hours -> orange.
         data.expiriesAt = [now.addingTimeInterval(WidgetData.expiryCriticalWindow + 3600)]
         XCTAssertEqual(data.expirySeverity(now: now), .warning)
 

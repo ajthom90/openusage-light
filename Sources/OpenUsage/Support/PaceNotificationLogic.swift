@@ -5,9 +5,9 @@ import Foundation
 enum PaceMilestone: String, CaseIterable, Hashable, Sendable {
     /// First time the remaining share of the quota drops under 10% for the period.
     case underTenPercent
-    /// Pace verdict worsened from healthy (blue) to close-to-limit (yellow).
+    /// Pace verdict worsened from healthy (blue) to close-to-limit (orange).
     case healthyToClose
-    /// Pace verdict worsened from close-to-limit (yellow) to running-out (red).
+    /// Pace verdict worsened from close-to-limit (orange) to running-out (red).
     case closeToRunningOut
 }
 
@@ -53,7 +53,7 @@ enum PaceBucket: Hashable, Sendable {
     case untracked
     /// Blue: on course to finish with ≥10% to spare.
     case healthy
-    /// Yellow: projected inside the last 10%, cutting it close.
+    /// Orange: projected inside the last 10%, cutting it close.
     case close
     /// Red: projected to run out before the reset, or already spent to nothing.
     case runningOut
@@ -175,10 +175,10 @@ enum PaceNotificationLogic {
 
         // Pace-verdict edges — only for live-pace states (`.level` has no pace projection, so no pace
         // milestones for it). Severity order: untracked(-1) < healthy(0) < close(1) < runningOut(2).
-        // "Cutting It Close" is the yellow state itself: it fires only when the metric is *currently*
+        // "Cutting It Close" is the orange state itself: it fires only when the metric is *currently*
         // in `.close` having been below it. "Will Run Out" fires when severity reaches `.runningOut`
         // having been below it. A jump straight from blue to red fires *Will Run Out only* — the metric
-        // skipped yellow, so the user gets the single, more urgent alert, never both at once.
+        // skipped orange, so the user gets the single, more urgent alert, never both at once.
         if currentBucket != .untracked {
             let previousSeverity = severity(next.previousBucket)
             let currentSeverity = severity(currentBucket)
