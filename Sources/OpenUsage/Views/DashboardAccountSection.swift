@@ -15,7 +15,7 @@ struct DashboardAccountSection<Line: View>: View {
     @ViewBuilder var line: (DashboardLine) -> Line
 
     /// Height of the account line.
-    static var lineHeight: CGFloat { 24 }
+    static var lineHeight: CGFloat { 20 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

@@ -28,7 +28,7 @@ struct WidgetGroupedListView: View {
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        VStack(alignment: .leading, spacing: PanelMetrics.sectionSpacing) {
+        VStack(alignment: .leading, spacing: DashboardBox.cardSpacing) {
             ForEach(families) { family in
                 DashboardProviderCard(
                     family: family,

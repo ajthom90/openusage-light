@@ -85,6 +85,23 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertEqual(bands[0].last, boxWidth - DashboardBox.inset - 7, accuracy: 1.5, "the plan tag ends one inset from the card's edge")
     }
 
+    /// Robin, on the roomier cards: "Everything takes too much space." A card is its rows and little
+    /// else, so its heights are pinned in literal points, and loosening any vertical step fails here:
+    /// 10 above the header, 4 from the header to the first row, 20 per name line, 18 per metric line,
+    /// 10 between two accounts and 10 below the last row. These cards were 191 and 90 pt.
+    func testCardsKeepTheTightVerticalRhythm() throws {
+        let sole = DashboardAccount(provider: claudeProvider, lines: [line(session), line(weekly)])
+        let oneAccountCard = DashboardProviderCard(
+            family: DashboardFamily(id: "claude", provider: claudeProvider, accounts: [sole]),
+            badges: { _ in AccountBadges(plan: "Max 5x") }
+        ) {
+            DashboardAccountSection(account: $0, showsAccountLine: false) { DashboardMetricLine(data: $0.data) }
+        }
+        XCTAssertEqual(try Bitmap(twoAccountCard(), width: boxWidth).height, 163, "a card with two accounts of two metrics")
+        XCTAssertEqual(try Bitmap(oneAccountCard, width: boxWidth).height, 78, "a card with one account of two metrics")
+        XCTAssertEqual(DashboardBox.cardSpacing, 10, "the gap between two cards")
+    }
+
     /// The plan is a tag at the trailing edge of the account line, as in Robin's screenshot, not text
     /// after the name.
     func testThePlanTagSitsAtTheTrailingEdge() throws {

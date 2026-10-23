@@ -2,8 +2,9 @@ import AppKit
 import SwiftUI
 
 /// The text field an account's name turns into while `AccountRenameStore` has an edit open for it. It
-/// takes focus as it appears with the whole name selected, so typing replaces it. Return, a click
-/// anywhere else in the panel, or focus moving away commits the edit; Esc cancels it.
+/// takes the keyboard as it appears: it makes its panel key, which the non-activating panel isn't
+/// always, and takes focus, which selects the whole name, so typing replaces it.
+/// Return, a click anywhere else in the panel, or focus moving away commits the edit; Esc cancels it.
 /// `PopoverKeyReader` leaves Return and Esc alone while a text field is editing, so they reach this
 /// field instead of navigating the popover.
 ///
@@ -14,12 +15,11 @@ struct InlineRenameField: View {
     let edit: AccountRenameStore.Edit
 
     @FocusState private var isFocused: Bool
-    @State private var selection: TextSelection?
 
     private static let outset = CGSize(width: 4, height: 1)
 
     var body: some View {
-        TextField("Account Name", text: $renaming.draft, selection: $selection)
+        TextField("Account Name", text: $renaming.draft)
             .textFieldStyle(.plain)
             .lineLimit(1)
             .focused($isFocused)
@@ -28,10 +28,7 @@ struct InlineRenameField: View {
             .onChange(of: isFocused) { _, focused in
                 if !focused { renaming.commit(edit) }
             }
-            .onAppear {
-                isFocused = true
-                selection = TextSelection(range: renaming.draft.startIndex..<renaming.draft.endIndex)
-            }
+            .onAppear { isFocused = true }
             .padding(.horizontal, Self.outset.width)
             .padding(.vertical, Self.outset.height)
             .background {
@@ -42,17 +39,19 @@ struct InlineRenameField: View {
                             .strokeBorder(.tint, lineWidth: 1)
                     }
             }
-            .background(OutsideClickReader { renaming.commit(edit) })
+            .background(RenameWindowBridge { renaming.commit(edit) })
             .padding(.horizontal, -Self.outset.width)
             .padding(.vertical, -Self.outset.height)
             .accessibilityLabel("Account Name")
     }
 }
 
-/// Reports a click anywhere else in this view's window. AppKit keeps a text field editing through
-/// clicks on views that don't take focus, which is most of this panel, so focus alone never sees
-/// those clicks. It only observes: the click still reaches whatever was clicked.
-private struct OutsideClickReader: NSViewRepresentable {
+/// The field's AppKit side, through its window. As the field appears it makes the window key: focus
+/// in a window that isn't key draws the selection greyed out, and keystrokes go to whichever window
+/// is key instead. It also reports a click anywhere else in the window: AppKit keeps a text field
+/// editing through clicks on views that don't take focus, which is most of this panel, so focus alone
+/// never sees those clicks. It only observes, so the click still reaches whatever was clicked.
+private struct RenameWindowBridge: NSViewRepresentable {
     let onClickOutside: @MainActor () -> Void
 
     func makeNSView(context: Context) -> MonitorView {
@@ -77,7 +76,8 @@ private struct OutsideClickReader: NSViewRepresentable {
                 NSEvent.removeMonitor(monitor)
                 self.monitor = nil
             }
-            guard window != nil else { return }
+            guard let window else { return }
+            window.makeKey()
             monitor = NSEvent.addLocalMonitorForEvents(
                 matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
             ) { [weak self] event in

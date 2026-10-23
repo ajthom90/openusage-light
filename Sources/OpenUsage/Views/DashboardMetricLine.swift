@@ -11,7 +11,7 @@ import SwiftUI
 struct DashboardMetricLine: View {
     let data: WidgetData
 
-    static let height: CGFloat = 20
+    static let height: CGFloat = 18
     static let fontSize: CGFloat = 12
     static let columnSpacing: CGFloat = 8
     static let labelWidth: CGFloat = 86

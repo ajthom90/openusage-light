@@ -54,18 +54,22 @@ struct DashboardProviderCard<Account: View>: View {
     }
 }
 
-/// Where things sit inside a provider's card. Everything is `inset` in from the card's sides, so the
-/// provider's mark lines up with the account names and metric labels below it.
+/// Where things sit inside and between provider cards. Everything is `inset` in from the card's sides,
+/// so the provider's mark lines up with the account names and metric labels below it. The vertical
+/// steps are kept small, so a card is its rows and little else: 10 pt above the header and below the
+/// last row, 4 pt from the header to the first row, and 10 pt between two accounts and two cards.
 enum DashboardBox {
-    static let inset: CGFloat = 14
+    static let inset = Theme.Spacing.xl
+    /// Between two provider cards.
+    static let cardSpacing = Theme.Spacing.l
     /// Above the header.
-    static let topPadding: CGFloat = 12
+    static let topPadding = Theme.Spacing.l
     /// Between the header and the first account, on top of the account's own padding.
-    static let headerGap: CGFloat = 4
+    static let headerGap = Theme.Spacing.xs
     /// Above and below each account's content.
-    static let accountPadding: CGFloat = 4
+    static let accountPadding = Theme.Spacing.xs
     /// Between two accounts, on top of their own padding.
-    static let accountSpacing: CGFloat = 6
+    static let accountSpacing = Theme.Spacing.s
     /// Below the last account, on top of its own padding.
-    static let bottomPadding: CGFloat = 8
+    static let bottomPadding = Theme.Spacing.m
 }

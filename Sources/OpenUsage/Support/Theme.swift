@@ -35,6 +35,18 @@ enum Theme {
     /// full strength, the positive counterpart to `notice`'s orange.
     static let positive = AnyShapeStyle(Color(nsColor: .systemGreen))
 
+    // MARK: - Spacing
+
+    /// The one spacing scale. Every gap and padding in `PanelMetrics` and `DashboardBox` is a step on
+    /// it, so the panel has one rhythm and no density levels.
+    enum Spacing {
+        static let xs: CGFloat = 2
+        static let s: CGFloat = 6
+        static let m: CGFloat = 8
+        static let l: CGFloat = 10
+        static let xl: CGFloat = 14
+    }
+
     // MARK: - Surfaces
 
     /// The popover's opaque backdrop ("tray") behind the grouped cards — `textBackgroundColor`, the

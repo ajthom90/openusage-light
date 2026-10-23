@@ -37,6 +37,17 @@ final class MenuBarPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    /// A click on the panel while it isn't key (the app deactivated, or a menu or popover took key)
+    /// makes it key first. Otherwise AppKit spends the click on making the panel key and the view under
+    /// the pointer never sees it, so a double-click on a name reads as one click and opens no rename.
+    override func sendEvent(_ event: NSEvent) {
+        if !isKeyWindow, attachedSheet == nil,
+           [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type) {
+            makeKey()
+        }
+        super.sendEvent(event)
+    }
 }
 
 /// Owns the menu-bar status item and the panel that shows the dashboard.
