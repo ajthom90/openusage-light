@@ -21,8 +21,7 @@ enum DefaultLayout {
         "grok.weekly", "grok.payAsYouGo",
         "ollama.session", "ollama.weekly", "ollama.monthly", "ollama.purchasedCredits",
         "opencode.session", "opencode.weekly", "opencode.monthly",
-        "openrouter.credits", "openrouter.balance", "openrouter.today", "openrouter.week",
-        "openrouter.month", "openrouter.keyLimit",
+        "openrouter.balance", "openrouter.today", "openrouter.week", "openrouter.month",
         "zai.session", "zai.weekly", "zai.webSearches"
     ]
 
@@ -37,7 +36,7 @@ enum DefaultLayout {
         "grok.weekly",
         "ollama.monthly",
         "opencode.session",
-        "openrouter.credits",
+        "openrouter.balance",
         "zai.session", "zai.weekly"
     ]
 }

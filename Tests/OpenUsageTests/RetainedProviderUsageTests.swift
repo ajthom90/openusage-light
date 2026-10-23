@@ -33,11 +33,11 @@ final class RetainedProviderUsageTests: XCTestCase {
         XCTAssertEqual(text, "2500 cap")
     }
 
-    func testOpenRouterMapperKeepsProviderReturnedCreditValues() {
+    func testOpenRouterMapperKeepsProviderReturnedBalance() {
         let lines = OpenRouterUsageMapper.creditsLines(from: ["total_usage": 2.5, "total_credits": 10])
 
-        XCTAssertTrue(lines.contains { $0.label == "Credits" })
-        guard case .values(_, let values, _, _) = lines.first(where: { $0.label == "Balance" })
+        XCTAssertEqual(lines.map(\.label), ["Balance"])
+        guard case .values(_, let values, _, _) = lines.first
         else { return XCTFail("expected Balance value") }
         XCTAssertEqual(values.first?.number, 7.5)
     }

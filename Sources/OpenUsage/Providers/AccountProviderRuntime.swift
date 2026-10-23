@@ -108,12 +108,10 @@ final class AccountProviderRuntime: ProviderRuntime {
             ]
         case .openrouter:
             [
-                .percent(id: "\(prefix).credits", provider: provider, title: "Credits"),
                 .dollarBalance(id: "\(prefix).balance", provider: provider, title: "Balance", valueWord: "left"),
                 .values(id: "\(prefix).today", provider: provider, title: "Today"),
                 .values(id: "\(prefix).week", provider: provider, title: "This Week"),
-                .values(id: "\(prefix).month", provider: provider, title: "This Month"),
-                .percent(id: "\(prefix).keyLimit", provider: provider, title: "Key Limit")
+                .values(id: "\(prefix).month", provider: provider, title: "This Month")
             ]
         case .zai:
             [

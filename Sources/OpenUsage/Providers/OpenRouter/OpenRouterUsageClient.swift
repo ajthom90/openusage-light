@@ -16,7 +16,7 @@ struct OpenRouterUsageClient: Sendable {
         try await get(Self.creditsURL, apiKey: apiKey)
     }
 
-    /// Best-effort key metadata: tier, optional per-key spend cap, and daily/weekly/monthly spend.
+    /// Best-effort key metadata: tier and daily/weekly/monthly spend.
     func fetchKey(apiKey: String) async throws -> HTTPResponse {
         try await get(Self.keyURL, apiKey: apiKey)
     }

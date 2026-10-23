@@ -9,29 +9,19 @@ enum OpenRouterUsageMapper {
         ProviderParse.jsonObject(body)?["data"] as? [String: Any]
     }
 
-    /// Credits meter + Balance from `/credits`. Empty when the payload carries no usable total.
+    /// Balance from `/credits`. Empty when the payload carries no usable total.
     static func creditsLines(from data: [String: Any]) -> [MetricLine] {
         guard let totalUsage = ProviderParse.number(data["total_usage"]) else { return [] }
-
-        let used = max(0, totalUsage)
         // `total_credits` is the lifetime amount added to the account; balance is what's left of it.
         let totalCredits = max(0, ProviderParse.number(data["total_credits"]) ?? 0)
-
-        var lines: [MetricLine] = []
-        // Credits meter: spend against the credits purchased. Only a positive ceiling makes a meter
-        // meaningful (a free/never-topped-up account reports 0 here) — those accounts still get Balance.
-        if totalCredits > 0 {
-            lines.append(.progress(label: "Credits", used: used, limit: totalCredits, format: .dollars))
-        }
-        // Balance: prepaid credits remaining. A real zero is shown ("$0.00 left"), never "No data".
-        lines.append(.values(
+        // A real zero is shown ("$0.00 left"), never "No data".
+        return [.values(
             label: "Balance",
-            values: [MetricValue(number: max(0, totalCredits - used), kind: .dollars)]
-        ))
-        return lines
+            values: [MetricValue(number: max(0, totalCredits - max(0, totalUsage)), kind: .dollars)]
+        )]
     }
 
-    /// Period spend + optional per-key cap from `/key`, plus the tier surfaced as the plan name.
+    /// Period spend from `/key`, plus the tier surfaced as the plan name.
     static func keyMetrics(from data: [String: Any]) -> (plan: String?, lines: [MetricLine]) {
         var lines: [MetricLine] = []
 
@@ -39,19 +29,6 @@ enum OpenRouterUsageMapper {
         appendSpend(data["usage_daily"], label: "Today", into: &lines)
         appendSpend(data["usage_weekly"], label: "This Week", into: &lines)
         appendSpend(data["usage_monthly"], label: "This Month", into: &lines)
-
-        // Per-key spend cap, when this key is configured with one. `usage` is lifetime spend on
-        // the key; `limit_remaining` is what's left in the current window (daily/weekly/monthly
-        // or lifetime), so used = limit - remaining.
-        if let limit = ProviderParse.number(data["limit"]), limit > 0 {
-            let remaining = max(0, ProviderParse.number(data["limit_remaining"]) ?? 0)
-            lines.append(.progress(
-                label: "Key Limit",
-                used: max(0, limit - remaining),
-                limit: limit,
-                format: .dollars
-            ))
-        }
 
         let plan = (data["is_free_tier"] as? Bool).map { $0 ? "Free tier" : "Pay as you go" }
         return (plan, lines)
