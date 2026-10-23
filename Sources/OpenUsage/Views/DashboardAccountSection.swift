@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// One account inside its provider's section: the account line (name, badges) over every metric line
-/// that has data, in the user's order. On a section with one account the provider's header carries the
-/// name and badges, and the account line is left out (`showsAccountLine`). The ↺ tag is the one part that reacts to hover
+/// One account inside its provider's card: the account line (name, badges) over every metric line that
+/// has data, in the user's order. On a card with one account the provider's header carries the name and
+/// badges, and the account line is left out (`showsAccountLine`). The ↺ tag is the one part that reacts to hover
 /// or a click: it opens the resets timeline. A double-click on the name renames the account.
 /// Right-click the account for its menu; the name line drags it.
 struct DashboardAccountSection<Line: View>: View {
@@ -24,7 +24,8 @@ struct DashboardAccountSection<Line: View>: View {
             }
             ForEach(account.lines) { line($0) }
         }
-        .padding(.horizontal, DashboardSpacing.inset)
+        .padding(.horizontal, DashboardBox.inset)
+        .padding(.vertical, DashboardBox.accountPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
@@ -45,7 +46,7 @@ struct DashboardAccountSection<Line: View>: View {
     }
 }
 
-/// An account's name on the dashboard, on its account line or in a one-account section's header. A
+/// An account's name on the dashboard, on its account line or in a one-account card's header. A
 /// double-click opens the inline rename in its place, the same as the right-click Rename.
 struct AccountName: View {
     let account: DashboardAccount
@@ -69,7 +70,7 @@ struct AccountName: View {
 }
 
 /// What sits beside an account's name: its refresh state, then at the trailing edge the ↺ resets tag
-/// and the plan tag. On a section with one account they sit in the provider's header instead.
+/// and the plan tag. On a card with one account they sit in the provider's header instead.
 @MainActor
 struct AccountBadges {
     /// The account's Rate Limit Resets reading (`DashboardAccount.resets`).

@@ -19,8 +19,8 @@ struct DashboardMenuItem: Equatable {
     var command: DashboardCommand?
 }
 
-/// The dashboard's right-click menus, one per thing you can click: a provider's section, an account, and
-/// a metric line. A section with one account has no account line, so its section menu merges the two
+/// The dashboard's right-click menus, one per thing you can click: a provider's card, an account, and a
+/// metric line. A card with one account has no account line, so its card menu merges the two
 /// (`soleAccount`). Each is a list of sections that render with dividers between them. Apart from the ↺
 /// tag's resets popover, right-click is the only way to act on the dashboard.
 enum DashboardMenus {
@@ -34,7 +34,7 @@ enum DashboardMenus {
         ].filter { !$0.isEmpty }
     }
 
-    /// The section menu of a provider with one account: the status line, then Refresh, then the commands
+    /// The card menu of a provider with one account: the status line, then Refresh, then the commands
     /// that edit the account and its provider's accounts, sharing, the view option, and the provider's
     /// web pages last.
     static func soleAccount(

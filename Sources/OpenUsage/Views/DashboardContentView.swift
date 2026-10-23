@@ -11,12 +11,14 @@ struct DashboardContentView: View {
     @Binding var scrollPosition: ScrollPosition
 
     @State private var isAddingAccount = false
-    @Environment(\.popoverSurfaceTreatment) private var treatment
 
     var body: some View {
         PopoverScrollView {
-            widgetContent
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 0) {
+                widgetContent
+            }
+            .padding(PanelMetrics.margin)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollPosition($scrollPosition)
         .sheet(isPresented: $isAddingAccount) {
@@ -28,18 +30,11 @@ struct DashboardContentView: View {
     private var widgetContent: some View {
         if layout.displayGroups.isEmpty {
             EmptyDashboardView { isAddingAccount = true }
-                .padding(PanelMetrics.margin)
         } else {
             WidgetGroupedListView(
                 reorderSpaceName: reorderSpaceName,
                 reorderLift: $reorderLift
             )
-            .padding(.vertical, DashboardSpacing.listPadding)
-            .background {
-                if treatment == .translucent {
-                    Theme.traySurface.opacity(Theme.translucentTrayOpacity)
-                }
-            }
         }
     }
 }

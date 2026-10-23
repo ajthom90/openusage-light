@@ -1,16 +1,16 @@
 import Foundation
 
-/// The dashboard's shape: one section per provider (Claude, Codex, …) holding that provider's accounts in
+/// The dashboard's shape: one card per provider (Claude, Codex, …) holding that provider's accounts in
 /// the user's account order. Built from `LayoutStore.displayGroups`, which has one group per account.
 /// Every enabled reading that carries data becomes a line, except the Rate Limit Resets reading: while a
 /// reset is available it rides on the account line as the ↺ tag instead.
 struct DashboardFamily: Identifiable {
     let id: String
-    /// The first account's provider, which supplies the section's mark and name.
+    /// The first account's provider, which supplies the card's mark and name.
     let provider: Provider
     var accounts: [DashboardAccount]
 
-    /// The section's account when it has exactly one. Its header then stands in for the account's name line.
+    /// The card's account when it has exactly one. Its header then stands in for the account's name line.
     var soleAccount: DashboardAccount? { accounts.count == 1 ? accounts[0] : nil }
 }
 

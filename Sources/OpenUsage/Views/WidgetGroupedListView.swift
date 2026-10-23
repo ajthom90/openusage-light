@@ -1,18 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// The dashboard display: one section per provider, holding each of its accounts (`DashboardFamily`),
-/// stacked edge to edge with a hairline between two sections. Every account shows its plan and reset
-/// tags and every metric that has data, fed by the same `WidgetDataStore` the menu bar uses. A section
-/// with one account shows them in its header and has no account name line. The ↺ tag is the one thing
-/// that reacts to hover or a click: it opens the account's resets timeline, where a reset is claimed. A
-/// double-click on an account's name renames it, the same as the menu's Rename.
+/// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
+/// Every account shows its plan and reset tags and every metric that has data, fed by the same
+/// `WidgetDataStore` the menu bar uses. A card with one account shows them in its header and has no
+/// account name line. The ↺ tag is the one thing that reacts to hover or a click: it opens the account's
+/// resets timeline, where a reset is claimed. A double-click on an account's name renames it, the same
+/// as the menu's Rename.
 ///
-/// Right-click a provider's section, an account, or a metric line for its menu (`DashboardMenus`); a
-/// one-account section's menu holds the account's commands too. Everything reorders by dragging: a
-/// section by its header, an account by its name line within its section, a metric line within its
-/// account. A dragged section leaves its slot empty between the separators, so the gap reads as the
-/// drop target.
+/// Right-click a provider's card, an account, or a metric line for its menu (`DashboardMenus`); a
+/// one-account card's menu holds the account's commands too. Everything reorders by dragging: a card by
+/// its header, an account by its name line within its card, a metric line within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -30,12 +28,9 @@ struct WidgetGroupedListView: View {
     var body: some View {
         let groups = layout.displayGroups
         let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(families.enumerated()), id: \.element.id) { index, family in
-                if index > 0 {
-                    DashboardSeparator()
-                }
-                DashboardProviderSection(
+        VStack(alignment: .leading, spacing: DashboardBox.cardSpacing) {
+            ForEach(families) { family in
+                DashboardProviderCard(
                     family: family,
                     badges: badges,
                     handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
@@ -73,7 +68,7 @@ struct WidgetGroupedListView: View {
             .map(\.id)
     }
 
-    /// A one-account section's menu merges the account's commands into the provider's.
+    /// A one-account card's menu merges the account's commands into the provider's.
     private func cardMenu(_ family: DashboardFamily) -> DashboardMenus.Sections {
         guard let account = family.soleAccount else { return DashboardMenus.provider(family) }
         return DashboardMenus.soleAccount(
@@ -104,9 +99,8 @@ struct WidgetGroupedListView: View {
         )
     }
 
-    /// An account with its menu and drag. On a one-account section it is only its metric lines: the
-    /// section's header and menu stand in for its name line and menu, and there is no other account to
-    /// reorder.
+    /// An account with its menu and drag. On a one-account card it is only its metric lines: the card's
+    /// header and menu stand in for its name line and menu, and there is no other account to reorder.
     @ViewBuilder
     private func accountSection(_ account: DashboardAccount, in family: DashboardFamily) -> some View {
         if family.soleAccount != nil {
@@ -240,8 +234,7 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let preview = plainAccountSection(account, in: family) { DashboardMetricLine(data: $0.data) }
-                    .padding(.vertical, DashboardSpacing.accountSpacing / 2)
-                    .liftedSectionSurface()
+                    .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().first { $0.id == family.id }?.accounts.map(\.id) ?? [] },
@@ -258,10 +251,9 @@ struct WidgetGroupedListView: View {
             active: $activeFamilyID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardProviderSection(family: family, badges: badges) {
+                let preview = DashboardProviderCard(family: family, badges: badges) {
                     plainAccountSection($0, in: family) { DashboardMetricLine(data: $0.data) }
                 }
-                .liftedSectionSurface()
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().map { Self.familyFrameID($0.id) } },

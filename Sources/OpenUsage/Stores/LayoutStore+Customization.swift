@@ -89,7 +89,7 @@ extension LayoutStore {
         }
     }
 
-    /// Move a whole provider section: every account of `dragged`'s provider family moves, in its own order,
+    /// Move a whole provider card: every account of `dragged`'s provider family moves, in its own order,
     /// to `target`'s place. Accounts of one family stay together in the saved order afterwards.
     @discardableResult
     func reorderFamily(dragged: String, target: String) -> Bool {

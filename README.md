@@ -18,17 +18,17 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-The dashboard has one section per provider, with a thin line between two sections. Each account shows its name with its plan as a tag on the right, then every metric that has data, in the order you set. When a provider has only one account, the section's header shows that account's name next to the logo, with its tags on the right, and the metrics follow straight below. Apart from the ↺ tag and a double-click on an account's name, nothing on the dashboard reacts to hover or a click. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
+The dashboard has one card per provider. Each account shows its name with its plan as a tag on the right, then every metric that has data, in the order you set. When a provider has only one account, the card's header shows that account's name next to the logo, with its tags on the right, and the metrics follow straight below. Apart from the ↺ tag and a double-click on an account's name, nothing on the dashboard reacts to hover or a click. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
 
 Right-click for actions:
 
-- A provider's section: Refresh, Manage Accounts…, and the provider's links, such as Status Page and Usage Dashboard.
+- A provider's card: Refresh, Manage Accounts…, and the provider's links, such as Status Page and Usage Dashboard.
 - An account: Refresh, Rename, Edit Account…, and Share Screenshot. If the account line shows a warning or stale icon, the menu starts with the reason. Show Hidden Metrics appears when you have hidden any.
 - A metric: Star for Menu Bar (or Unstar) and Hide. Hiding a metric, here or on the Accounts screen, also takes its star off the menu bar. Starring a hidden metric shows it again.
 
-On a section with one account, the header's menu combines the two: the warning reason if there is one, Refresh, Rename, Edit Account…, Manage Accounts…, Share Screenshot, Show Hidden Metrics, and the provider's links.
+On a card with one account, the header's menu combines the two: the warning reason if there is one, Refresh, Rename, Edit Account…, Manage Accounts…, Share Screenshot, Show Hidden Metrics, and the provider's links.
 
-Drag a section by its header, an account by its name, or a metric by its line to reorder them. A new provider goes to the bottom of the dashboard and the Accounts list, and a new account goes to the bottom of its provider's accounts.
+Drag a card by its header, an account by its name, or a metric by its line to reorder them. A new provider goes to the bottom of the dashboard and the Accounts list, and a new account goes to the bottom of its provider's accounts.
 
 When the menu bar shows more than one account of a provider, each mark carries a two-character tag from the account's name. The tag keeps the account's number, so "Attention Machine 1" and "Attention Machine 2" read A1 and A2. Names that would share a tag show the first letter that differs, such as WO and WE for Work and Web.
 
