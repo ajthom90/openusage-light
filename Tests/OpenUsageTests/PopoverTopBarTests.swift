@@ -21,7 +21,7 @@ final class PopoverTopBarTests: XCTestCase {
             PopoverTopBar(layout: layout, screen: .accounts, height: 44, horizontalPadding: PanelMetrics.margin)
             AccountListView(reorderSpaceName: "reorder", reorderLift: .constant(nil), frameStore: ReorderFrameStore())
         }
-        .frame(width: 320)
+        .frame(width: PanelMetrics.width)
         .environment(container)
         .environment(layout)
         .environment(container.renaming)

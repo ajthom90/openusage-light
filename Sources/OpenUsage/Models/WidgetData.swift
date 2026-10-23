@@ -383,10 +383,11 @@ struct WidgetData: Hashable {
         return Formatters.resetRelativeLabel(until: resetsAt)
     }
 
-    /// Bounded/fallback formatting, delegated to the shared formatter so the popover and tray always
-    /// agree. Unbounded `.values` rows format their values directly (`unboundedDetail`).
+    /// Bounded/fallback formatting in the popover row's compact style, so a meter's value always fits
+    /// the dashboard's value column at full size. Unbounded `.values` rows format their values directly
+    /// (`unboundedDetail`).
     private func format(_ value: Double) -> String {
-        MetricFormatter.number(value, kind: kind, style: .full)
+        MetricFormatter.number(value, kind: kind, style: .row)
     }
 }
 

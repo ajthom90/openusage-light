@@ -10,7 +10,7 @@ final class WidgetMeterStyleTests: XCTestCase {
         let cases: [(name: String, format: ProgressFormat, used: Double, limit: Double,
                      remaining: String, consumed: String, subtitle: String?)] = [
             ("percent", .percent, 80, 100, "20%", "80%", nil),
-            ("dollars", .dollars, 80, 100, "$20.00", "$80.00", "$100 limit"),
+            ("dollars", .dollars, 80, 100, "$20", "$80", "$100 limit"),
             ("count", .count(suffix: "credits"), 320, 1_000, "680", "320", "credits")
         ]
 

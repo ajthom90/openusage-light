@@ -3,7 +3,8 @@ import SwiftUI
 /// One metric on one line inside an account: label, meter, value, and reset time. The columns have fixed
 /// widths, so every bar in the panel starts and ends at the same x. A reading without a limit (credits,
 /// a balance, a status) has no bar; its value takes the bar's place, and the trailing column stays
-/// reserved for reset times.
+/// reserved for reset times. The label and value columns fit every title and value at full size, so
+/// neither truncates nor shrinks.
 ///
 /// Nothing on a line reacts to the pointer. Used/Left and countdown/clock time are set in Settings →
 /// Usage Display; right-click a line to star or hide it.
@@ -13,8 +14,8 @@ struct DashboardMetricLine: View {
     static let height: CGFloat = 20
     static let fontSize: CGFloat = 12
     static let columnSpacing: CGFloat = 8
-    static let labelWidth: CGFloat = 72
-    static let valueWidth: CGFloat = 44
+    static let labelWidth: CGFloat = 86
+    static let valueWidth: CGFloat = 52
     static let resetWidth: CGFloat = 56
 
     var body: some View {
@@ -70,7 +71,6 @@ struct DashboardMetricLine: View {
                 .fontWeight(.medium)
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
                 .contentTransition(.numericText())
         }
     }

@@ -7,8 +7,8 @@ final class ProviderHeaderLayoutTests: XCTestCase {
     private let longPlan = String(repeating: "Future Enterprise Entitlement ", count: 12)
     private let codexProvider = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
     private let claudeProvider = Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal")
-    /// The card: the 320 pt popover minus its margin on each side. An account pads itself.
-    private let boxWidth = 320 - 2 * PanelMetrics.margin
+    /// The card: the panel minus its margin on each side. An account pads itself.
+    private let boxWidth = PanelMetrics.width - 2 * PanelMetrics.margin
 
     func testDashboardAccountFitsOversizedPlan() throws {
         let section = DashboardAccountSection(

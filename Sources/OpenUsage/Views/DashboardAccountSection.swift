@@ -63,6 +63,7 @@ struct AccountName: View {
             Text(account.name)
                 .font(font)
                 .lineLimit(1)
+                .truncationMode(.middle)
                 .onTapGesture(count: 2) { renaming?.begin(account.id) }
         }
     }

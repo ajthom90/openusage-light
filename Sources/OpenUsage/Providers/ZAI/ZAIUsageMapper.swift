@@ -92,16 +92,18 @@ enum ZAIUsageMapper {
         return lines
     }
 
-    /// `productName` from the first valid subscription entry (e.g. "GLM Coding Max").
+    /// The tier of the first valid subscription entry's `productName`, without the product's own name:
+    /// "GLM Coding Max" → "Max".
     static func planName(from body: Data) -> String? {
         guard let root = ProviderParse.jsonObject(body),
               let list = root["data"] as? [[String: Any]],
               let first = list.first,
-              let name = (first["productName"] as? String)?.nilIfEmpty
+              let name = (first["productName"] as? String)?.trimmingCharacters(in: .whitespaces).nilIfEmpty
         else {
             return nil
         }
-        return name
+        let tier = name.replacingOccurrences(of: #"^GLM Coding (Plan )?"#, with: "", options: [.regularExpression, .caseInsensitive])
+        return tier.nilIfEmpty ?? name
     }
 
     // MARK: - Private

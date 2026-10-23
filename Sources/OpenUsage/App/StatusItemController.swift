@@ -99,7 +99,7 @@ final class StatusItemController: NSObject {
         let panel = MenuBarPanel(contentRect: NSRect(
             x: 0,
             y: 0,
-            width: PanelHeightController.panelWidth,
+            width: PanelMetrics.width,
             height: PanelHeightController.defaultHeight
         ))
         self.panel = panel

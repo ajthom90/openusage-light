@@ -295,7 +295,7 @@ final class DashboardAccountSectionTests: XCTestCase {
     /// environment.
     private func hostView(_ content: some View, renaming: AccountRenameStore) -> (NSWindow, NSView) {
         let view = content
-            .frame(width: 292)
+            .frame(width: PanelMetrics.width - 2 * PanelMetrics.margin)
             .environment(renaming)
             .environment(\.colorScheme, .light)
         let host = NSHostingView(rootView: view)

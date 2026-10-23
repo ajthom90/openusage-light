@@ -94,15 +94,15 @@ final class AccountProviderRuntime: ProviderRuntime {
             ]
         case .grok:
             [
-                .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly limit"),
-                .badge(id: "\(prefix).payAsYouGo", provider: provider, title: "Pay as you go")
+                .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly", metricLabel: "Weekly limit"),
+                .badge(id: "\(prefix).payAsYouGo", provider: provider, title: "Extra Usage", metricLabel: "Pay as you go")
             ]
         case .ollama:
             [
                 .percent(id: "\(prefix).session", provider: provider, title: "Session"),
                 .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly"),
                 .percent(id: "\(prefix).monthly", provider: provider, title: "Monthly"),
-                .dollarBalance(id: "\(prefix).purchasedCredits", provider: provider, title: "Purchased Credits", valueWord: "left")
+                .dollarBalance(id: "\(prefix).purchasedCredits", provider: provider, title: "Extra Usage", metricLabel: "Purchased Credits", valueWord: "left")
             ]
         case .opencodeGo:
             [

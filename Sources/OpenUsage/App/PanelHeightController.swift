@@ -5,7 +5,6 @@ import AppKit
 /// AppKit.
 @MainActor
 final class PanelHeightController {
-    static let panelWidth: CGFloat = 320
     static let defaultHeight: CGFloat = 800
 
     private let panel: MenuBarPanel
@@ -68,7 +67,7 @@ final class PanelHeightController {
         anchorScreen = screen
         let topLeft = PanelGeometry.clampedTopLeft(
             below: buttonRect,
-            width: Self.panelWidth,
+            width: PanelMetrics.width,
             visibleFrame: screen?.visibleFrame
         )
         anchorTopLeft = topLeft
@@ -76,7 +75,7 @@ final class PanelHeightController {
         let remembered = loadHeight(for: currentScreen()) ?? Self.defaultHeight
         let height = clampedHeight(remembered)
         panel.setFrame(
-            PanelGeometry.frame(topLeft: topLeft, width: Self.panelWidth, height: height),
+            PanelGeometry.frame(topLeft: topLeft, width: PanelMetrics.width, height: height),
             display: false
         )
         panel.invalidateShadow()
@@ -112,7 +111,7 @@ final class PanelHeightController {
         let height = clampedHeight(PanelGeometry.height(content: rawHeight, attachedSheet: panel.attachedSheet?.frame.height))
         guard abs(panel.frame.height - height) > 1 else { return }
         panel.setFrame(
-            PanelGeometry.frame(topLeft: anchorTopLeft, width: Self.panelWidth, height: height),
+            PanelGeometry.frame(topLeft: anchorTopLeft, width: PanelMetrics.width, height: height),
             display: false
         )
         isMorphing = true
