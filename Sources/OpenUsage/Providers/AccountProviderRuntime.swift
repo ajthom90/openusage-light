@@ -401,7 +401,7 @@ final class AccountProviderRuntime: ProviderRuntime {
     private func refreshOpenCode(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
         guard case .apiKey(let key) = credential else { throw LoginError.invalidResponse }
         let response = try await OpenCodeUsageClient(http: http).fetchUsage(apiKey: key)
-        return (nil, try OpenCodeUsageMapper.meterLines(response))
+        return (OpenCodeUsageMapper.plan, try OpenCodeUsageMapper.meterLines(response))
     }
 
     private func refreshOpenRouter(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {

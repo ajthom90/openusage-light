@@ -14,7 +14,7 @@ Account metadata is stored in the app's UserDefaults domain. OAuth tokens and AP
 
 ## Providers
 
-The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Ollama, OpenCode Go, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode Go, OpenRouter, and Z.ai, which use API keys.
+The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Ollama, OpenCode, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode, OpenRouter, and Z.ai, which use API keys.
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 

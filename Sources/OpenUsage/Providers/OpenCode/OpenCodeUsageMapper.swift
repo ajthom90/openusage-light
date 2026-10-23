@@ -4,6 +4,9 @@ import Foundation
 /// (same numbers as the OpenCode dashboard) plus an ISO reset time — not dollar spend — so each row
 /// is a `.percent` progress meter.
 enum OpenCodeUsageMapper {
+    /// The account line's plan tag. The usage endpoint only serves Go subscriptions and names no tier.
+    static let plan = "Go"
+
     /// Maximum distance from exactly one full period for a zero-usage rolling reset to count as the
     /// untouched-window placeholder. OpenCode rounds `resetInSec` up to whole seconds and HTTP `Date`
     /// headers carry whole-second precision, so two seconds covers both rounding steps. A session that

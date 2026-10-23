@@ -26,7 +26,7 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
         case .copilot: "Copilot"
         case .grok: "Grok"
         case .ollama: "Ollama"
-        case .opencodeGo: "OpenCode Go"
+        case .opencodeGo: "OpenCode"
         case .openrouter: "OpenRouter"
         case .zai: "Z.ai"
         }
