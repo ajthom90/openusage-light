@@ -27,7 +27,6 @@ final class PopoverBackdropView: NSView {
         opaqueBox.boxType = .custom
         opaqueBox.titlePosition = .noTitle
         opaqueBox.borderWidth = 0
-        opaqueBox.cornerRadius = cornerRadius
         opaqueBox.contentViewMargins = .zero
         opaqueBox.fillColor = Theme.trayNSColor
         opaqueBox.wantsLayer = true                 // layer-backed so alphaValue animates
