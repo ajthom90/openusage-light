@@ -30,7 +30,7 @@ enum OpenRouterUsageMapper {
         appendSpend(data["usage_weekly"], label: "This Week", into: &lines)
         appendSpend(data["usage_monthly"], label: "This Month", into: &lines)
 
-        let plan = (data["is_free_tier"] as? Bool).map { $0 ? "Free" : "Extra Usage" }
+        let plan = (data["is_free_tier"] as? Bool).map { $0 ? "Free" : "Pay-as-you-go" }
         return (plan, lines)
     }
 

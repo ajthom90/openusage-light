@@ -4,7 +4,8 @@ import XCTest
 @testable import OpenUsage
 
 /// Every metric title, plan and value a provider can produce renders at full size in the panel: no
-/// title or plan truncates, and no value shrinks to fit its column.
+/// title or plan truncates, and no value shrinks to fit its column. Plans are the providers' official
+/// names, never shortened to fit; a long account name truncates instead.
 @MainActor
 final class DashboardLabelFitTests: XCTestCase {
     /// A provider's card: the panel minus its margin on each side.
@@ -21,6 +22,17 @@ final class DashboardLabelFitTests: XCTestCase {
                 )
             }
         }
+    }
+
+    /// Two metrics of one account never share a title, so no two rows read the same.
+    func testEveryProvidersMetricTitlesAreDistinct() {
+        for kind in ProviderKind.allCases {
+            let runtime = AccountProviderRuntime(account: Account(kind: kind, label: kind.displayName), vault: InMemoryCredentialVault())
+            let titles = runtime.widgetDescriptors.map(\.sample.title)
+            XCTAssertEqual(Set(titles).count, titles.count, "\(kind.displayName): \(titles)")
+        }
+        let antigravity = AccountProviderRuntime(account: Account(kind: .antigravity, label: "Antigravity"), vault: InMemoryCredentialVault())
+        XCTAssertEqual(antigravity.widgetDescriptors.map(\.sample.title), ["Gemini 5h", "Gemini", "Argon", "Claude 5h", "Claude"])
     }
 
     /// Each plan a mapper can name fits in its card's header beside the provider's own name, which is
@@ -42,7 +54,7 @@ final class DashboardLabelFitTests: XCTestCase {
         resets.values = [MetricValue(number: 2, kind: .count, label: "available")]
         resets.showsResetExpiries = true
         let soleAccounts: [(ProviderKind, String, String, WidgetData?)] = [
-            (.codex, "Sunstory", "Pro 200", resets), (.openrouter, "OpenRouter", "Extra Usage", nil),
+            (.codex, "Sunstory", "Pro 200", resets), (.openrouter, "OpenRouter", "Pay-as-you-go", nil),
             (.opencodeGo, "OpenCode Go", "Go", nil), (.opencodeGo, "Go Basic", "Go", nil),
             (.grok, "Grok Account", "SuperGrok Heavy", nil), (.ollama, "Ollama", "Free", nil),
             (.cursor, "rob@sunstory.com", "Ultra", nil), (.copilot, "robinebers", "Individual", nil),
@@ -53,12 +65,33 @@ final class DashboardLabelFitTests: XCTestCase {
         let accountLines: [(ProviderKind, String, String)] = [
             (.claude, "Personal", "Max 20x"), (.claude, "Attention Machine 1", "Team 5x"),
             (.claude, "Attention Machine 2", "Team 5x"),
-            (.antigravity, "robin.ebers@gmail.com", "Starter"), (.antigravity, "rob@sunstory.com", "Starter"),
         ]
         for (kind, name, plan) in accountLines {
             let section = DashboardAccountSection(account: account(kind, name), badges: AccountBadges(plan: plan)) { _ in EmptyView() }
             XCTAssertLessThanOrEqual(idealWidth(section.accountLine), cardWidth - 2 * DashboardBox.inset, name)
         }
+    }
+
+    /// Beside a name too long for its line, the plan keeps its full width and the name gives way. Robin's
+    /// Antigravity accounts sit on account lines; a one-account card carries them in its header.
+    func testALongAccountNameTruncatesBeforeThePlan() throws {
+        let plan = "Antigravity Starter Quota"
+        let tagWidth = idealWidth(PlanTag(plan: plan))
+        let tagInk = try inkWidth(PlanTag(plan: plan))
+        let longName = "robin.ebers.and.a.long.alias@gmail.com"
+        let lineWidth = cardWidth - 2 * DashboardBox.inset
+        for name in ["robin.ebers@gmail.com", "rob@sunstory.com", longName] {
+            let line = DashboardAccountSection(account: account(.antigravity, name), badges: AccountBadges(plan: plan)) { _ in EmptyView() }
+                .accountLine
+            if name == longName { XCTAssertGreaterThan(idealWidth(line), lineWidth, "the name must overflow its line") }
+            let drawn = try inkWidth(line.frame(width: lineWidth), from: lineWidth - tagWidth, to: lineWidth)
+            XCTAssertEqual(drawn, tagInk, accuracy: 0.5, "\(name): the plan drew \(drawn) pt wide, not \(tagInk)")
+        }
+        let soleAccount = header(kind: .antigravity, name: longName, plan: plan)
+        XCTAssertGreaterThan(idealWidth(soleAccount), cardWidth, "the name must overflow the header")
+        let end = cardWidth - DashboardBox.inset
+        let drawn = try inkWidth(soleAccount.frame(width: cardWidth), from: end - tagWidth, to: end)
+        XCTAssertEqual(drawn, tagInk, accuracy: 0.5, "header: the plan drew \(drawn) pt wide, not \(tagInk)")
     }
 
     /// The wider label and value columns come out of the panel's width, not the meter's: the bar keeps
@@ -130,9 +163,9 @@ final class DashboardLabelFitTests: XCTestCase {
         let zai = try ["GLM Coding Lite", "GLM Coding Pro", "GLM Coding Max"].compactMap {
             ZAIUsageMapper.planName(from: try json(["data": [["productName": $0]]]))
         }
-        XCTAssertEqual(antigravity.first, "Starter")
-        XCTAssertEqual(openRouter, ["Free", "Extra Usage"])
-        XCTAssertEqual(zai, ["Lite", "Pro", "Max"])
+        XCTAssertEqual(antigravity.first, "Antigravity Starter Quota")
+        XCTAssertEqual(openRouter, ["Free", "Pay-as-you-go"])
+        XCTAssertEqual(zai, ["GLM Coding Lite", "GLM Coding Pro", "GLM Coding Max"])
         return [(.claude, claude), (.codex, codex), (.cursor, cursor), (.antigravity, antigravity), (.copilot, copilot),
                 (.grok, grok), (.ollama, ollama), (.opencodeGo, [OpenCodeUsageMapper.plan]), (.openrouter, openRouter),
                 (.zai, zai)]
@@ -166,7 +199,7 @@ final class DashboardLabelFitTests: XCTestCase {
     /// The width of a view's ink between two x positions (its whole width by default), in points.
     private func inkWidth(_ view: some View, from start: CGFloat = 0, to end: CGFloat? = nil) throws -> CGFloat {
         let scale: CGFloat = 2
-        let renderer = ImageRenderer(content: view.environment(\.colorScheme, .light))
+        let renderer = ImageRenderer(content: view.environment(\.colorScheme, .light).environment(AccountRenameStore?.none))
         renderer.scale = scale
         let image = try XCTUnwrap(renderer.cgImage)
         var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)

@@ -314,14 +314,13 @@ enum AntigravityUsageMapper {
         poolLabel == AntigravityMetric.sessionLabel ? "0_\(poolLabel)" : "1_\(poolLabel)"
     }
 
-    /// Normalize a raw plan/tier string to a short label. LS returns "Google AI Pro" and Cloud Code's free
-    /// tier "Antigravity Starter Quota" (strip the brand and "Quota", keep the tier: "Pro", "Starter");
-    /// Cloud Code's paid tiers return "Gemini Code Assist in Google One AI Pro" (pull the tier word).
+    /// Normalize a raw plan/tier string to a short label. LS returns "Google AI Pro" (strip the prefix,
+    /// keep the tail); Cloud Code returns "Gemini Code Assist in Google One AI Pro" (pull the tier word).
+    /// Any other name, such as the free tier's "Antigravity Starter Quota", is Google's own and passes through.
     static func formatPlan(_ raw: String?) -> String? {
         guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else { return nil }
-        let tier = trimmed.replacingOccurrences(of: #"^(Google AI|Antigravity) | Quota$"#, with: "", options: .regularExpression)
-        if tier != trimmed, !tier.isEmpty {
-            return tier.titleCased(separator: \.isWhitespace)
+        if let range = trimmed.range(of: "Google AI "), range.lowerBound == trimmed.startIndex {
+            return String(trimmed[range.upperBound...]).titleCased(separator: \.isWhitespace)
         }
         for keyword in ["Ultra", "Pro", "Free"] where trimmed.lowercased().contains(keyword.lowercased()) {
             return keyword

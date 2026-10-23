@@ -34,7 +34,7 @@ final class ZAILiveResponseMappingTests: XCTestCase {
             subscriptionBody: Data(liveSubscription.utf8)
         )
 
-        XCTAssertEqual(mapped.plan, "Pro")
+        XCTAssertEqual(mapped.plan, "GLM Coding Pro")
 
         let session = try XCTUnwrap(progress(mapped.lines, "Session"))
         XCTAssertEqual(session.used, 17, accuracy: 0.001)

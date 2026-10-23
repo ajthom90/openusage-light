@@ -79,11 +79,13 @@ final class AccountProviderRuntime: ProviderRuntime {
             ]
         case .antigravity:
             [
-                .percent(id: "\(prefix).geminiPro", provider: provider, title: "Session", sessionStartSignal: .zeroUsage),
-                .percent(id: "\(prefix).geminiWeekly", provider: provider, title: "Weekly"),
-                .percent(id: "\(prefix).argonWeekly", provider: provider, title: "Argon Weekly"),
-                .percent(id: "\(prefix).claude", provider: provider, title: "Claude", sessionStartSignal: .zeroUsage),
-                .percent(id: "\(prefix).claudeWeekly", provider: provider, title: "Claude Weekly")
+                .percent(id: "\(prefix).geminiPro", provider: provider, title: "Gemini 5h",
+                         metricLabel: AntigravityMetric.sessionLabel, sessionStartSignal: .zeroUsage),
+                .percent(id: "\(prefix).geminiWeekly", provider: provider, title: "Gemini", metricLabel: AntigravityMetric.weeklyLabel),
+                .percent(id: "\(prefix).argonWeekly", provider: provider, title: "Argon", metricLabel: AntigravityMetric.argonWeeklyLabel),
+                .percent(id: "\(prefix).claude", provider: provider, title: "Claude 5h",
+                         metricLabel: AntigravityMetric.claudeLabel, sessionStartSignal: .zeroUsage),
+                .percent(id: "\(prefix).claudeWeekly", provider: provider, title: "Claude", metricLabel: AntigravityMetric.claudeWeeklyLabel)
             ]
         case .copilot:
             [

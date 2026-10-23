@@ -6,8 +6,10 @@ import Foundation
 /// come from one place — label drift there is a silent "No data" failure.
 ///
 /// The shared Gemini and non-Gemini (Claude, GPT-OSS) pools each have a rolling 5-hour window plus a
-/// weekly window. Eligible accounts also report a separate Gemini 4 Argon weekly quota. The shared
-/// Gemini pair is titled "Session" / "Weekly"; the non-Gemini pool keeps its "Claude" name.
+/// weekly window. Eligible accounts also report a separate Gemini 4 Argon weekly quota. The dashboard
+/// titles them "Gemini 5h", "Gemini", "Argon", "Claude 5h" and "Claude" (the weekly windows take the
+/// plain pool names, since every account has those); the labels below stay the binding keys, so
+/// snapshots cached under them keep matching.
 /// `geminiID` keeps its historical `antigravity.geminiPro` raw value so existing users' layout state
 /// (enabled/pin/order) carries over to the shared meter with zero migration.
 enum AntigravityMetric {
