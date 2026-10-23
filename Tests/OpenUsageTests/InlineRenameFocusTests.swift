@@ -17,22 +17,23 @@ final class InlineRenameFocusTests: XCTestCase {
         let accounts: [String: String]
     }
 
-    /// A double-click on an account's name in a card with two accounts.
+    /// A double-click on an account's name in a section with two accounts.
     func testDoubleClickingAnAccountNameTakesTheKeyboard() async throws {
         let hosted = try await host()
         try await resignKey(hosted)
-        let nameLine = PanelMetrics.margin + DashboardBox.topPadding + 18 + DashboardBox.headerGap
-            + DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
-        try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardBox.inset + 10, y: nameLine), hosted)
+        let nameLine = DashboardSpacing.listPadding + DashboardSpacing.sectionPadding
+            + 1.5 * DashboardAccountSection<EmptyView>.lineHeight
+        try await doubleClick(CGPoint(x: DashboardSpacing.inset + 10, y: nameLine), hosted)
         try await assertRenameTakesTyping("Personal", hosted)
     }
 
-    /// A double-click on the account's name in a one-account card's header.
+    /// A double-click on the account's name in a one-account section's header.
     func testDoubleClickingAOneAccountHeaderTakesTheKeyboard() async throws {
         let hosted = try await host(soleCodex: true)
         try await resignKey(hosted)
-        let header = PanelMetrics.margin + DashboardBox.topPadding + 9
-        try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardBox.inset + 16 + 6 + 10, y: header), hosted)
+        let header = DashboardSpacing.listPadding + DashboardSpacing.sectionPadding
+            + DashboardAccountSection<EmptyView>.lineHeight / 2
+        try await doubleClick(CGPoint(x: DashboardSpacing.inset + 16 + 6 + 10, y: header), hosted)
         try await assertRenameTakesTyping("Sunstory", hosted)
     }
 

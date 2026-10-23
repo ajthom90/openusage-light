@@ -5,12 +5,13 @@ import AppKit
 ///
 /// By default the popover is a solid, opaque panel; the opt-in Increase Transparency mode (and the
 /// secret-code egg) make it translucent. Either way, Liquid Glass is reserved for the footer/top-bar
-/// chrome — the controls/navigation layer — and never the data cards: Apple's guidance is to keep
-/// Liquid Glass out of the content layer and back content with standard materials instead. The data
-/// region mirrors the macOS System Settings grouped look: a page "tray" with borderless grouped cards
-/// lifted off it by the system's own `.fill.quaternary` (no hand-tuned values), so it adapts to
-/// light/dark like every other Mac app. Under the translucent treatment the cards swap their opaque
-/// base for a frosted standard material so text stays legible (see `cardSurface`).
+/// chrome — the controls/navigation layer — and never the content: Apple's guidance is to keep
+/// Liquid Glass out of the content layer and back content with standard materials instead. The
+/// dashboard's provider sections sit straight on the page "tray", split by hairlines. Settings and
+/// Accounts mirror the macOS System Settings grouped look: borderless grouped cards lifted off the tray
+/// by the system's own `.fill.quaternary` (no hand-tuned values), so they adapt to light/dark like
+/// every other Mac app. Under the translucent treatment text sits on a translucent wash of the tray so
+/// it stays legible (see `translucentTrayOpacity`).
 enum Theme {
     /// Hierarchical secondary tint for the provider marks.
     static let iconGray = AnyShapeStyle(.secondary)
@@ -37,7 +38,7 @@ enum Theme {
 
     // MARK: - Spacing
 
-    /// The one spacing scale. Every gap and padding in `PanelMetrics` and `DashboardBox` is a step on
+    /// The one spacing scale. Every gap and padding in `PanelMetrics` and `DashboardSpacing` is a step on
     /// it, so the panel has one rhythm and no density levels.
     enum Spacing {
         static let xs: CGFloat = 2
@@ -45,6 +46,7 @@ enum Theme {
         static let m: CGFloat = 8
         static let l: CGFloat = 10
         static let xl: CGFloat = 14
+        static let xxl: CGFloat = 16
     }
 
     // MARK: - Surfaces
@@ -57,6 +59,10 @@ enum Theme {
     /// over solid content, never a hole to the desktop. The grouped cards sit on it (see `cardSurface`).
     static let trayNSColor: NSColor = .textBackgroundColor
     static var traySurface: Color { Color(nsColor: trayNSColor) }
+
+    /// How much of the tray text keeps under the translucent treatment, where the page itself clears to
+    /// the blurred desktop: the dashboard's sections and every card sit on the tray at this opacity.
+    static let translucentTrayOpacity: Double = 0.55
 
     /// The semantic fill that lifts a grouped card off the `traySurface` page — `.fill.quaternary`, the
     /// system's own subtle grouped fill (≈ the macOS System Settings grouped box: `#F9F9F9` over white
@@ -82,15 +88,22 @@ extension View {
     /// and dark. Drawing the opaque page base first keeps a lifted drag preview solid while it floats;
     /// the preview's depth comes from `ReorderLiftPreview`'s shadow, not a different card surface.
     func cardSurface() -> some View {
-        modifier(CardSurfaceModifier())
+        modifier(CardSurfaceModifier(shape: Theme.cardShape))
     }
 
     /// A single-row lifted preview surface: the card surface plus a thin separator hairline that fences
-    /// a free-floating one-row chip off from the rows beneath it (the multi-row provider previews don't
-    /// take the hairline — their shadow alone reads as detached).
+    /// a free-floating one-row chip off from the rows beneath it.
     func liftedRowSurface() -> some View {
         cardSurface()
             .overlay { Theme.cardShape.strokeBorder(.separator, lineWidth: 0.5) }
+    }
+
+    /// The lifted preview of a dashboard section or account, which spans the panel edge to edge: the
+    /// card surface without corners, fenced top and bottom by the dashboard's separator hairline.
+    func liftedSectionSurface() -> some View {
+        modifier(CardSurfaceModifier(shape: Rectangle()))
+            .overlay(alignment: .top) { DashboardSeparator() }
+            .overlay(alignment: .bottom) { DashboardSeparator() }
     }
 
     /// The trailing on/off switch styling shared by every settings + Customize row toggle: no inline
@@ -111,22 +124,23 @@ extension View {
 /// Under the translucent surface treatment (Increase Transparency / the secret-code egg) the opaque page base
 /// is dropped so the behind-window vibrancy backdrop shows through, while the system grouped fill stays
 /// so cards still read as grouped boxes over the desktop.
-private struct CardSurfaceModifier: ViewModifier {
+private struct CardSurfaceModifier<SurfaceShape: Shape>: ViewModifier {
+    let shape: SurfaceShape
     @Environment(\.popoverSurfaceTreatment) private var treatment
 
     func body(content: Content) -> some View {
         content.background {
             switch treatment {
             case .opaque:
-                Theme.cardShape
+                shape
                     .fill(Theme.traySurface)
-                    .overlay { Theme.cardShape.fill(Theme.cardFill) }
+                    .overlay { shape.fill(Theme.cardFill) }
             case .translucent:
                 // The AppKit backdrop already applies the system blur. A stable translucent surface here
                 // keeps text legible without stacking another live material pass under every card.
-                Theme.cardShape
-                    .fill(Theme.traySurface.opacity(0.55))
-                    .overlay { Theme.cardShape.fill(Theme.cardFill) }
+                shape
+                    .fill(Theme.traySurface.opacity(Theme.translucentTrayOpacity))
+                    .overlay { shape.fill(Theme.cardFill) }
             }
         }
     }

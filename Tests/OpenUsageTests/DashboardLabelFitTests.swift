@@ -8,8 +8,8 @@ import XCTest
 /// names, never shortened to fit; a long account name truncates instead.
 @MainActor
 final class DashboardLabelFitTests: XCTestCase {
-    /// A provider's card: the panel minus its margin on each side.
-    private let cardWidth = PanelMetrics.width - 2 * PanelMetrics.margin
+    /// A provider's section: the panel's full width. Its content sits `DashboardSpacing.inset` in from either edge.
+    private let sectionWidth = PanelMetrics.width
 
     func testEveryProvidersMetricTitlesFitTheLabelColumn() {
         for kind in ProviderKind.allCases {
@@ -35,20 +35,20 @@ final class DashboardLabelFitTests: XCTestCase {
         XCTAssertEqual(antigravity.widgetDescriptors.map(\.sample.title), ["Gemini 5h", "Gemini", "Argon", "Claude 5h", "Claude"])
     }
 
-    /// Each plan a mapper can name fits in its card's header beside the provider's own name, which is
+    /// Each plan a mapper can name fits in its section's header beside the provider's own name, which is
     /// what an account nobody renamed is called.
-    func testEveryPlanFitsInItsCardsHeader() throws {
+    func testEveryPlanFitsInItsSectionsHeader() throws {
         for (kind, plans) in try plansByProvider() {
             XCTAssertFalse(plans.isEmpty, kind.displayName)
             for plan in plans {
                 let width = idealWidth(header(kind: kind, name: kind.displayName, plan: plan))
-                XCTAssertLessThanOrEqual(width, cardWidth, "\(kind.displayName): \(plan)")
+                XCTAssertLessThanOrEqual(width, sectionWidth, "\(kind.displayName): \(plan)")
             }
         }
     }
 
-    /// Robin's accounts, names and plans, as each card draws them: a one-account card in its header, a
-    /// card with several accounts on each account's name line.
+    /// Robin's accounts, names and plans, as each section draws them: a one-account section in its header, a
+    /// section with several accounts on each account's name line.
     func testRobinsAccountsFitWithoutTruncating() {
         var resets = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"), kind: .count, used: 2, limit: nil)
         resets.values = [MetricValue(number: 2, kind: .count, label: "available")]
@@ -60,7 +60,7 @@ final class DashboardLabelFitTests: XCTestCase {
             (.cursor, "rob@sunstory.com", "Ultra", nil), (.copilot, "robinebers", "Individual", nil),
         ]
         for (kind, name, plan, resets) in soleAccounts {
-            XCTAssertLessThanOrEqual(idealWidth(header(kind: kind, name: name, plan: plan, resets: resets)), cardWidth, name)
+            XCTAssertLessThanOrEqual(idealWidth(header(kind: kind, name: name, plan: plan, resets: resets)), sectionWidth, name)
         }
         let accountLines: [(ProviderKind, String, String)] = [
             (.claude, "Personal", "Max 20x"), (.claude, "Attention Machine 1", "Team 5x"),
@@ -68,18 +68,18 @@ final class DashboardLabelFitTests: XCTestCase {
         ]
         for (kind, name, plan) in accountLines {
             let section = DashboardAccountSection(account: account(kind, name), badges: AccountBadges(plan: plan)) { _ in EmptyView() }
-            XCTAssertLessThanOrEqual(idealWidth(section.accountLine), cardWidth - 2 * DashboardBox.inset, name)
+            XCTAssertLessThanOrEqual(idealWidth(section.accountLine), sectionWidth - 2 * DashboardSpacing.inset, name)
         }
     }
 
     /// Beside a name too long for its line, the plan keeps its full width and the name gives way. Robin's
-    /// Antigravity accounts sit on account lines; a one-account card carries them in its header.
+    /// Antigravity accounts sit on account lines; a one-account section carries them in its header.
     func testALongAccountNameTruncatesBeforeThePlan() throws {
         let plan = "Antigravity Starter Quota"
         let tagWidth = idealWidth(PlanTag(plan: plan))
         let tagInk = try inkWidth(PlanTag(plan: plan))
         let longName = "robin.ebers.and.a.long.alias@gmail.com"
-        let lineWidth = cardWidth - 2 * DashboardBox.inset
+        let lineWidth = sectionWidth - 2 * DashboardSpacing.inset
         for name in ["robin.ebers@gmail.com", "rob@sunstory.com", longName] {
             let line = DashboardAccountSection(account: account(.antigravity, name), badges: AccountBadges(plan: plan)) { _ in EmptyView() }
                 .accountLine
@@ -88,9 +88,9 @@ final class DashboardLabelFitTests: XCTestCase {
             XCTAssertEqual(drawn, tagInk, accuracy: 0.5, "\(name): the plan drew \(drawn) pt wide, not \(tagInk)")
         }
         let soleAccount = header(kind: .antigravity, name: longName, plan: plan)
-        XCTAssertGreaterThan(idealWidth(soleAccount), cardWidth, "the name must overflow the header")
-        let end = cardWidth - DashboardBox.inset
-        let drawn = try inkWidth(soleAccount.frame(width: cardWidth), from: end - tagWidth, to: end)
+        XCTAssertGreaterThan(idealWidth(soleAccount), sectionWidth, "the name must overflow the header")
+        let end = sectionWidth - DashboardSpacing.inset
+        let drawn = try inkWidth(soleAccount.frame(width: sectionWidth), from: end - tagWidth, to: end)
         XCTAssertEqual(drawn, tagInk, accuracy: 0.5, "header: the plan drew \(drawn) pt wide, not \(tagInk)")
     }
 
@@ -99,7 +99,7 @@ final class DashboardLabelFitTests: XCTestCase {
     func testTheMeterKeepsItsLength() {
         let columns = DashboardMetricLine.labelWidth + DashboardMetricLine.valueWidth + DashboardMetricLine.resetWidth
             + 3 * DashboardMetricLine.columnSpacing
-        XCTAssertGreaterThanOrEqual(cardWidth - 2 * DashboardBox.inset - columns, 66)
+        XCTAssertGreaterThanOrEqual(sectionWidth - 2 * DashboardSpacing.inset - columns, 66)
     }
 
     func testWholeDollarValuesDropTheirCents() {
@@ -113,7 +113,7 @@ final class DashboardLabelFitTests: XCTestCase {
     /// The value column draws each value at its natural width: it neither shrinks nor truncates.
     func testValuesRenderAtFullSize() throws {
         let font = NSFont.monospacedDigitSystemFont(ofSize: DashboardMetricLine.fontSize, weight: .medium)
-        let width = cardWidth - 2 * DashboardBox.inset
+        let width = sectionWidth - 2 * DashboardSpacing.inset
         let end = width - DashboardMetricLine.resetWidth - DashboardMetricLine.columnSpacing
         for (left, limit) in [(500.0, 500.0), (999.99, 1_000), (12_345, 20_000), (37.42, 100)] {
             let data = meter(left: left, limit: limit)
@@ -178,11 +178,11 @@ final class DashboardLabelFitTests: XCTestCase {
 
     private func header(kind: ProviderKind, name: String, plan: String, resets: WidgetData? = nil) -> some View {
         let account = account(kind, name)
-        let card = DashboardProviderCard(
+        let providerSection = DashboardProviderSection(
             family: DashboardFamily(id: kind.rawValue, provider: account.provider, accounts: [account]),
             badges: { _ in AccountBadges(resets: resets, plan: plan) }
         ) { _ in EmptyView() }
-        return card.header
+        return providerSection.header
     }
 
     private func meter(left: Double, limit: Double) -> WidgetData {

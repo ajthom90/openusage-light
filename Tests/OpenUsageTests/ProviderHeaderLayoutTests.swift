@@ -7,8 +7,8 @@ final class ProviderHeaderLayoutTests: XCTestCase {
     private let longPlan = String(repeating: "Future Enterprise Entitlement ", count: 12)
     private let codexProvider = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
     private let claudeProvider = Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal")
-    /// The card: the panel minus its margin on each side. An account pads itself.
-    private let boxWidth = PanelMetrics.width - 2 * PanelMetrics.margin
+    /// A section spans the panel. Its content sits `DashboardSpacing.inset` in from either edge.
+    private let sectionWidth = PanelMetrics.width
 
     func testDashboardAccountFitsOversizedPlan() throws {
         let section = DashboardAccountSection(
@@ -16,7 +16,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
             badges: AccountBadges(plan: longPlan, notice: "Refresh failed")
         ) { _ in EmptyView() }
 
-        try assertFits(section, width: boxWidth)
+        try assertFits(section, width: sectionWidth)
     }
 
     /// A Codex account once lost its Weekly bar: name, plan, and metric shared one line, and the bar was
@@ -31,13 +31,12 @@ final class ProviderHeaderLayoutTests: XCTestCase {
             badges: AccountBadges(plan: longPlan, notice: "Refresh failed")
         ) { DashboardMetricLine(data: $0.data) }
 
-        let bitmap = try Bitmap(section, width: boxWidth)
-        let padding = Int(DashboardBox.accountPadding)
+        let bitmap = try Bitmap(section, width: sectionWidth)
         let nameLine = Int(DashboardAccountSection<EmptyView>.lineHeight)
         let row = Int(DashboardMetricLine.height)
-        XCTAssertEqual(bitmap.height, 2 * padding + nameLine + 2 * row, "a name line and one line per metric")
+        XCTAssertEqual(bitmap.height, nameLine + 2 * row, "a name line and one line per metric")
         // The meter's blue fill is the only saturated color on the Weekly line.
-        let weeklyTop = padding + nameLine
+        let weeklyTop = nameLine
         let saturated = (weeklyTop..<weeklyTop + row).reduce(0) { count, y in
             count + (0..<bitmap.width).filter { x in
                 let (r, g, b, a) = bitmap[x, y]
@@ -47,59 +46,58 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertGreaterThan(saturated, 60, "the Weekly bar's fill")
     }
 
-    /// The provider's mark, the account names, and the metric labels start at one x inside the card. A
+    /// The provider's mark, the account names, and the metric labels start at one x inside the section. A
     /// disclosure triangle once pushed the names and labels 12 pt right of the mark.
     func testMarkNameAndLabelsShareOneLeadingEdge() throws {
-        let edges = try Bitmap(twoAccountCard(), width: boxWidth, scale: 2).inkBands().map(\.first)
-        XCTAssertEqual(edges.count, 7, "the card header, then a name line and two metric lines per account")
+        let edges = try Bitmap(twoAccountSection(), width: sectionWidth, scale: 2).inkBands().map(\.first)
+        XCTAssertEqual(edges.count, 7, "the section header, then a name line and two metric lines per account")
         let spread = (edges.max() ?? 0) - (edges.min() ?? 0)
         XCTAssertLessThanOrEqual(spread, 1.5, "leading edges \(edges)")
-        XCTAssertEqual(edges.min() ?? 0, DashboardBox.inset, accuracy: 1.5)
+        XCTAssertEqual(edges.min() ?? 0, DashboardSpacing.inset, accuracy: 1.5)
     }
 
     /// With two accounts nothing moves into the header: it is the mark and the provider's name alone,
     /// and each account keeps its name line with its plan tag at the trailing edge.
-    func testATwoAccountCardKeepsEachAccountsNameLine() throws {
-        let bands = try Bitmap(twoAccountCard(), width: boxWidth, scale: 2).inkBands()
+    func testATwoAccountSectionKeepsEachAccountsNameLine() throws {
+        let bands = try Bitmap(twoAccountSection(), width: sectionWidth, scale: 2).inkBands()
         XCTAssertEqual(bands.count, 7)
-        XCTAssertLessThan(bands[0].last, boxWidth / 2, "the header holds a tag")
+        XCTAssertLessThan(bands[0].last, sectionWidth / 2, "the header holds a tag")
         for nameLine in [bands[1], bands[4]] {
-            XCTAssertEqual(nameLine.last, boxWidth - DashboardBox.inset - 7, accuracy: 1.5, "an account's plan tag")
+            XCTAssertEqual(nameLine.last, sectionWidth - DashboardSpacing.inset - 7, accuracy: 1.5, "an account's plan tag")
         }
     }
 
-    /// With one account its plan tag moves to the trailing edge of the card's header and the account's
+    /// With one account its plan tag moves to the trailing edge of the section's header and the account's
     /// name line goes away: metrics follow the header straight away.
-    func testAOneAccountCardPutsThePlanTagInTheHeader() throws {
+    func testAOneAccountSectionPutsThePlanTagInTheHeader() throws {
         let account = DashboardAccount(provider: claudeProvider, lines: [line(session), line(weekly)])
-        let card = DashboardProviderCard(
+        let providerSection = DashboardProviderSection(
             family: DashboardFamily(id: "claude", provider: claudeProvider, accounts: [account]),
             badges: { _ in AccountBadges(plan: "Max 5x") }
         ) {
             DashboardAccountSection(account: $0, showsAccountLine: false) { DashboardMetricLine(data: $0.data) }
         }
 
-        let bands = try Bitmap(card, width: boxWidth, scale: 2).inkBands()
-        XCTAssertEqual(bands.count, 3, "the card header and two metric lines, with no name line")
-        XCTAssertEqual(bands[0].first, DashboardBox.inset, accuracy: 1.5)
-        XCTAssertEqual(bands[0].last, boxWidth - DashboardBox.inset - 7, accuracy: 1.5, "the plan tag ends one inset from the card's edge")
+        let bands = try Bitmap(providerSection, width: sectionWidth, scale: 2).inkBands()
+        XCTAssertEqual(bands.count, 3, "the section header and two metric lines, with no name line")
+        XCTAssertEqual(bands[0].first, DashboardSpacing.inset, accuracy: 1.5)
+        XCTAssertEqual(bands[0].last, sectionWidth - DashboardSpacing.inset - 7, accuracy: 1.5, "the plan tag ends one inset from the section's edge")
     }
 
-    /// Robin, on the roomier cards: "Everything takes too much space." A card is its rows and little
-    /// else, so its heights are pinned in literal points, and loosening any vertical step fails here:
-    /// 10 above the header, 4 from the header to the first row, 20 per name line, 18 per metric line,
-    /// 10 between two accounts and 10 below the last row. These cards were 191 and 90 pt.
-    func testCardsKeepTheTightVerticalRhythm() throws {
+    /// Without cards a section is its rows and one even step around them, so its heights are pinned in
+    /// literal points and changing any vertical step fails here: 8 above the header, a 24 pt header and
+    /// name line, 20 per metric line, 8 between two accounts and 8 below the last row. As cards at
+    /// bf8618c these were 163 and 78 pt, plus a 10 pt gap between two cards.
+    func testSectionsKeepAnEvenVerticalRhythm() throws {
         let sole = DashboardAccount(provider: claudeProvider, lines: [line(session), line(weekly)])
-        let oneAccountCard = DashboardProviderCard(
+        let oneAccountSection = DashboardProviderSection(
             family: DashboardFamily(id: "claude", provider: claudeProvider, accounts: [sole]),
             badges: { _ in AccountBadges(plan: "Max 5x") }
         ) {
             DashboardAccountSection(account: $0, showsAccountLine: false) { DashboardMetricLine(data: $0.data) }
         }
-        XCTAssertEqual(try Bitmap(twoAccountCard(), width: boxWidth).height, 163, "a card with two accounts of two metrics")
-        XCTAssertEqual(try Bitmap(oneAccountCard, width: boxWidth).height, 78, "a card with one account of two metrics")
-        XCTAssertEqual(DashboardBox.cardSpacing, 10, "the gap between two cards")
+        XCTAssertEqual(try Bitmap(twoAccountSection(), width: sectionWidth).height, 176, "a section with two accounts of two metrics")
+        XCTAssertEqual(try Bitmap(oneAccountSection, width: sectionWidth).height, 80, "a section with one account of two metrics")
     }
 
     /// The plan is a tag at the trailing edge of the account line, as in Robin's screenshot, not text
@@ -109,13 +107,13 @@ final class ProviderHeaderLayoutTests: XCTestCase {
             let section = DashboardAccountSection(
                 account: DashboardAccount(provider: claudeProvider, lines: []), badges: AccountBadges(plan: plan)
             ) { _ in EmptyView() }
-            return try XCTUnwrap(Bitmap(section, width: boxWidth, scale: 2).inkBands().first)
+            return try XCTUnwrap(Bitmap(section, width: sectionWidth, scale: 2).inkBands().first)
         }
         let bare = try nameLine(plan: nil)
         let planned = try nameLine(plan: "Max 5x")
         XCTAssertEqual(planned.first, bare.first)
         // The capsule's faint fill isn't ink; its text ends 7 pt inside it.
-        XCTAssertEqual(planned.last, boxWidth - DashboardBox.inset - 7, accuracy: 1.5, "the tag ends one inset from the card's edge")
+        XCTAssertEqual(planned.last, sectionWidth - DashboardSpacing.inset - 7, accuracy: 1.5, "the tag ends one inset from the section's edge")
     }
 
     func testShareHeaderFitsOversizedPlan() throws {
@@ -126,15 +124,15 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         try assertFits(card.headerRow, width: ShareCardView.width - 32)
     }
 
-    /// A one-account header shows the account's name where a card with more accounts shows the
+    /// A one-account header shows the account's name where a section with more accounts shows the
     /// provider's. Drawn in the same place and font, an account named "Claude" spans the provider's
     /// header exactly, and a longer custom name runs further.
-    func testAOneAccountCardsHeaderShowsTheAccountsName() throws {
+    func testAOneAccountSectionsHeaderShowsTheAccountsName() throws {
         func header(_ accounts: [Provider]) throws -> Bitmap.Band {
-            let card = DashboardProviderCard(
+            let providerSection = DashboardProviderSection(
                 family: DashboardFamily(id: "claude", provider: accounts[0], accounts: accounts.map { DashboardAccount(provider: $0, lines: []) })
             ) { _ in EmptyView() }
-            return try XCTUnwrap(Bitmap(card.header, width: boxWidth, scale: 2).inkBands().first)
+            return try XCTUnwrap(Bitmap(providerSection.header, width: sectionWidth, scale: 2).inkBands().first)
         }
         func account(_ label: String, _ id: String = "claude@1") -> Provider {
             Provider(id: id, displayName: "Claude", icon: .providerMark("claude"), accountLabel: label)
@@ -149,10 +147,10 @@ final class ProviderHeaderLayoutTests: XCTestCase {
     private let weekly = WidgetData(title: "Weekly", icon: .providerMark("claude"), kind: .percent, used: 24, limit: 100)
     private let session = WidgetData(title: "Session", icon: .providerMark("claude"), kind: .percent, used: 30, limit: 100)
 
-    private func twoAccountCard() -> some View {
+    private func twoAccountSection() -> some View {
         let work = Provider(id: "claude@2", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Work")
         let accounts = [claudeProvider, work].map { DashboardAccount(provider: $0, lines: [line(session), line(weekly)]) }
-        return DashboardProviderCard(
+        return DashboardProviderSection(
             family: DashboardFamily(id: "claude", provider: claudeProvider, accounts: accounts),
             badges: { _ in AccountBadges(plan: "Max 5x") }
         ) {

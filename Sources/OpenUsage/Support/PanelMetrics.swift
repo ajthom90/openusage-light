@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// The popover's one set of spaces, shared by every screen. There are no density levels: text uses the
 /// system text styles (on macOS, body is 13 pt and subheadline 11 pt), and these are the gaps around it,
-/// taken from `Theme.Spacing`. The dashboard's cards have their own, tighter steps (`DashboardBox`).
+/// taken from `Theme.Spacing`. The dashboard's sections have their own steps (`DashboardSpacing`).
 enum PanelMetrics {
     /// The panel's width on every screen.
     static let width: CGFloat = 340

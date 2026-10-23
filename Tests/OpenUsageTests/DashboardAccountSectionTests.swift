@@ -3,17 +3,17 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// The dashboard shows what it shows: no part of a card, an account, a metric line, or the plan tag
+/// The dashboard shows what it shows: no part of a section, an account, a metric line, or the plan tag
 /// reacts to hover or a click. Two exceptions: hovering the ↺ tag opens the resets popover, and a
-/// double-click on an account's name renames it, on its account line or in a one-account card's header.
-/// Dragging still reorders: a card's header drags the card, the name line drags its account, and a
+/// double-click on an account's name renames it, on its account line or in a one-account section's header.
+/// Dragging still reorders: a section's header drags the section, the name line drags its account, and a
 /// metric line drags itself.
 @MainActor
 final class DashboardAccountSectionTests: XCTestCase {
     private final class Log {
         var accountDrags = 0
         var metricDrags = 0
-        var cardDrags = 0
+        var sectionDrags = 0
     }
 
     /// The account the hosted section shows, saved so a rename can begin on it.
@@ -70,10 +70,10 @@ final class DashboardAccountSectionTests: XCTestCase {
         ) { _ in EmptyView() }
         let headerless = DashboardAccountSection(account: account, showsAccountLine: false) { DashboardMetricLine(data: $0.data) }
         let other = DashboardAccount(provider: Provider(id: "claude@2", displayName: "Claude", icon: .providerMark("claude")), lines: [])
-        let card = DashboardProviderCard(family: DashboardFamily(id: "claude", provider: account.provider, accounts: [account, other])) { _ in
+        let providerSection = DashboardProviderSection(family: DashboardFamily(id: "claude", provider: account.provider, accounts: [account, other])) { _ in
             EmptyView()
         }
-        let soleCard = DashboardProviderCard(
+        let soleSection = DashboardProviderSection(
             family: DashboardFamily(id: "claude", provider: account.provider, accounts: [account]),
             badges: { AccountBadges(resets: $0.resets, plan: "Max 5x", notice: "Refresh failed") }
         ) { _ in EmptyView() }
@@ -88,12 +88,12 @@ final class DashboardAccountSectionTests: XCTestCase {
         XCTAssertEqual(interactiveParts(section.accountLine), [], "account line")
         XCTAssertEqual(interactiveParts(section.name.body), ["TapGesture"], "account name")
         XCTAssertEqual(interactiveParts(stale.body), [], "stale account")
-        XCTAssertEqual(interactiveParts(headerless.body), [], "account on a one-account card")
-        XCTAssertEqual(interactiveParts(card.body), [], "provider card")
-        XCTAssertEqual(interactiveParts(card.header), [], "provider card header")
-        // A one-account card's header holds the account's name, whose double-click renames it, and the
+        XCTAssertEqual(interactiveParts(headerless.body), [], "account on a one-account section")
+        XCTAssertEqual(interactiveParts(providerSection.body), [], "provider section")
+        XCTAssertEqual(interactiveParts(providerSection.header), [], "provider section header")
+        // A one-account section's header holds the account's name, whose double-click renames it, and the
         // ↺ tag; nothing else in it reacts.
-        XCTAssertEqual(interactiveParts(soleCard.header), [], "one-account card header")
+        XCTAssertEqual(interactiveParts(soleSection.header), [], "one-account section header")
         XCTAssertEqual(interactiveParts(DashboardMetricLine(data: weekly).body), [], "metric line")
         XCTAssertEqual(interactiveParts(DashboardMetricLine(data: credits).body), [], "metric line without a limit")
         XCTAssertEqual(interactiveParts(PlanTag(plan: "Max 5x").body), [], "plan tag")
@@ -106,9 +106,9 @@ final class DashboardAccountSectionTests: XCTestCase {
         let (window, host) = host(log: log)
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         func popoverIsOpen() -> Bool { NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
-        let nameLine = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+        let nameLine = DashboardAccountSection<EmptyView>.lineHeight / 2
 
-        try hover(CGPoint(x: DashboardBox.inset + 10, y: nameLine), window, host)
+        try hover(CGPoint(x: DashboardSpacing.inset + 10, y: nameLine), window, host)
         XCTAssertFalse(popoverIsOpen(), "hovering the name opens nothing")
 
         try hover(Self.resetsTag(in: host), window, host)
@@ -124,12 +124,12 @@ final class DashboardAccountSectionTests: XCTestCase {
         let (window, host) = host(log: log)
         let before = try pixels(host)
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
-        let nameLine = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
-        let firstMetric = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight + DashboardMetricLine.height / 2
+        let nameLine = DashboardAccountSection<EmptyView>.lineHeight / 2
+        let firstMetric = DashboardAccountSection<EmptyView>.lineHeight + DashboardMetricLine.height / 2
         let points = [
-            CGPoint(x: DashboardBox.inset + 10, y: nameLine),
-            CGPoint(x: host.bounds.width - DashboardBox.inset - 20, y: nameLine),
-            CGPoint(x: host.bounds.width - DashboardBox.inset - 80, y: firstMetric),
+            CGPoint(x: DashboardSpacing.inset + 10, y: nameLine),
+            CGPoint(x: host.bounds.width - DashboardSpacing.inset - 20, y: nameLine),
+            CGPoint(x: host.bounds.width - DashboardSpacing.inset - 80, y: firstMetric),
         ]
         for point in points {
             click(point, window, host)
@@ -142,14 +142,14 @@ final class DashboardAccountSectionTests: XCTestCase {
     func testTheNameLineDragsTheAccountAndAMetricLineDragsItself() {
         let log = Log()
         let (window, host) = host(log: log)
-        let nameLine = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+        let nameLine = DashboardAccountSection<EmptyView>.lineHeight / 2
         // The empty middle of the name line belongs to it too.
         drag(from: CGPoint(x: host.bounds.width / 2, y: nameLine), window, host)
         XCTAssertGreaterThan(log.accountDrags, 0)
         XCTAssertEqual(log.metricDrags, 0)
 
         log.accountDrags = 0
-        let firstMetric = DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight + DashboardMetricLine.height / 2
+        let firstMetric = DashboardAccountSection<EmptyView>.lineHeight + DashboardMetricLine.height / 2
         drag(from: CGPoint(x: host.bounds.width / 2, y: firstMetric), window, host)
         XCTAssertGreaterThan(log.metricDrags, 0)
         XCTAssertEqual(log.accountDrags, 0)
@@ -176,33 +176,33 @@ final class DashboardAccountSectionTests: XCTestCase {
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
     }
 
-    /// A card with one account shows no account line below its header. A double-click on the name in
+    /// A section with one account shows no account line below its header. A double-click on the name in
     /// the header renames the account in place with the whole name selected; a single click does
-    /// nothing; the header drags the card.
-    func testAOneAccountCardsHeaderShowsTheAccountsNameAndRenamesIt() throws {
+    /// nothing; the header drags the section.
+    func testAOneAccountSectionsHeaderShowsTheAccountsNameAndRenamesIt() throws {
         let log = Log()
         let (renaming, provider) = storedAccount(label: "Work")
         let sole = DashboardAccount(provider: provider, lines: account.lines, resets: account.resets)
-        let card = DashboardProviderCard(
+        let providerSection = DashboardProviderSection(
             family: DashboardFamily(id: "claude", provider: provider, accounts: [sole]),
             badges: { AccountBadges(resets: $0.resets, plan: "Max 5x") },
-            handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.cardDrags += 1 })) }
+            handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.sectionDrags += 1 })) }
         ) {
             DashboardAccountSection(account: $0, showsAccountLine: false) { DashboardMetricLine(data: $0.data) }
         }
-        let (window, host) = hostView(card, renaming: renaming)
+        let (window, host) = hostView(providerSection, renaming: renaming)
 
         XCTAssertEqual(
             host.fittingSize.height,
-            DashboardBox.topPadding + 18 + DashboardBox.headerGap + 2 * DashboardBox.accountPadding
-                + 3 * DashboardMetricLine.height + DashboardBox.bottomPadding,
+            2 * DashboardSpacing.sectionPadding + DashboardAccountSection<EmptyView>.lineHeight
+                + 3 * DashboardMetricLine.height,
             accuracy: 1,
             "a header and three metric lines, with no account line"
         )
 
         // The name follows the 16 pt mark and its 6 pt gap.
-        let headerMid = DashboardBox.topPadding + 9
-        let name = CGPoint(x: DashboardBox.inset + 16 + 6 + 10, y: headerMid)
+        let headerMid = DashboardSpacing.sectionPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+        let name = CGPoint(x: DashboardSpacing.inset + 16 + 6 + 10, y: headerMid)
         click(name, window, host)
         RunLoop.main.run(until: Date().addingTimeInterval(0.6))
         XCTAssertNil(renaming.edit, "a single click on the name starts a rename")
@@ -215,7 +215,7 @@ final class DashboardAccountSectionTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.2))
 
         drag(from: CGPoint(x: host.bounds.width / 2, y: headerMid), window, host)
-        XCTAssertGreaterThan(log.cardDrags, 0, "the header doesn't drag the card")
+        XCTAssertGreaterThan(log.sectionDrags, 0, "the header doesn't drag the section")
         XCTAssertNil(renaming.edit)
     }
 
@@ -291,11 +291,11 @@ final class DashboardAccountSectionTests: XCTestCase {
         return Hosted(window: window, host: host, renaming: renaming, accountID: provider.id)
     }
 
-    /// `view` at the card's width in an offscreen window that takes events, with `renaming` in its
+    /// `view` at the section's width in an offscreen window that takes events, with `renaming` in its
     /// environment.
     private func hostView(_ content: some View, renaming: AccountRenameStore) -> (NSWindow, NSView) {
         let view = content
-            .frame(width: PanelMetrics.width - 2 * PanelMetrics.margin)
+            .frame(width: PanelMetrics.width)
             .environment(renaming)
             .environment(\.colorScheme, .light)
         let host = NSHostingView(rootView: view)
@@ -316,14 +316,14 @@ final class DashboardAccountSectionTests: XCTestCase {
 
     /// A point on the account's name, at the leading edge of the name line.
     private static func name(in host: NSView) -> CGPoint {
-        CGPoint(x: DashboardBox.inset + 10, y: DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2)
+        CGPoint(x: DashboardSpacing.inset + 10, y: DashboardAccountSection<EmptyView>.lineHeight / 2)
     }
 
     /// The ↺ tag's center: it sits just before the plan tag at the account line's trailing edge.
     private static func resetsTag(in host: NSView) -> CGPoint {
         CGPoint(
-            x: host.bounds.width - DashboardBox.inset - 80,
-            y: DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
+            x: host.bounds.width - DashboardSpacing.inset - 80,
+            y: DashboardAccountSection<EmptyView>.lineHeight / 2
         )
     }
 

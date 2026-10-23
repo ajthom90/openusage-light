@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The one account name being edited in place, on a dashboard card header or as the Accounts detail
+/// The one account name being edited in place, on a dashboard section header or as the Accounts detail
 /// title. Return or a click elsewhere commits the edit; Esc cancels it. Committing saves the trimmed
 /// draft, and an empty or unchanged draft keeps the current name.
 @MainActor
@@ -29,7 +29,7 @@ final class AccountRenameStore {
         edit?.providerID == providerID
     }
 
-    /// Opens an edit of the account behind a dashboard card (`Provider.id`), seeded with its name. Any
+    /// Opens an edit of the account behind a dashboard account (`Provider.id`), seeded with its name. Any
     /// edit still open is committed first.
     func begin(_ providerID: String) {
         guard let account = accounts.account(cardID: providerID) else { return }
