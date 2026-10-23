@@ -112,6 +112,12 @@ enum ProviderParse {
         return json
     }
 
+    /// A JWT's `exp` claim as a date, read without verifying the signature. Use it only for the
+    /// account's own stored token.
+    static func jwtExpiry(_ token: String) -> Date? {
+        number(jwtPayload(token)?["exp"]).map(Date.init(timeIntervalSince1970:))
+    }
+
     /// Unwrap a `go-keyring-base64:`-prefixed value — how Go tools (`gh`, `agy`) store secrets in the
     /// macOS Keychain — returning the decoded string. A value without the prefix is returned trimmed
     /// as-is; an empty result is `nil`. Shared by every provider that reads a go-keyring-stored token.

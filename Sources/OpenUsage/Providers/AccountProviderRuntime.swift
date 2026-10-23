@@ -249,8 +249,7 @@ final class AccountProviderRuntime: ProviderRuntime {
             let refreshed = try await CodexUsageClient(http: http).refreshToken(refreshToken)
             tokens.accessToken = refreshed.accessToken
             if let refresh = refreshed.refreshToken { tokens.refreshToken = refresh }
-            tokens.expiresAt = ProviderParse.number(ProviderParse.jwtPayload(refreshed.accessToken)?["exp"])
-                .map(Date.init(timeIntervalSince1970:))
+            tokens.expiresAt = ProviderParse.jwtExpiry(refreshed.accessToken)
             try await save(.oauth(tokens))
         }
         return tokens
@@ -292,23 +291,16 @@ final class AccountProviderRuntime: ProviderRuntime {
     }
 
     private func refreshCursor(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
-        guard case .oauth(var tokens) = credential else { throw LoginError.invalidResponse }
+        var tokens = try await cursorTokens(credential)
         let client = CursorUsageClient(http: http)
-        if tokens.expiresAt.map({ $0 <= Date() }) == true, let refreshToken = tokens.refreshToken {
-            let response = try await client.refreshToken(refreshToken)
-            let body = ProviderParse.jsonObject(response.body)
-            if body?["shouldLogout"] as? Bool == true { throw CursorAuthError.sessionExpired }
-            guard (200..<300).contains(response.statusCode),
-                  let accessToken = body?["access_token"] as? String,
-                  !accessToken.isEmpty
-            else { throw CursorAuthError.tokenExpired }
-            tokens.accessToken = accessToken
-            if let rotated = body?["refresh_token"] as? String { tokens.refreshToken = rotated }
-            tokens.expiresAt = ProviderParse.number(body?["expires_in"])
-                .map { Date().addingTimeInterval(max(0, $0 - 300)) }
-            try await save(.oauth(tokens))
-        }
-        let usageResponse = try await client.fetchUsage(accessToken: tokens.accessToken)
+        let usageResponse = try await ProviderAuthRetry.fetch(
+            token: tokens.accessToken,
+            attempt: { try await client.fetchUsage(accessToken: $0) },
+            refreshAccessToken: {
+                tokens = try await refreshCursorTokens(tokens)
+                return tokens.accessToken
+            }
+        )
         try ProviderAuthRetry.requireSuccess(
             usageResponse,
             authExpired: CursorAuthError.tokenExpired,
@@ -436,7 +428,7 @@ final class AccountProviderRuntime: ProviderRuntime {
         return (mapped.plan, mapped.lines)
     }
 
-    private func save(_ credential: AccountCredential) async throws {
+    func save(_ credential: AccountCredential) async throws {
         try await loadOffMainActor { [vault, account] in try vault.save(credential, for: account.id) }
     }
 }

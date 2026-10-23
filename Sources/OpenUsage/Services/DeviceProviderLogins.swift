@@ -123,7 +123,7 @@ struct CursorLogin: ProviderLogin {
         return (token.userID ?? "Cursor Account", .oauth(OAuthTokens(
             accessToken: token.accessToken,
             refreshToken: token.refreshToken,
-            expiresAt: token.expiresIn.map { Date().addingTimeInterval(max(0, $0 - 300)) },
+            expiresAt: ProviderParse.jwtExpiry(token.accessToken),
             extras: token.userID.map { ["userID": $0] } ?? [:]
         )))
     }
@@ -211,7 +211,6 @@ private struct CursorTokenResponse: Decodable, Sendable {
     let accessToken: String
     let refreshToken: String
     let userID: String?
-    let expiresIn: Double?
 }
 
 private struct GrokIDClaims: Decodable {
