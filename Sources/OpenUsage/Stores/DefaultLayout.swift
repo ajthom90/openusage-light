@@ -15,6 +15,7 @@ enum DefaultLayout {
         "claude.session", "claude.weekly", "claude.sonnet", "claude.fable", "claude.extra", "claude.rateLimitResets",
         "codex.session", "codex.weekly", "codex.spark", "codex.sparkWeekly", "codex.credits", "codex.rateLimitResets",
         "cursor.usage", "cursor.auto", "cursor.api", "cursor.onDemand", "cursor.grokBot",
+        "cursor.requests", "cursor.credits",
         "antigravity.geminiPro", "antigravity.geminiWeekly", "antigravity.argonWeekly",
         "antigravity.claude", "antigravity.claudeWeekly",
         "copilot.premium", "copilot.extra", "copilot.chat", "copilot.completions",

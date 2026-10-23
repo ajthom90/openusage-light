@@ -351,19 +351,6 @@ enum CursorUsageMapper {
     /// Membership values that identify an org-billed Cursor seat.
     static let orgMembershipTypes: Set<String> = ["enterprise", "team"]
 
-    /// Plan name for request/Enterprise fallback routing. Org membership may promote the route,
-    /// but personal memberships must not fill an empty GetPlanInfo result and disable the
-    /// unknown-plan REST fallback.
-    static func routingPlanName(planInfoName: String?, membershipType: String?) -> String? {
-        let membership = normalizedMembership(membershipType)
-        if let membership, orgMembershipTypes.contains(membership) {
-            return membership
-        }
-        return planInfoName?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty
-    }
-
     /// Badge / display plan. Prefer org billing membership over GetPlanInfo when it still says Pro.
     static func resolvedPlanName(planInfoName: String?, membershipType: String?) -> String? {
         let membership = normalizedMembership(membershipType)

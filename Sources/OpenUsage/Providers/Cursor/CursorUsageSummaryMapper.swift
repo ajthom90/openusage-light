@@ -23,14 +23,6 @@ enum CursorUsageSummaryMapper {
             .contains(where: usableDollarBucket)
     }
 
-    static func hasUsableRequestPayload(_ usage: [String: Any]) -> Bool {
-        if let requests = usage["gpt-4"] as? [String: Any],
-           let limit = ProviderParse.number(requests["maxRequestUsage"]), limit > 0 {
-            return true
-        }
-        return (usage["startOfMonth"] as? String).flatMap(OpenUsageISO8601.date(from:)) != nil
-    }
-
     static func map(
         summary: [String: Any]?,
         requestUsage: [String: Any]?,

@@ -67,11 +67,15 @@ final class AccountProviderRuntime: ProviderRuntime {
             ]
         case .cursor:
             [
-                .percent(id: "\(prefix).usage", provider: provider, title: "Total usage", metricLabel: "Total usage"),
-                .percent(id: "\(prefix).auto", provider: provider, title: "Auto", metricLabel: "Cursor Models"),
-                .percent(id: "\(prefix).api", provider: provider, title: "API", metricLabel: "Other Models"),
-                .percent(id: "\(prefix).onDemand", provider: provider, title: "On-demand"),
-                .percent(id: "\(prefix).grokBot", provider: provider, title: "Grok Bot usage")
+                .percent(id: "\(prefix).usage", provider: provider, title: "Total Usage", metricLabel: "Total usage"),
+                .percent(id: "\(prefix).auto", provider: provider, title: "Cursor Models"),
+                .percent(id: "\(prefix).api", provider: provider, title: "Other Models"),
+                .boundedDollars(id: "\(prefix).onDemand", provider: provider, title: "Extra Usage", metricLabel: "On-demand",
+                                limit: 100, valueWord: "spent"),
+                .percent(id: "\(prefix).grokBot", provider: provider, title: "Grok Bot", metricLabel: "Grok Bot usage"),
+                .boundedCount(id: "\(prefix).requests", provider: provider, title: "Requests", limit: 500,
+                              suffix: "requests", periodDurationMs: CursorUsageMapper.billingPeriodMs),
+                .dollarBalance(id: "\(prefix).credits", provider: provider, title: "Credits", valueWord: "left")
             ]
         case .antigravity:
             [
@@ -309,36 +313,7 @@ final class AccountProviderRuntime: ProviderRuntime {
         guard let usage = ProviderParse.jsonObject(usageResponse.body) else {
             throw CursorUsageError.invalidResponse
         }
-        let planResponse = try? await client.fetchPlan(accessToken: tokens.accessToken)
-        let planBody = planResponse.flatMap { response in
-            (200..<300).contains(response.statusCode) ? ProviderParse.jsonObject(response.body) : nil
-        }
-        let planName = (planBody?["planInfo"] as? [String: Any])?["planName"] as? String
-        let creditsResponse = try? await client.fetchCredits(accessToken: tokens.accessToken)
-        let credits = creditsResponse.flatMap { response in
-            (200..<300).contains(response.statusCode) ? ProviderParse.jsonObject(response.body) : nil
-        }
-        let stripeResponse = try? await client.fetchStripeBalance(accessToken: tokens.accessToken)
-        let stripeBody = stripeResponse.flatMap { response in
-            (200..<300).contains(response.statusCode) ? ProviderParse.jsonObject(response.body) : nil
-        }
-        var mapped = try CursorUsageMapper.mapUsage(
-            usage: usage,
-            planName: planName,
-            creditGrants: credits,
-            stripeBalanceCents: CursorUsageMapper.stripeBalanceCents(from: stripeBody)
-        )
-        if let response = try? await client.fetchUsageSummary(accessToken: tokens.accessToken),
-           (200..<300).contains(response.statusCode),
-           let summary = ProviderParse.jsonObject(response.body),
-           CursorUsageSummaryMapper.hasUsableSummaryPayload(summary) {
-            CursorUsageSummaryMapper.appendMissingOnDemand(from: summary, to: &mapped.lines)
-        }
-        if let grok = try? await client.fetchGrokBotUsage(accessToken: tokens.accessToken),
-           let body = ProviderParse.jsonObject(grok.body),
-           let line = CursorUsageMapper.mapGrokBotUsage(body) {
-            mapped.lines.append(line)
-        }
+        let mapped = try await cursorUsage(usage, client: client, accessToken: tokens.accessToken)
         return (mapped.plan, mapped.lines)
     }
 

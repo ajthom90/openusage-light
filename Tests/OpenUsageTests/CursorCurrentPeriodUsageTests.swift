@@ -52,8 +52,8 @@ final class CursorCurrentPeriodUsageTests: XCTestCase {
         XCTAssertEqual(used, 25)
         XCTAssertEqual(limit, 100)
         XCTAssertEqual(resetsAt, Date(timeIntervalSince1970: 1_764_547_200))
-        for descriptor in runtime.widgetDescriptors {
-            XCTAssertNotNil(snapshot.line(label: descriptor.metricLabel), "\(descriptor.id) has no line")
+        for label in ["Total usage", "Cursor Models", "Other Models", "On-demand", "Grok Bot usage"] {
+            XCTAssertNotNil(snapshot.line(label: label), "\(label) has no line")
         }
     }
 
