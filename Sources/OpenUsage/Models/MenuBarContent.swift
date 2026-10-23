@@ -77,7 +77,7 @@ return MenuBarContent(groups: badgedGroups)
         var result = groups
         for indices in families.values where indices.count > 1 {
             let tags = AccountInitials.tags(for: indices.map { names[groups[$0].providerID] ?? "" })
-            for (index, tag) in zip(indices, tags) where !tag.isEmpty {
+            for (index, tag) in zip(indices, tags) {
                 result[index].badge = tag
             }
         }
