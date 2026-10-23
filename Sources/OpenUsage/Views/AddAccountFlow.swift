@@ -6,7 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class AddAccountFlow {
-    var selection: ProviderKind? = ProviderKind.allCases.first
+    /// The highlighted row in the provider list; the arrow keys move it.
+    var selection: ProviderKind?
     var apiKey = ""
     var accountName = ""
     var pastedCode = ""
@@ -34,10 +35,11 @@ final class AddAccountFlow {
     /// A pasted code was handed to the sign-in, which is now exchanging it.
     var isCodeSubmitted: Bool { isWorking && prompt != nil && codeInput == nil }
 
-    func continueWithSelection() {
-        guard let selection else { return }
-        provider = selection
-        if selection.authMethod == .oauth { signIn() }
+    /// Goes to the provider's step, starting its browser or device-code sign-in right away.
+    func choose(_ kind: ProviderKind) {
+        selection = kind
+        provider = kind
+        if case .oauth = kind.authMethod { signIn() }
     }
 
     /// Starts the provider's browser or device-code sign-in, or starts it again after a failure.

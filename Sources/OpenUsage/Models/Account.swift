@@ -2,7 +2,8 @@ import Foundation
 
 enum ProviderAuthMethod: Sendable, Equatable {
     case oauth
-    case apiKey
+    /// Signs in with a pasted API key, created on the provider's `keyPage`.
+    case apiKey(keyPage: URL)
 }
 
 enum ProviderKind: String, Codable, CaseIterable, Sendable {
@@ -38,7 +39,7 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
     /// OpenUsage ships.
     var links: [ProviderLink] {
         switch self {
-        case .claude: [.init(label: "Status Page", url: "https://status.anthropic.com/"),
+        case .claude: [.init(label: "Status Page", url: "https://status.claude.com/"),
                        .init(label: "Usage Dashboard", url: "https://claude.ai/settings/usage")]
         case .codex: [.init(label: "Status Page", url: "https://status.openai.com/"),
                       .init(label: "Usage Dashboard", url: "https://chatgpt.com/settings/usage")]
@@ -50,7 +51,7 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
         case .grok: [.init(label: "Usage Dashboard", url: "https://grok.com/?_s=usage")]
         case .ollama: [.init(label: "Usage Dashboard", url: "https://ollama.com/settings"),
                        .init(label: "API Keys", url: "https://ollama.com/settings/keys")]
-        case .opencodeGo: [.init(label: "Usage Dashboard", url: "https://opencode.ai/auth")]
+        case .opencodeGo: [.init(label: "Usage Dashboard", url: "https://opencode.ai/console")]
         case .openrouter: [.init(label: "Activity", url: "https://openrouter.ai/activity"),
                            .init(label: "Credits", url: "https://openrouter.ai/settings/credits")]
         case .zai: [.init(label: "Usage Dashboard", url: "https://z.ai/manage-apikey/coding-plan/personal/my-plan"),
@@ -61,7 +62,10 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
     var authMethod: ProviderAuthMethod {
         switch self {
         case .claude, .codex, .cursor, .antigravity, .copilot, .grok: .oauth
-        case .ollama, .opencodeGo, .openrouter, .zai: .apiKey
+        case .ollama: .apiKey(keyPage: URL(string: "https://ollama.com/settings/keys")!)
+        case .opencodeGo: .apiKey(keyPage: URL(string: "https://opencode.ai/console")!)
+        case .openrouter: .apiKey(keyPage: URL(string: "https://openrouter.ai/settings/management-keys")!)
+        case .zai: .apiKey(keyPage: URL(string: "https://z.ai/manage-apikey/apikey-list")!)
         }
     }
 }

@@ -13,9 +13,7 @@ final class AddAccountFlowTests: XCTestCase {
                 ? StubLogin { _ in throw LoginError.invalidCode }
                 : StubLogin { _ in ("claude@example.com", .oauth(OAuthTokens(accessToken: "access"))) }
         }
-        flow.selection = .claude
-
-        flow.continueWithSelection()
+        flow.choose(.claude)
         try await waitUntil { flow.errorMessage != nil }
         XCTAssertEqual(flow.errorMessage, LoginError.invalidCode.localizedDescription)
         XCTAssertTrue(store.accounts.isEmpty)
@@ -37,8 +35,7 @@ final class AddAccountFlowTests: XCTestCase {
                 return ("code:\(code)", .oauth(OAuthTokens(accessToken: "access")))
             }
         }
-        flow.selection = .claude
-        flow.continueWithSelection()
+        flow.choose(.claude)
         try await waitUntil { flow.prompt != nil }
         XCTAssertFalse(flow.canSubmitCode)
 
@@ -52,8 +49,7 @@ final class AddAccountFlowTests: XCTestCase {
         let vault = InMemoryCredentialVault()
         let store = makeStore(vault: vault)
         let flow = AddAccountFlow(store: store)
-        flow.selection = .openrouter
-        flow.continueWithSelection()
+        flow.choose(.openrouter)
         XCTAssertFalse(flow.isWorking)
         XCTAssertFalse(flow.canAddKey)
 
@@ -66,6 +62,33 @@ final class AddAccountFlowTests: XCTestCase {
         XCTAssertEqual(try vault.load(account.id), .apiKey("sk-or-key"))
     }
 
+    func testChoosingAProviderGoesStraightToItsStep() async throws {
+        let store = makeStore()
+        let url = try XCTUnwrap(URL(string: "https://example.com/authorize"))
+        var started: [ProviderKind] = []
+        let flow = AddAccountFlow(store: store) { kind in
+            started.append(kind)
+            return StubLogin(prompt: .browser(url, acceptsPastedCode: false)) { _ in
+                try await Task.sleep(for: .seconds(30))
+                return ("late", .oauth(OAuthTokens(accessToken: "access")))
+            }
+        }
+        XCTAssertNil(flow.selection, "The list opens with nothing chosen")
+
+        flow.choose(.zai)
+        XCTAssertEqual(flow.provider, .zai)
+        XCTAssertFalse(flow.isWorking, "An API-key provider waits for the key")
+        XCTAssertTrue(started.isEmpty)
+
+        flow.back()
+        XCTAssertEqual(flow.selection, .zai)
+        flow.choose(.claude)
+        XCTAssertEqual(flow.provider, .claude)
+        try await waitUntil { flow.prompt != nil }
+        XCTAssertEqual(started, [.claude])
+        flow.cancel()
+    }
+
     func testCancelStopsTheSignInWithoutAddingAnAccount() async throws {
         let store = makeStore()
         let url = try XCTUnwrap(URL(string: "https://example.com/device"))
@@ -75,8 +98,7 @@ final class AddAccountFlowTests: XCTestCase {
                 return ("late", .oauth(OAuthTokens(accessToken: "access")))
             }
         }
-        flow.selection = .copilot
-        flow.continueWithSelection()
+        flow.choose(.copilot)
         try await waitUntil { flow.prompt != nil }
 
         flow.cancel()
@@ -101,8 +123,7 @@ final class AddAccountFlowTests: XCTestCase {
                 return ("late", .oauth(OAuthTokens(accessToken: "access")))
             }
         }
-        flow.selection = .codex
-        flow.continueWithSelection()
+        flow.choose(.codex)
         try await waitUntil { flow.prompt != nil }
         flow.pastedCode = "half-typed"
 

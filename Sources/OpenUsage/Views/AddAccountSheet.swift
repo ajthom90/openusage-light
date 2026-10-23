@@ -18,8 +18,8 @@ struct AddAccountSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let provider = flow.provider {
-                if provider.authMethod == .apiKey {
-                    APIKeyStep(flow: flow, provider: provider, cancel: { flow.back() })
+                if case .apiKey(let keyPage) = provider.authMethod {
+                    APIKeyStep(flow: flow, provider: provider, keyPage: keyPage, cancel: { flow.back() })
                 } else {
                     BrowserSignInStep(flow: flow, provider: provider, cancel: { flow.back() })
                 }
@@ -38,37 +38,46 @@ struct AddAccountSheet: View {
     }
 }
 
+/// The provider list, like Internet Accounts' Add Account: one click on a provider goes straight to
+/// its sign-in. The arrow keys move the selection and Return chooses it.
 private struct ProviderChoiceStep: View {
     @Bindable var flow: AddAccountFlow
     let cancel: () -> Void
     @FocusState private var isListFocused: Bool
 
     var body: some View {
-        SheetHeader(provider: nil, title: "Add Account", message: "Choose the provider to sign in to.")
+        SheetHeader(provider: nil, title: "Add Account", message: "Choose a provider to sign in to.")
         List(ProviderKind.allCases, id: \.self, selection: $flow.selection) { provider in
-            Label {
+            HStack(spacing: 10) {
+                ProviderIcon(source: provider.iconSource, inset: 0.06)
+                    .frame(width: 20, height: 20)
                 Text(provider.displayName)
-            } icon: {
-                ProviderIcon(source: provider.iconSource)
+                Spacer()
+                Image(systemName: "chevron.forward")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
+            .contentShape(.rect)
+            .onTapGesture { flow.choose(provider) }
             .listItemTint(.monochrome)
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
         .scrollDisabled(true)
         .background(Theme.cardFill, in: .rect(cornerRadius: 10))
-        .frame(height: 262)
+        .frame(height: CGFloat(ProviderKind.allCases.count) * 28 + 20)
         .padding(.horizontal, 20)
         .focused($isListFocused)
-        .contextMenu(forSelectionType: ProviderKind.self, menu: { _ in }, primaryAction: { _ in
-            flow.continueWithSelection()
+        .contextMenu(forSelectionType: ProviderKind.self, menu: { _ in }, primaryAction: { providers in
+            if let provider = providers.first { flow.choose(provider) }
         })
         .onAppear { isListFocused = true }
-        SheetButtons(cancel: cancel) {
-            Button("Continue") { flow.continueWithSelection() }
-                .keyboardShortcut(.defaultAction)
-                .disabled(flow.selection == nil)
+        HStack {
+            Spacer()
+            Button("Cancel", action: cancel)
+                .keyboardShortcut(.cancelAction)
         }
+        .padding(20)
     }
 }
 
@@ -96,7 +105,7 @@ private struct BrowserSignInStep: View {
             pastedCodeForm
                 .padding(.top, 12)
         }
-        SheetButtons(cancel: cancel) { primaryButton }
+        SheetButtons(cancel: cancel, primary: primaryAction)
     }
 
     private var message: String {
@@ -143,20 +152,14 @@ private struct BrowserSignInStep: View {
         .inlineGroupedForm()
     }
 
-    @ViewBuilder
-    private var primaryButton: some View {
+    private var primaryAction: SheetAction {
         if flow.errorMessage != nil {
-            Button("Try Again") { flow.signIn() }
-                .keyboardShortcut(.defaultAction)
-        } else if flow.hasPastedCode {
-            Button("Continue") { flow.submitCode() }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!flow.canSubmitCode)
-        } else {
-            Button("Open Browser") { open() }
-                .keyboardShortcut(.defaultAction)
-                .disabled(flow.prompt == nil)
+            return SheetAction(title: "Try Again") { flow.signIn() }
         }
+        if flow.hasPastedCode {
+            return SheetAction(title: "Continue", isDisabled: !flow.canSubmitCode) { flow.submitCode() }
+        }
+        return SheetAction(title: "Open Browser", isDisabled: flow.prompt == nil) { open() }
     }
 
     private func open() {
@@ -171,13 +174,15 @@ private struct BrowserSignInStep: View {
 private struct APIKeyStep: View {
     @Bindable var flow: AddAccountFlow
     let provider: ProviderKind
+    let keyPage: URL
     let cancel: () -> Void
 
     var body: some View {
         SheetHeader(
             provider: provider,
             title: "Add \(provider.displayName)",
-            message: "Enter an API key from your \(provider.displayName) account. It’s stored in your Keychain."
+            message: "Enter an API key from your \(provider.displayName) account. It’s stored in your Keychain.",
+            link: Link("Get Your API Key", destination: keyPage)
         )
         Form {
             Section {
@@ -192,11 +197,7 @@ private struct APIKeyStep: View {
             }
         }
         .inlineGroupedForm()
-        SheetButtons(cancel: cancel) {
-            Button("Add Account") { flow.addKey() }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!flow.canAddKey)
-        }
+        SheetButtons(cancel: cancel, primary: SheetAction(title: "Add Account", isDisabled: !flow.canAddKey) { flow.addKey() })
     }
 }
 
@@ -206,6 +207,7 @@ private struct SheetHeader: View {
     let provider: ProviderKind?
     let title: String
     let message: String
+    var link: Link<Text>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -220,6 +222,11 @@ private struct SheetHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if let link {
+                link
+                    .font(.subheadline)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding([.horizontal, .top], 20)
@@ -227,18 +234,30 @@ private struct SheetHeader: View {
     }
 }
 
-/// Cancel and the step's default button at the bottom trailing edge. Escape cancels and Return
+/// The step's default button: Return presses it.
+private struct SheetAction {
+    let title: String
+    var isDisabled = false
+    let action: () -> Void
+}
+
+/// Cancel and the step's default button, each half the sheet's width. Escape cancels and Return
 /// presses the default button. On a provider's step, Cancel goes back to the provider list.
-private struct SheetButtons<Primary: View>: View {
+private struct SheetButtons: View {
     let cancel: () -> Void
-    @ViewBuilder let primary: Primary
+    let primary: SheetAction
 
     var body: some View {
-        HStack(spacing: 8) {
-            Spacer()
-            Button("Cancel", action: cancel)
-                .keyboardShortcut(.cancelAction)
-            primary
+        HStack {
+            Button(action: cancel) {
+                Text("Cancel").frame(maxWidth: .infinity)
+            }
+            .keyboardShortcut(.cancelAction)
+            Button(action: primary.action) {
+                Text(primary.title).frame(maxWidth: .infinity)
+            }
+            .keyboardShortcut(.defaultAction)
+            .disabled(primary.isDisabled)
         }
         .padding(20)
     }

@@ -30,8 +30,7 @@ final class AddAccountSheetTests: XCTestCase {
         }
         let sheet = try await waitForSheet(on: window)
 
-        flow.selection = .codex
-        flow.continueWithSelection()
+        flow.choose(.codex)
         try await waitUntil { flow.prompt != nil }
 
         pressEscape(in: sheet)
@@ -46,6 +45,49 @@ final class AddAccountSheetTests: XCTestCase {
         pressEscape(in: sheet)
         try await waitUntil { !presentation.isPresented }
         XCTAssertFalse(presentation.isPresented, "Cancel on the provider list didn't close the sheet")
+    }
+
+    func testArrowKeysAndReturnChooseAProvider() async throws {
+        let suite = "OpenUsageTests.AddAccountSheet.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        let url = try XCTUnwrap(URL(string: "https://example.com/authorize"))
+        let flow = AddAccountFlow(store: AccountStore(defaults: defaults, vault: InMemoryCredentialVault())) { _ in
+            SlowBrowserLogin(url: url)
+        }
+        let presentation = SheetPresentation()
+        let host = NSHostingView(rootView: SheetHost(presentation: presentation, flow: flow))
+        host.frame = NSRect(x: 0, y: 0, width: 400, height: 700)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
+        window.orderFrontRegardless()
+        addTeardownBlock {
+            flow.cancel()
+            window.attachedSheet.map { window.endSheet($0) }
+            window.close()
+        }
+        let sheet = try await waitForSheet(on: window)
+
+        press(keyCode: 125, character: "\u{F701}", in: sheet)
+        press(keyCode: 125, character: "\u{F701}", in: sheet)
+        try await waitUntil { flow.selection == .codex }
+        XCTAssertNil(flow.provider, "Moving the selection must not choose the provider")
+
+        press(keyCode: 36, character: "\r", in: sheet)
+        try await waitUntil { flow.provider == .codex }
+        XCTAssertEqual(flow.provider, .codex)
+    }
+
+    private func press(keyCode: UInt16, character: String, in sheet: NSWindow) {
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            sheet.sendEvent(NSEvent.keyEvent(
+                with: type, location: .zero, modifierFlags: keyCode == 125 ? [.numericPad, .function] : [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: sheet.windowNumber, context: nil,
+                characters: character, charactersIgnoringModifiers: character, isARepeat: false, keyCode: keyCode
+            )!)
+        }
     }
 
     private func waitForSheet(on window: NSWindow) async throws -> NSWindow {

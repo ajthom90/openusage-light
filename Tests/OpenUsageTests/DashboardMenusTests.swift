@@ -33,7 +33,7 @@ final class DashboardMenusTests: XCTestCase {
         XCTAssertEqual(titles(menu), [["Refresh"], ["Manage Accounts…"], ["Status Page", "Usage Dashboard"]])
         XCTAssertEqual(menu[0][0].command, .refresh(["claude@1", "claude@2"]))
         XCTAssertEqual(menu[2].map(\.command), [
-            .open(URL(string: "https://status.anthropic.com/")!),
+            .open(URL(string: "https://status.claude.com/")!),
             .open(URL(string: "https://claude.ai/settings/usage")!),
         ])
     }
