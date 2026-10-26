@@ -12,13 +12,11 @@ final class WidgetNoDataTests: XCTestCase {
         let blank = store.data(for: missing)
         XCTAssertFalse(blank.hasData)
         XCTAssertEqual(blank.dashboardRow().mark, .value("No data"))
-        XCTAssertFalse(blank.dashboardRow().hasReading)
         XCTAssertEqual(blank.valueText, WidgetData.noDataHeadline)
 
         let real = store.data(for: present)
         XCTAssertTrue(real.hasData)
-        XCTAssertEqual(real.dashboardRow().mark, .bar(fill: 0.6, severity: .normal))
-        XCTAssertEqual(real.dashboardRow().reading.map(\.text), ["60%", "left"])
+        XCTAssertEqual(real.dashboardRow().mark, .bar(fill: 0.6, severity: .normal, value: "60%", reset: nil))
         XCTAssertNotEqual(real.valueText, WidgetData.noDataHeadline)
     }
 

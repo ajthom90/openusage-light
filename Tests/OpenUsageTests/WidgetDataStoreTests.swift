@@ -102,9 +102,9 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertEqual(data.used, 42)
         XCTAssertEqual(data.displayedValue, 58)
         XCTAssertEqual(data.valueText, "58%")
-        let row = data.dashboardRow()
-        XCTAssertEqual(row.reading.map(\.text), ["58%", "left"])
-        XCTAssertEqual(row.tails[0].map(\.text).joined().hasPrefix("· resets in "), true)
+        guard case .bar(_, _, let value, let reset) = data.dashboardRow().mark else { return XCTFail("not a bar") }
+        XCTAssertEqual(value, "58%")
+        XCTAssertNotNil(reset, "a meter with a reset date shows its countdown")
     }
 
     func testSoftWarningSurfacesOnHeaderWhilePartialDataStillLoads() async {
@@ -181,19 +181,6 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertEqual(store.headerNotice(for: provider.id), "Token expired. Run `claude` to log in again.")  // error wins
     }
 
-    func testRemainingProgressWithoutResetUsesPeriodDurationLabel() {
-        for (period, expected) in [
-            (ClaudeUsageMapper.sessionPeriodMs, "Resets in 5h"),
-            (ClaudeUsageMapper.weeklyPeriodMs, "Resets in 7d 0h")
-        ] {
-            let data = WidgetData(
-                title: "Usage", icon: .providerMark("claude"), kind: .percent,
-                used: 0, limit: 100, displayMode: .remaining, periodDurationMs: period
-            )
-            XCTAssertEqual(data.boundedSubtitle, expected)
-        }
-    }
-
     func testDonutFractionMatchesRoundedHeadline() {
         for (used, headline, fraction) in [
             (0.3915, "0%", 0.0), (0.6, "1%", 0.01), (99.6, "100%", 1.0)
@@ -205,30 +192,6 @@ final class WidgetDataStoreTests: XCTestCase {
             XCTAssertEqual(data.valueText, headline)
             XCTAssertEqual(data.fraction, fraction, accuracy: 0.0001)
         }
-    }
-
-    func testBoundedDollarSubtitlesAppendLimitNoun() {
-        for (title, limit, expected) in [("On-Demand", 100.0, "$100 limit"), ("Credits", 20.0, "$20 limit")] {
-            let data = WidgetData(
-                title: title, icon: .providerMark("cursor"), kind: .dollars,
-                used: 0, limit: limit, limitNoun: "limit"
-            )
-            XCTAssertEqual(data.boundedSubtitle, expected)
-        }
-    }
-
-    func testRequestsShowsBillingResetInsteadOfSuffix() {
-        // The requests tile resets on the billing cycle, so it shows the cadence rather than "requests".
-        let requests = WidgetData(
-            title: "Requests",
-            icon: .providerMark("cursor"),
-            kind: .count,
-            used: 0,
-            limit: 500,
-            countSuffix: "requests",
-            periodDurationMs: CursorUsageMapper.billingPeriodMs
-        )
-        XCTAssertEqual(requests.boundedSubtitle, "Resets in 30d 0h")
     }
 
     func testCreditsRenderProviderReportedCountInvariantToMeterStyle() async {
@@ -261,7 +224,6 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertEqual(remaining.unboundedDetail, "1K credits")
         XCTAssertEqual(remaining.menuBarValue, "1K credits")
         XCTAssertEqual(remaining.dashboardRow().mark, .value("1K credits"))
-        XCTAssertFalse(remaining.dashboardRow().hasReading)
 
         store.meterStyle = .used
         let used = store.data(for: descriptor)

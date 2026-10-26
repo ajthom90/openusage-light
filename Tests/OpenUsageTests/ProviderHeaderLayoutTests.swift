@@ -4,7 +4,7 @@ import XCTest
 
 /// The provider's header and card, as drawn: the plan sits 8 pt before the logo and is never cut, a long
 /// name is; the header's text, every caption and every label start 12 pt in, and the logo ends where
-/// the bars do; the heights are literal points; a hovered row keeps its height and fits its text.
+/// the reset column does; the heights are literal points; a row's columns sit at their fixed x.
 @MainActor
 final class ProviderHeaderLayoutTests: XCTestCase {
     /// The card: the panel minus its margin on each side.
@@ -30,10 +30,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         DashboardProviderSection(family: family, plans: plans) {
             ProviderIcon(source: family.provider.icon, inset: 0.04)
         } account: { account in
-            DashboardAccountRows(
-                account: account, plan: plans[account.id], labelWidth: DashboardGrid.minimumLabelWidth,
-                showsCaption: family.soleAccount == nil
-            )
+            DashboardAccountRows(account: account, plan: plans[account.id], showsCaption: family.soleAccount == nil)
         }
     }
 
@@ -41,9 +38,10 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         DashboardLine(descriptor: WidgetDescriptor(id: data.title, providerID: "p", metricLabel: data.title, sample: data), data: data)
     }
 
-    private func percent(_ title: String, used: Double) -> WidgetData {
+    private func percent(_ title: String, used: Double, resetsIn: TimeInterval? = nil) -> WidgetData {
         var data = WidgetData(title: title, icon: .providerMark("claude"), kind: .percent, used: used, limit: 100)
         data.displayMode = .remaining
+        data.resetsAt = resetsIn.map { Date().addingTimeInterval($0) }
         return data
     }
 
@@ -93,18 +91,19 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertGreaterThan(try titleEnd([claude("sam@hey.com")]), providerAlone + 40, "an account without a name reads its email")
     }
 
-    /// The header's text, each caption and each label start 12 pt in from the card's edge, and the logo
-    /// ends 12 pt before it, where the bars end.
-    func testTextSharesOneLeadingEdgeAndTheLogoEndsWithTheBars() throws {
-        let full = line(percent("Session", used: 0))
-        let two = family([claude("Personal"), claude("Work", "claude@2")], lines: [full, line(percent("Weekly", used: 24))])
+    /// The header's text, each caption and each label start 12 pt in from the card's edge; the logo, the
+    /// plan on a caption and the reset column all end 12 pt before it.
+    func testTextSharesOneLeadingEdgeAndTheLogoEndsWithTheResets() throws {
+        let session = line(percent("Session", used: 0, resetsIn: 3 * 3600))
+        let two = family([claude("Personal"), claude("Work", "claude@2")], lines: [session, line(percent("Weekly", used: 24, resetsIn: 86_400))])
         let bands = try Bitmap(section(two, plans: ["claude@1": "Max 5x", "claude@2": "Max 5x"]), width: boxWidth, scale: 2).inkBands()
         XCTAssertEqual(bands.count, 7, "the header, then a caption and two rows per account")
         let edges = bands.map(\.first)
         XCTAssertLessThanOrEqual((edges.max() ?? 0) - (edges.min() ?? 0), 1.5, "leading edges \(edges)")
         XCTAssertEqual(edges.min() ?? 0, inset, accuracy: 1.5)
         XCTAssertEqual(bands[0].last, boxWidth - inset, accuracy: 1.5, "the logo ends 12 pt before the edge")
-        XCTAssertEqual(bands[2].last, bands[0].last, accuracy: 1, "a full bar ends where the logo does")
+        XCTAssertEqual(bands[1].last, bands[0].last, accuracy: 1.5, "the caption's plan ends where the logo does")
+        XCTAssertEqual(bands[2].last, bands[0].last, accuracy: 1.5, "the reset ends where the logo does")
     }
 
     /// Robin: "Everything takes too much space." The steps are pinned in literal points, so changing any
@@ -119,38 +118,40 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertEqual(DashboardGrid.sectionSpacing, 16)
     }
 
-    /// Under the pointer a bar gives way to its text in the same slot: the row stays 20 pt, the text
-    /// starts where the bar did and ends inside the row, cut to a shorter candidate when the longest
-    /// can't fit. A row without a limit shows its value right-aligned at the bar's end, at its natural
-    /// width.
-    func testAHoveredRowKeepsItsHeightAndFitsItsText() throws {
+    /// A row at rest shows every column in its fixed place: the bar starts 8 pt after the 86 pt label
+    /// column and fills its slot, the value is right-aligned in its 52 pt column, the reset in its 56 pt
+    /// column ending 12 pt before the card's edge. A row without a limit shows its value where the bar
+    /// would start, at its natural width.
+    func testARowShowsItsBarValueAndResetInTheirColumns() throws {
         let end = boxWidth - inset
-        var red = percent("Weekly", used: 90)
-        red.periodDurationMs = 10 * 3600 * 1000
-        red.resetsAt = Date().addingTimeInterval(5 * 3600)
+        let barStart = inset + DashboardGrid.labelWidth + DashboardGrid.columnGap
+        let resetStart = end - DashboardGrid.resetWidth
+        let valueStart = resetStart - DashboardGrid.columnGap - DashboardGrid.valueWidth
+        let barEnd = valueStart - DashboardGrid.columnGap
+        let full = percent("Weekly", used: 0, resetsIn: 5 * 3600)
         var credits = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .count, used: 452, limit: nil)
         credits.values = [MetricValue(number: 452, kind: .count, label: "credits")]
-        func row(_ data: WidgetData, label: CGFloat, hovered: Bool = false) -> some View {
-            DashboardMetricRow(model: data.dashboardRow(), labelWidth: label, hovered: hovered)
-                .padding(.horizontal, DashboardGrid.cardPadding)
+        func row(_ data: WidgetData) -> some View {
+            DashboardMetricRow(model: data.dashboardRow()).padding(.horizontal, DashboardGrid.cardPadding)
         }
-        for label in [DashboardGrid.minimumLabelWidth, 140] {
-            let barStart = inset + label + DashboardGrid.columnGap
-            for hovered in [false, true] {
-                let bitmap = try Bitmap(row(red, label: label, hovered: hovered), width: boxWidth, scale: 2)
-                XCTAssertEqual(CGFloat(bitmap.height) / 2, DashboardGrid.rowHeight, "hovered \(hovered)")
-                let slot = try XCTUnwrap(bitmap.inkSpan(from: barStart - 2, to: boxWidth), "an empty slot (label \(label), hovered \(hovered))")
-                XCTAssertEqual(slot.first, barStart, accuracy: 1.5, "the slot doesn't start after the label column (label \(label), hovered \(hovered))")
-                XCTAssertLessThanOrEqual(slot.last, end + 0.5, "the slot runs past the row (label \(label), hovered \(hovered))")
-                if hovered {
-                    XCTAssertGreaterThan(slot.last - slot.first, 60, "no text under the pointer (label \(label))")
-                }
-            }
-        }
-        let value = try Bitmap(row(credits, label: 96), width: boxWidth, scale: 2)
-        let drawn = try XCTUnwrap(value.inkSpan(from: inset + 96 + 2, to: boxWidth))
-        let alone = try XCTUnwrap(Bitmap(Text("452 credits").font(.body).monospacedDigit().fixedSize().padding(20), width: 200, scale: 2).inkSpan())
-        XCTAssertEqual(drawn.last, end, accuracy: 1.5, "the value isn't right-aligned at the bar's end")
+
+        let bitmap = try Bitmap(row(full), width: boxWidth, scale: 2)
+        XCTAssertEqual(CGFloat(bitmap.height) / 2, DashboardGrid.rowHeight)
+        let label = try XCTUnwrap(bitmap.inkSpan(from: 0, to: barStart - 2), "no label")
+        XCTAssertEqual(label.first, inset, accuracy: 1.5)
+        let bar = try XCTUnwrap(bitmap.inkSpan(from: barStart - 2, to: barEnd + 2), "no bar")
+        XCTAssertEqual(bar.first, barStart, accuracy: 1.5, "the bar doesn't start after the label column")
+        XCTAssertEqual(bar.last, barEnd, accuracy: 1.5, "the bar doesn't fill its slot")
+        let value = try XCTUnwrap(bitmap.inkSpan(from: valueStart - 2, to: resetStart - 4), "no value at rest")
+        XCTAssertEqual(value.last, valueStart + DashboardGrid.valueWidth, accuracy: 1.5, "the value isn't right-aligned in its column")
+        let reset = try XCTUnwrap(bitmap.inkSpan(from: resetStart - 2, to: boxWidth), "no reset at rest")
+        XCTAssertEqual(reset.last, end, accuracy: 1.5, "the reset isn't right-aligned at the card's inset")
+        XCTAssertGreaterThan(reset.last - reset.first, 8, "the reset is empty")
+
+        let plain = try Bitmap(row(credits), width: boxWidth, scale: 2)
+        let drawn = try XCTUnwrap(plain.inkSpan(from: barStart - 2, to: boxWidth))
+        let alone = try XCTUnwrap(Bitmap(Text("452 credits").font(DashboardMetricRow.font).monospacedDigit().fixedSize().padding(20), width: 200, scale: 2).inkSpan())
+        XCTAssertEqual(drawn.first, barStart, accuracy: 1.5, "the value doesn't start where the bar would")
         XCTAssertEqual(drawn.last - drawn.first, alone.last - alone.first, accuracy: 1, "the value shrank")
     }
 }

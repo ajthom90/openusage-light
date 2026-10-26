@@ -32,7 +32,6 @@ struct WidgetData: Hashable {
     var periodDurationMs: Int?
     var valueTextOverride: String?
     var subtitleOverride: String?
-    var limitNoun: String?     // word after a dollar limit, e.g. "$100 limit" (defaults to "limit")
     /// Fixed trailing word for an unbounded row, e.g. "left" for an extra balance.
     var unboundedValueWord: String?
     /// False when no real provider metric backs this tile. The view then shows a "No data" state
@@ -103,7 +102,7 @@ struct WidgetData: Hashable {
     }
 
     /// The meter's full visual state, derived once (`meterState(now:)`) so the bar color and the
-    /// row's hover text can never contradict each other.
+    /// resets popover can never contradict each other.
     /// Precedence, highest first: no data → spent → live pace verdict → absolute level bands.
     enum MeterState: Hashable {
         /// No real metric backs the row — gray, empty track.
@@ -193,33 +192,6 @@ struct WidgetData: Hashable {
         return number
     }
 
-    /// What a bounded row's hover text says after the reading when it has no reset date: the limit
-    /// context ("$500 limit", a count's unit) or a cycle's cadence.
-    var boundedSubtitle: String? {
-        if let subtitleOverride {
-            return subtitleOverride
-        }
-        // Any cycle-based metric (e.g. requests) shows its reset cadence when no exact reset date exists.
-        if let periodDurationMs,
-           let duration = Formatters.compactDuration(TimeInterval(periodDurationMs) / 1000) {
-            return "Resets in \(duration)"
-        }
-        switch kind {
-        case .percent:
-            return nil
-        case .dollars:
-            // Mirror the original OpenUsage panel: a bounded dollar metric's secondary line reads
-            // "$<limit> limit" — no "of" prefix, and cents only when the limit isn't a whole dollar.
-            guard let limit else { return nil }
-            let digits = limit.rounded() == limit ? 0 : 2
-            let amount = Formatters.currency(limit, fractionDigits: digits)
-            return "\(amount) \(limitNoun ?? "limit")"
-        case .count:
-            // The unit (e.g. "credits") shows whether the count is bounded or a plain balance.
-            return countSuffix
-        }
-    }
-
     /// Right-aligned descriptive line for an unbounded row (no bar): just "<value> <word>". The word is
     /// `unboundedValueWord` when set (extras always read "1,503 left", spend rows "$12.34 spent");
     /// otherwise it falls back to the global left/used mode word.
@@ -289,8 +261,8 @@ extension WidgetData {
         return (limit, resetsAt, TimeInterval(periodDurationMs) / 1000)
     }
 
-    /// The meter's state for `now` — the single source the row's colour and its hover text read from, so
-    /// they can't drift apart. Precedence, highest first:
+    /// The meter's state for `now` — the single source the row's colour and the resets popover read from,
+    /// so they can't drift apart. Precedence, highest first:
     ///
     /// 1. **No data** → gray, empty.
     /// 2. **Spent** → red, whenever the remainder rounds to zero at the value's precision (a visibly
@@ -307,8 +279,7 @@ extension WidgetData {
     func meterState(now: Date = Date()) -> MeterState {
         guard hasData, let limit, limit > 0 else { return hasData ? .level(.normal) : .noData }
         if roundedAtDisplayPrecision(limit - used) <= 0 { return .spent }
-        // A "Not started" session has nothing to pace yet — a calm bar, so the bar and its hover never
-        // contradict the "not started" note.
+        // A "Not started" session has nothing to pace yet — a calm bar with an empty reset column.
         if isFreshSessionWindow(now: now) { return absoluteLevelState(used: used, limit: limit) }
 
         if let ctx = paceContext,

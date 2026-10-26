@@ -2,7 +2,7 @@ import SwiftUI
 
 /// One provider on the dashboard: its header above its card. The header names the provider — and its
 /// account, when it has one with a name of its own — in Title 3, with the plan right-aligned before the
-/// 16 pt logo at the end of the line, which sits in line with the bars below. The card holds the
+/// 16 pt logo at the end of the line, which ends where the rows' reset column does. The card holds the
 /// provider's accounts, separated by space alone: each a caption (when there are several) over one row
 /// per metric. Static: the dashboard adds hover, menus and drags around it, and the share image draws it
 /// as it is.
@@ -82,8 +82,9 @@ struct DashboardProviderHeader<Trailing: View>: View {
     }
 }
 
-/// An account's caption inside a card with several accounts: its name in Subheadline semibold and its
-/// plan after it, both secondary. The name truncates (an email keeps its domain) and the plan never does.
+/// An account's caption inside a card with several accounts: its name in Subheadline semibold at the
+/// left and its plan as plain Subheadline at the right, both secondary — never a badge. The name
+/// truncates (an email keeps its domain) and the plan never does.
 struct DashboardAccountCaption: View {
     let account: DashboardAccount
     var plan: String?
@@ -94,6 +95,7 @@ struct DashboardAccountCaption: View {
             AccountName(account: account, font: .subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             status.glyph
+            Spacer(minLength: DashboardGrid.columnGap)
             if let plan {
                 Text(plan)
                     .font(.subheadline)
@@ -101,7 +103,6 @@ struct DashboardAccountCaption: View {
                     .lineLimit(1)
                     .fixedSize()
             }
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, DashboardGrid.inset)
         .frame(height: DashboardGrid.captionHeight)
@@ -165,7 +166,6 @@ struct AccountStatus {
 struct DashboardAccountRows: View {
     let account: DashboardAccount
     var plan: String?
-    let labelWidth: CGFloat
     var showsCaption = true
 
     var body: some View {
@@ -174,7 +174,7 @@ struct DashboardAccountRows: View {
                 DashboardAccountCaption(account: account, plan: plan)
             }
             ForEach(account.lines) { line in
-                DashboardMetricRow(model: line.data.dashboardRow(), labelWidth: labelWidth)
+                DashboardMetricRow(model: line.data.dashboardRow())
             }
         }
     }

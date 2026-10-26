@@ -3,40 +3,23 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// Every metric title, plan and name a provider can produce renders at full size in the panel: the
-/// label column is as wide as the widest title, no plan truncates, and Robin's own accounts fit their
-/// headers and captions whole. Plans are the providers' official names, never shortened to fit; a long
-/// account name truncates instead.
+/// Every metric title, plan and name a provider can produce renders at full size in the panel: every
+/// title fits the 86 pt label column, no plan truncates, and Robin's own accounts fit their headers and
+/// captions whole. Plans are the providers' official names, never shortened to fit; a long account name
+/// truncates instead.
 @MainActor
 final class DashboardLabelFitTests: XCTestCase {
     /// A provider's card: the panel minus its margin on each side.
     private let cardWidth = PanelMetrics.width - 2 * PanelMetrics.margin
 
-    /// The label column is one width for the whole panel: the widest title it shows, never under 96 pt,
-    /// so every title fits and the bars start at one x.
-    func testTheLabelColumnTakesTheWidestTitle() {
-        XCTAssertEqual(DashboardGrid.labelWidth(for: ["Session", "Weekly"]), DashboardGrid.minimumLabelWidth)
-        XCTAssertEqual(DashboardGrid.labelWidth(for: [String]()), DashboardGrid.minimumLabelWidth)
-        let wide = "A title wider than the column"
-        let column = DashboardGrid.labelWidth(for: ["Session", wide])
-        XCTAssertGreaterThan(column, DashboardGrid.minimumLabelWidth)
-        XCTAssertGreaterThanOrEqual(column, idealWidth(Text(wide).font(.body)))
-        XCTAssertLessThan(column, idealWidth(Text(wide).font(.body)) + 2, "the column is wider than its widest title")
-    }
-
-    /// Every provider's titles fit the column, and the bars keep at least 150 pt beside the widest.
+    /// Every provider's titles fit the fixed label column at the row's type size, so no label truncates.
     func testEveryProvidersMetricTitlesFitTheLabelColumn() {
-        var titles: [String] = []
         for kind in ProviderKind.allCases {
             let runtime = AccountProviderRuntime(account: Account(kind: kind, label: kind.displayName), vault: InMemoryCredentialVault())
-            titles += runtime.widgetDescriptors.map(\.sample.title)
+            for title in runtime.widgetDescriptors.map(\.sample.title) {
+                XCTAssertLessThanOrEqual(idealWidth(Text(title).font(DashboardMetricRow.font)), DashboardGrid.labelWidth, "\(kind.displayName): \(title)")
+            }
         }
-        let column = DashboardGrid.labelWidth(for: titles)
-        for title in titles {
-            XCTAssertLessThanOrEqual(idealWidth(Text(title).font(.body)), column, title)
-        }
-        let slot = cardWidth - 2 * (DashboardGrid.cardPadding + DashboardGrid.inset) - column - DashboardGrid.columnGap
-        XCTAssertGreaterThanOrEqual(slot, 150, "the widest title leaves \(slot) pt for the bars")
     }
 
     /// Two metrics of one account never share a title, so no two rows read the same.

@@ -4,7 +4,7 @@ import XCTest
 @testable import OpenUsage
 
 /// One severity palette: blue, orange, red. Each severity maps to its system colour, and the meter
-/// bar, the hovered row's text, the resets popover's dot, the claim timeline's dot and the claim banner
+/// bar, the row's value, the resets popover's dot, the claim timeline's dot and the claim banner
 /// all paint that same colour. The views are rasterized and their dominant opaque colour is matched to
 /// the nearest candidate colour, so a surface that drifts to yellow, the accent colour, or SwiftUI's own
 /// orange/red fails here.
@@ -29,19 +29,17 @@ final class SeverityPaletteTests: XCTestCase {
         XCTAssertEqual(Self.nearest(NSColor(Theme.severityColor(nil))), "systemBlue")
     }
 
-    func testMeterHoverTextPopoverDotTimelineDotAndBannerAgree() throws {
+    func testMeterValuePopoverDotTimelineDotAndBannerAgree() throws {
         for (severity, name) in Self.palette {
             let meter = UsageMeterBar(fill: 1, severity: severity).frame(width: 60)
             XCTAssertEqual(try dominant(meter), name, "meter \(severity)")
 
-            let tinted = severity == .normal ? nil : severity
-            let spans = [
-                DashboardRowModel.Span(text: "41%", role: .value, tint: tinted),
-                DashboardRowModel.Span(text: "left", role: .unit, tint: tinted),
-                DashboardRowModel.Span(text: "· runs out in 1d 8h", role: .note, tint: tinted),
-            ]
-            if let tinted {
-                XCTAssertEqual(try dominant(DashboardMetricRow.text(spans)), name, "hover text \(tinted)")
+            // An empty bar leaves the value as the row's only colour: orange or red with the bar (a blue
+            // row's value stays plain).
+            if severity != .normal {
+                let row = DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0, severity: severity, value: "0%", reset: "1d 8h")))
+                    .frame(width: 292)
+                XCTAssertEqual(try dominant(row), name, "value \(severity)")
             }
 
             let node = AccountResetsTimeline.Node(

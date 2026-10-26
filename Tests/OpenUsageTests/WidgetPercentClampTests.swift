@@ -21,7 +21,7 @@ final class WidgetPercentClampTests: XCTestCase {
                 let data = store.data(for: descriptor)
                 XCTAssertEqual(data.used, clamped, suite)
                 XCTAssertEqual(data.valueText, value, suite)
-                XCTAssertEqual(data.dashboardRow().reading.map(\.text), [value, word], suite)
+                XCTAssertEqual(data.dashboardRow().mark, .bar(fill: mode == .remaining ? 1 - clamped / 100 : clamped / 100, severity: clamped == 100 ? .critical : .normal, value: value, reset: nil), "\(suite) \(word)")
                 XCTAssertEqual(data.menuBarValue, value, suite)
             }
 

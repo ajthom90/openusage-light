@@ -1,14 +1,13 @@
 import SwiftUI
 
-/// A metric row on the live dashboard: the row with its hover. Under the pointer it takes the native
-/// highlight and shows its reading in the bar's place; after the hover dwell a popover opens below it —
-/// the account's resets, soonest first, with this row's own emphasized — or, on the Limit Resets row,
-/// the resets timeline where a reset is claimed. A value row with nothing to list only highlights. Rows
-/// with a clock re-render every 30 s so their colour and text stay live.
+/// A metric row on the live dashboard: the row with its one hover affordance. It shows nothing under the
+/// pointer itself; after the hover dwell a popover opens below it — the account's resets, soonest first,
+/// with this row's own emphasized — or, on the Limit Resets row, the resets timeline where a reset is
+/// claimed. A value row with nothing to list opens nothing. Rows with a clock re-render every 30 s so
+/// their colour and reset stay live.
 struct DashboardHoverRow: View {
     let line: DashboardLine
     let account: DashboardAccount
-    let labelWidth: CGFloat
     /// The Limit Resets row's claim seam, `nil` where resets can't be claimed.
     var resetClaim: ResetClaimService?
 
@@ -19,19 +18,13 @@ struct DashboardHoverRow: View {
         Group {
             if line.data.resetsAt != nil || !line.data.expiriesAt.isEmpty {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
-                    row(now: context.date)
+                    DashboardMetricRow(model: line.data.dashboardRow(now: context.date))
                 }
             } else {
-                row(now: Date())
+                DashboardMetricRow(model: line.data.dashboardRow())
             }
         }
         .contentShape(Rectangle())
-        .background {
-            if hover.overInline {
-                RoundedRectangle(cornerRadius: DashboardGrid.highlightRadius, style: .continuous)
-                    .fill(.fill.quaternary)
-            }
-        }
         .onContinuousHover { phase in
             if case .active = phase { hover.inlineHover(true) } else { hover.inlineHover(false) }
         }
@@ -50,10 +43,6 @@ struct DashboardHoverRow: View {
             if !hover.isPinned { hover.dismiss() }
         }
         .onDisappear { hover.dismiss() }
-    }
-
-    private func row(now: Date) -> some View {
-        DashboardMetricRow(model: line.data.dashboardRow(now: now), labelWidth: labelWidth, hovered: hover.overInline)
     }
 
     private var hasPopover: Bool {

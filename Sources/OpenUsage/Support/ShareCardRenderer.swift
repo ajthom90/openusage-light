@@ -83,7 +83,6 @@ enum ShareCardRenderer {
         let card = ShareCardView(
             family: family,
             plans: dataStore.plan(for: group.provider.id).map { [group.provider.id: $0] } ?? [:],
-            labelWidth: DashboardGrid.labelWidth(for: DashboardFamily.make(groups: layout.displayGroups, line: line)),
             appearance: appearance
         )
         guard copy(card) else { return false }

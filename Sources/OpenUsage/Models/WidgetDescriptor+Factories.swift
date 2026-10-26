@@ -20,8 +20,7 @@ extension WidgetDescriptor {
         return make(id: id, provider: provider, metricLabel: metricLabel ?? title, sample: sample)
     }
 
-    /// Bounded dollar meter whose subtitle reads "$<limit> <limitNoun>" (noun defaults to "limit").
-    /// `valueWord` is the trailing word for the *uncapped* fallback: a tile like Claude's Extra Usage is a
+    /// Bounded dollar meter. `valueWord` is the trailing word for the *uncapped* fallback: a tile like Claude's Extra Usage is a
     /// meter when the provider reports a monthly cap (`.progress`) but an unbounded "$1.2K spent" row
     /// (`.values`) when it doesn't, and that row needs a word. It's inert for the bounded rendering.
     static func boundedDollars(
@@ -30,17 +29,15 @@ extension WidgetDescriptor {
         title: String,
         metricLabel: String? = nil,
         limit: Double,
-        limitNoun: String? = nil,
         valueWord: String? = nil
     ) -> WidgetDescriptor {
         make(id: id, provider: provider, metricLabel: metricLabel ?? title,
              sample: WidgetData(title: title, icon: provider.icon,
-                                kind: .dollars, used: 0, limit: limit, limitNoun: limitNoun,
-                                unboundedValueWord: valueWord))
+                                kind: .dollars, used: 0, limit: limit, unboundedValueWord: valueWord))
     }
 
-    /// Bounded count meter (e.g. requests per billing cycle). `periodDurationMs` lets the subtitle
-    /// show the cycle's reset cadence instead of the bare suffix.
+    /// Bounded count meter (e.g. requests per billing cycle). `periodDurationMs` is the cycle the pace
+    /// verdict projects against.
     static func boundedCount(
         id: String,
         provider: Provider,

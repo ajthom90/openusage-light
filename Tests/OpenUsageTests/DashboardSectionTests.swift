@@ -4,7 +4,8 @@ import XCTest
 @testable import OpenUsage
 
 /// The dashboard shows what it shows: nothing on a provider's header, a caption or a row opens on a
-/// click, and no plan or name reacts to the pointer. Three things do: resting the pointer on a row opens
+/// click, no plan or name reacts to the pointer, a plan is plain text and never a badge, and a row under
+/// the pointer draws exactly as it does at rest. Three things react: resting the pointer on a row opens
 /// the account's resets after the hover dwell, a double-click on an account's name renames it, on its
 /// caption or in a one-account provider's header, and the logo turns into the copy button while the
 /// pointer is on the provider. Dragging still reorders: the header drags the provider, a caption drags
@@ -25,7 +26,6 @@ final class DashboardSectionTests: XCTestCase {
         let accountID: String
     }
 
-    private static let labelWidth = DashboardGrid.minimumLabelWidth
     /// The caption's centre line, inside the card under the header.
     private static let captionY = DashboardGrid.headerHeight + DashboardGrid.headerGap + DashboardGrid.cardPadding + DashboardGrid.captionHeight / 2
     /// The first row's centre line, under the caption.
@@ -71,7 +71,7 @@ final class DashboardSectionTests: XCTestCase {
         let section = DashboardProviderSection(family: family, plans: ["claude@1": "Max 5x"], status: AccountStatus(notice: "Refresh failed")) {
             ProviderIcon(source: family.provider.icon, inset: 0.04)
         } account: { account in
-            DashboardAccountRows(account: account, plan: "Max 5x", labelWidth: Self.labelWidth)
+            DashboardAccountRows(account: account, plan: "Max 5x")
         }
         var credits = WidgetData(title: "Extra Usage", icon: .providerMark("codex"), kind: .count, used: 452, limit: nil)
         credits.values = [MetricValue(number: 452, kind: .count, label: "credits")]
@@ -85,20 +85,22 @@ final class DashboardSectionTests: XCTestCase {
         // The name's one handler is the double-click (`onTapGesture(count: 2)`); the tests below prove
         // a single click there does nothing.
         XCTAssertEqual(interactiveParts(AccountName(account: personal, font: .body).body), ["TapGesture"], "name")
-        XCTAssertEqual(interactiveParts(DashboardMetricRow(model: lines[0].data.dashboardRow(), labelWidth: Self.labelWidth).body), [], "row")
-        XCTAssertEqual(interactiveParts(DashboardMetricRow(model: credits.dashboardRow(), labelWidth: Self.labelWidth).body), [], "value row")
-        XCTAssertEqual(interactiveParts(DashboardHoverRow(line: lines[0], account: personal, labelWidth: Self.labelWidth).body), ["Hover", "Popover"], "live row")
+        XCTAssertEqual(interactiveParts(DashboardMetricRow(model: lines[0].data.dashboardRow()).body), [], "row")
+        XCTAssertEqual(interactiveParts(DashboardMetricRow(model: credits.dashboardRow()).body), [], "value row")
+        XCTAssertEqual(interactiveParts(DashboardHoverRow(line: lines[0], account: personal).body), ["Hover", "Popover"], "live row")
         XCTAssertEqual(interactiveParts(DashboardCopyButton(provider: personal.provider, active: true, copy: { true }).body), ["Hover", "Button", "Tooltip"], "copy button")
     }
 
     /// Resting the pointer on a row opens the account's resets after the hover dwell, with no click,
-    /// and changes no height; resting it on the caption's name opens nothing.
-    func testHoveringARowOpensTheAccountsResetsAndTheNameOpensNothing() throws {
+    /// and changes nothing on the panel itself: no highlight, no text swap, no height; resting it on the
+    /// caption's name opens nothing.
+    func testHoveringARowOpensTheAccountsResetsAndDrawsTheRowAsAtRest() throws {
         let log = Log()
         let hosted = hostWithRenaming(log: log)
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         func popoverIsOpen() -> Bool { NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
         let height = hosted.host.fittingSize.height
+        let atRest = try pixels(of: hosted.host)
 
         try hover(CGPoint(x: Self.nameX, y: Self.captionY), hosted.window, hosted.host)
         XCTAssertFalse(popoverIsOpen(), "hovering the name opens something")
@@ -106,8 +108,30 @@ final class DashboardSectionTests: XCTestCase {
         try hover(CGPoint(x: hosted.host.bounds.width / 2, y: Self.firstRowY), hosted.window, hosted.host)
         XCTAssertTrue(popoverIsOpen(), "hovering a row opens no popover")
         XCTAssertEqual(hosted.host.fittingSize.height, height, "the hover changed the height")
+        XCTAssertEqual(try pixels(of: hosted.host), atRest, "the row under the pointer draws differently from the row at rest")
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
         HoverPopoverState.dismissAll()
+    }
+
+    /// A plan is plain secondary text, in the header and on a caption alike: no capsule, no plate.
+    func testAPlanIsNeverABadge() {
+        let personal = account(Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"))
+        let family = DashboardFamily(id: "claude", provider: personal.provider, accounts: [personal])
+        let header = DashboardProviderHeader(family: family, plan: "Max 20x") { EmptyView() }
+        for (name, body) in [("header", String(reflecting: type(of: header.body))),
+                             ("caption", String(reflecting: type(of: DashboardAccountCaption(account: personal, plan: "Max 20x").body)))] {
+            for badge in ["Capsule", "Background", "RoundedRectangle"] {
+                XCTAssertFalse(body.contains(badge), "the \(name) draws its plan with a \(badge)")
+            }
+        }
+    }
+
+    /// The host's pixels as drawn now.
+    private func pixels(of host: NSView) throws -> Data {
+        host.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
     }
 
     /// A click on an account's name, on its plan or on a row opens nothing, starts no drag and no rename.
@@ -117,7 +141,7 @@ final class DashboardSectionTests: XCTestCase {
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         let points = [
             CGPoint(x: Self.nameX, y: Self.captionY),
-            CGPoint(x: Self.nameX + 90, y: Self.captionY),
+            CGPoint(x: hosted.host.bounds.width - DashboardGrid.cardPadding - DashboardGrid.inset - 12, y: Self.captionY),
             CGPoint(x: hosted.host.bounds.width / 2, y: Self.firstRowY),
         ]
         for point in points {
@@ -181,7 +205,7 @@ final class DashboardSectionTests: XCTestCase {
         ) {
             ProviderIcon(source: provider.icon, inset: 0.04)
         } account: { account in
-            DashboardAccountRows(account: account, labelWidth: Self.labelWidth, showsCaption: false)
+            DashboardAccountRows(account: account, showsCaption: false)
         }
         let (window, host) = hostView(section, renaming: renaming)
 
@@ -272,7 +296,7 @@ final class DashboardSectionTests: XCTestCase {
                 DashboardAccountCaption(account: account, plan: "Max 5x")
                     .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })
                 ForEach(account.lines) { line in
-                    DashboardHoverRow(line: line, account: account, labelWidth: Self.labelWidth)
+                    DashboardHoverRow(line: line, account: account)
                         .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.metricDrags += 1 })
                 }
             }

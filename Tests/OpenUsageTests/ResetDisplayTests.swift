@@ -2,8 +2,8 @@ import XCTest
 @testable import OpenUsage
 
 /// Covers the relative/absolute reset display: `Formatters.whenLabel` (the claim timeline's and claim
-/// notice's "when" phrase) with its absolute day buckets, the session rows' "not started" state, the
-/// reset-credit expiry bands, and the resets popover's entries.
+/// notice's "when" phrase) with its absolute day buckets, the session rows' "not started" state (an
+/// empty reset column), the reset-credit expiry bands, and the resets popover's entries.
 final class ResetDisplayTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -11,10 +11,6 @@ final class ResetDisplayTests: XCTestCase {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         return calendar
-    }
-
-    private func texts(_ row: DashboardRowModel) -> [String] {
-        row.hoverCandidates.map { $0.map(\.text).joined(separator: " ") }
     }
 
     func testWhenLabelBucketsTheDayAndCollapsesImminentDeadlines() {
@@ -48,7 +44,7 @@ final class ResetDisplayTests: XCTestCase {
         data.resetsAt = now.addingTimeInterval(period / 2)
 
         XCTAssertTrue(data.isFreshSessionWindow(now: now))
-        XCTAssertEqual(texts(data.dashboardRow(now: now)), ["0% used · starts when you first use it", "0% used · not started", "0% used"])
+        XCTAssertEqual(data.dashboardRow(now: now).mark, .bar(fill: 0, severity: .normal, value: "0%", reset: nil))
         XCTAssertEqual(data.meterState(now: now), .level(.normal))
 
         // Once the reset has passed the snapshot is stale: no "not started" claim, the normal countdown.
@@ -65,12 +61,12 @@ final class ResetDisplayTests: XCTestCase {
         data.resetsAt = now.addingTimeInterval(2 * 3600)
 
         XCTAssertFalse(data.isFreshSessionWindow(now: now))
-        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "0% used · resets in 2h")
+        XCTAssertEqual(data.compactResetText(now: now), "2h")
 
         // A genuinely fresh session carries no reset date — that is this signal's "not started" state.
         data.resetsAt = nil
         XCTAssertTrue(data.isFreshSessionWindow(now: now))
-        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "0% used · starts when you first use it")
+        XCTAssertNil(data.compactResetText(now: now))
     }
 
     func testNonSessionWindowNeverReadsNotStarted() {
@@ -80,32 +76,30 @@ final class ResetDisplayTests: XCTestCase {
         data.resetsAt = now.addingTimeInterval(period / 2)
 
         XCTAssertFalse(data.isFreshSessionWindow(now: now))
-        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "0% used · resets in 3d 12h")
+        XCTAssertEqual(data.compactResetText(now: now), "3d 12h")
     }
 
-    func testTheRunOutAndTheResetFollowTheClockSetting() {
+    func testTheResetFollowsTheClockSettingAndARunOutIsRed() {
         // Halfway through a 10h window with 90/100 used → behind pace, projected to run out ~34m out,
-        // well before the reset 5h out. Both instants take the clock form under that setting.
+        // well before the reset 5h out: a red bar, and the reset in the clock form under that setting.
         var data = WidgetData(title: "Session", icon: .providerMark("codex"), kind: .percent, used: 90, limit: 100)
         data.resetsAt = now.addingTimeInterval(5 * 3600)
         data.periodDurationMs = 10 * 3600 * 1000
-        let runsOut = data.runsOutAt(now: now)!
-        XCTAssertEqual(runsOut.timeIntervalSince(now), 2000, accuracy: 1)
+        XCTAssertEqual(data.runsOutAt(now: now)!.timeIntervalSince(now), 2000, accuracy: 1)
 
         data.resetDisplayMode = .relative
-        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "90% used · runs out in 34m · resets in 5h")
+        XCTAssertEqual(data.dashboardRow(now: now).mark, .bar(fill: 0.9, severity: .critical, value: "90%", reset: "5h"))
 
         data.resetDisplayMode = .absolute
-        XCTAssertEqual(
-            texts(data.dashboardRow(now: now))[0],
-            "90% used · runs out \(Formatters.compactClock(runsOut, now: now)) · resets \(Formatters.compactClock(data.resetsAt!, now: now))"
-        )
+        XCTAssertEqual(data.compactResetText(now: now), Formatters.compactClock(data.resetsAt!, now: now))
     }
 
-    func testACapWithoutAResetDateNamesItsLimitUnderEitherClockSetting() {
+    func testACapWithoutAResetDateHasNoResetUnderEitherClockSetting() {
         var data = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars, used: 12, limit: 20)
-        data.resetDisplayMode = .absolute
-        XCTAssertEqual(texts(data.dashboardRow(now: now)), ["$12 used · $20 limit", "$12 used"])
+        for mode in [ResetDisplayMode.relative, .absolute] {
+            data.resetDisplayMode = mode
+            XCTAssertNil(data.compactResetText(now: now))
+        }
         XCTAssertNil(data.runsOutAt(now: now))
     }
 

@@ -3,9 +3,9 @@ import SwiftUI
 
 /// The dashboard display: one provider after another (`DashboardFamily`), each a header above a card
 /// of its accounts, every account one row per metric that has data, fed by the same `WidgetDataStore`
-/// the menu bar uses. Nothing shows at rest beyond the labels, the bars and the values. Under the
-/// pointer a row lights and reads out, and its account's resets open below it after a moment; while the
-/// pointer is anywhere on a provider its logo turns into the copy button. A double-click on an
+/// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing but
+/// a dwell: its account's resets open below it after a moment. While the pointer is anywhere on a
+/// provider its logo turns into the copy button. A double-click on an
 /// account's name, in the header or on its caption, renames it, the same as the menu's Rename.
 ///
 /// Right-click a provider's header or card, an account, or a metric row for its menu (`DashboardMenus`);
@@ -29,10 +29,9 @@ struct WidgetGroupedListView: View {
 
     var body: some View {
         let families = liveFamilies()
-        let labelWidth = DashboardGrid.labelWidth(for: families)
         VStack(alignment: .leading, spacing: DashboardGrid.sectionSpacing) {
             ForEach(families) { family in
-                section(family, labelWidth: labelWidth)
+                section(family)
                     .contextMenu { DashboardMenu(sections: familyMenu(family), perform: perform) }
                     .opacity(activeFamilyID == Self.familyFrameID(family.id) ? 0 : 1)
                     .reorderFrame(id: Self.familyFrameID(family.id), in: .named(reorderSpaceName))
@@ -69,7 +68,7 @@ struct WidgetGroupedListView: View {
     // MARK: - Sections
 
     /// A provider with its hover: while the pointer is on its header or card, the logo is the copy button.
-    private func section(_ family: DashboardFamily, labelWidth: CGFloat) -> some View {
+    private func section(_ family: DashboardFamily) -> some View {
         let plans = plans(for: family)
         return DashboardProviderSection(
             family: family,
@@ -78,10 +77,10 @@ struct WidgetGroupedListView: View {
             handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
         ) {
             DashboardCopyButton(provider: family.provider, active: hoveredFamilyID == family.id) {
-                copyImage(of: family, plans: plans, labelWidth: labelWidth)
+                copyImage(of: family, plans: plans)
             }
         } account: { account in
-            accountSection(account, in: family, labelWidth: labelWidth)
+            accountSection(account, in: family)
         }
         .contentShape(Rectangle())
         .onHover { inside in
@@ -96,14 +95,14 @@ struct WidgetGroupedListView: View {
     /// An account with its menu and drag. In a one-account card it is only its rows: the header and the
     /// provider's menu stand in for its caption and menu, and there is no other account to reorder.
     @ViewBuilder
-    private func accountSection(_ account: DashboardAccount, in family: DashboardFamily, labelWidth: CGFloat) -> some View {
+    private func accountSection(_ account: DashboardAccount, in family: DashboardFamily) -> some View {
         if family.soleAccount != nil {
-            rows(of: account, labelWidth: labelWidth)
+            rows(of: account)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 DashboardAccountCaption(account: account, plan: dataStore.plan(for: account.id), status: status(for: account.id))
                     .highPriorityGesture(accountDragGesture(for: account, in: family))
-                rows(of: account, labelWidth: labelWidth)
+                rows(of: account)
             }
             .contextMenu {
                 DashboardMenu(
@@ -121,10 +120,10 @@ struct WidgetGroupedListView: View {
         }
     }
 
-    /// The account's rows, each with its hover, right-click menu and drag.
-    private func rows(of account: DashboardAccount, labelWidth: CGFloat) -> some View {
+    /// The account's rows, each with its popover, right-click menu and drag.
+    private func rows(of account: DashboardAccount) -> some View {
         ForEach(account.lines) { line in
-            DashboardHoverRow(line: line, account: account, labelWidth: labelWidth, resetClaim: container.resetClaim(for: account.id))
+            DashboardHoverRow(line: line, account: account, resetClaim: container.resetClaim(for: account.id))
                 .opacity(activeMetricID == line.id ? 0 : 1)
                 .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
                 .contextMenu {
@@ -167,8 +166,8 @@ struct WidgetGroupedListView: View {
     // MARK: - Copying
 
     /// Copies an image of the provider's header and card at rest to the clipboard.
-    private func copyImage(of family: DashboardFamily, plans: [String: String], labelWidth: CGFloat) -> Bool {
-        ShareCardRenderer.copy(ShareCardView(family: family, plans: plans, labelWidth: labelWidth, appearance: colorScheme))
+    private func copyImage(of family: DashboardFamily, plans: [String: String]) -> Bool {
+        ShareCardRenderer.copy(ShareCardView(family: family, plans: plans, appearance: colorScheme))
     }
 
     // MARK: - Menu commands
@@ -226,7 +225,7 @@ struct WidgetGroupedListView: View {
             active: $activeMetricID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardMetricRow(model: line.data.dashboardRow(), labelWidth: DashboardGrid.labelWidth(for: liveFamilies()))
+                let preview = DashboardMetricRow(model: line.data.dashboardRow())
                     .padding(.horizontal, DashboardGrid.cardPadding)
                     .liftedRowSurface()
                 return ReorderLift.make(id: line.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
@@ -246,12 +245,9 @@ struct WidgetGroupedListView: View {
             active: $activeAccountID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardAccountRows(
-                    account: account, plan: dataStore.plan(for: account.id),
-                    labelWidth: DashboardGrid.labelWidth(for: liveFamilies())
-                )
-                .padding(DashboardGrid.cardPadding)
-                .liftedRowSurface()
+                let preview = DashboardAccountRows(account: account, plan: dataStore.plan(for: account.id))
+                    .padding(DashboardGrid.cardPadding)
+                    .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().first { $0.id == family.id }?.accounts.map(\.id) ?? [] },
@@ -269,14 +265,10 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let plans = plans(for: family)
-                let labelWidth = DashboardGrid.labelWidth(for: liveFamilies())
                 let preview = DashboardProviderSection(family: family, plans: plans) {
                     ProviderIcon(source: family.provider.icon, inset: 0.04)
                 } account: { account in
-                    DashboardAccountRows(
-                        account: account, plan: plans[account.id], labelWidth: labelWidth,
-                        showsCaption: family.soleAccount == nil
-                    )
+                    DashboardAccountRows(account: account, plan: plans[account.id], showsCaption: family.soleAccount == nil)
                 }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },

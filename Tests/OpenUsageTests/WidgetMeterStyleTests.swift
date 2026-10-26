@@ -7,11 +7,10 @@ import XCTest
 @MainActor
 final class WidgetMeterStyleTests: XCTestCase {
     func testMeterStyleFlipsEveryBoundedFormat() async {
-        let cases: [(name: String, format: ProgressFormat, used: Double, limit: Double,
-                     remaining: String, consumed: String, subtitle: String?)] = [
-            ("percent", .percent, 80, 100, "20%", "80%", nil),
-            ("dollars", .dollars, 80, 100, "$20", "$80", "$100 limit"),
-            ("count", .count(suffix: "credits"), 320, 1_000, "680", "320", "credits")
+        let cases: [(name: String, format: ProgressFormat, used: Double, limit: Double, remaining: String, consumed: String)] = [
+            ("percent", .percent, 80, 100, "20%", "80%"),
+            ("dollars", .dollars, 80, 100, "$20", "$80"),
+            ("count", .count(suffix: "credits"), 320, 1_000, "680", "320")
         ]
 
         for item in cases {
@@ -21,15 +20,13 @@ final class WidgetMeterStyleTests: XCTestCase {
 
             let remaining = store.data(for: descriptor)
             XCTAssertEqual(remaining.valueText, item.remaining, item.name)
-            XCTAssertEqual(remaining.dashboardRow().reading.map(\.text), [item.remaining, "left"], item.name)
-            XCTAssertEqual(remaining.boundedSubtitle, item.subtitle, item.name)
+            XCTAssertEqual(barValue(remaining.dashboardRow()), item.remaining, item.name)
             XCTAssertEqual(remaining.fraction, 1 - item.used / item.limit, accuracy: 0.0001, item.name)
 
             store.meterStyle = .used
             let used = store.data(for: descriptor)
             XCTAssertEqual(used.valueText, item.consumed, item.name)
-            XCTAssertEqual(used.dashboardRow().reading.map(\.text), [item.consumed, "used"], item.name)
-            XCTAssertEqual(used.boundedSubtitle, item.subtitle, item.name)
+            XCTAssertEqual(barValue(used.dashboardRow()), item.consumed, item.name)
             XCTAssertEqual(used.fraction, item.used / item.limit, accuracy: 0.0001, item.name)
         }
     }
@@ -141,6 +138,12 @@ final class WidgetMeterStyleTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// The value column of a bar row, `nil` for a value row.
+    private func barValue(_ row: DashboardRowModel) -> String? {
+        guard case .bar(_, _, let value, _) = row.mark else { return nil }
+        return value
+    }
 
     private func makeRefreshedStore(
         format: ProgressFormat,

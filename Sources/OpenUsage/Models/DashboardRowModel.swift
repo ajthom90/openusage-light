@@ -1,67 +1,47 @@
 import Foundation
 
-/// One metric as the dashboard draws it: its label, what the row shows at rest, and what it says under
-/// the pointer. A reading with a limit is a capacity bar filled with what is left (or what is used, under
-/// the Used setting) in the severity's colour; a reading without one shows its value where a bar would
-/// end. Under the pointer a bar gives way to its reading, "64% left · resets in 2h 41m", in the same
-/// slot. Resolved from a `WidgetData` for one instant, so the colour, the text and the popover can never
-/// disagree.
+/// One metric as the dashboard draws it, resolved from a `WidgetData` for one instant so the bar's colour,
+/// the value and the reset can never disagree. A reading with a limit is a capacity bar filled with what
+/// is left (or what is used, under the Used setting) in the severity's colour, its value and its reset
+/// beside it; a reading without one shows its value in the bar's place.
 struct DashboardRowModel: Equatable {
     enum Mark: Equatable {
-        /// A capacity bar: `fill` is the share shown (0...1), tinted by `severity`.
-        case bar(fill: Double, severity: WidgetData.MeterSeverity)
-        /// A reading with no limit: its value, right-aligned where a bar would end.
+        /// A capacity bar: `fill` is the share shown (0...1), tinted by `severity`; `value` is "64%",
+        /// "$12", "320"; `reset` is the countdown or clock time, `nil` without a live reset.
+        case bar(fill: Double, severity: WidgetData.MeterSeverity, value: String, reset: String?)
+        /// A reading with no limit: its value, where the bar would start.
         case value(String)
-    }
-
-    /// A run of hover text: the value, its unit word, or a note that follows them.
-    struct Span: Equatable {
-        enum Role: Equatable {
-            case value, unit, note
-        }
-
-        let text: String
-        let role: Role
-        /// A tinted run (red for a runway, orange for a close pace); `nil` reads primary (the value) or
-        /// secondary (the rest).
-        var tint: WidgetData.MeterSeverity? = nil
     }
 
     let label: String
     let mark: Mark
-    /// Under the pointer a bar gives way to this: the value and its unit word. Empty for a value row.
-    let reading: [Span]
-    /// What may follow the reading, longest first; the row shows the first that fits. The last is always
-    /// empty, so the reading alone is the floor.
-    let tails: [[Span]]
-
-    /// The hover text's candidates, longest first: the reading followed by each tail.
-    var hoverCandidates: [[Span]] {
-        tails.map { reading + $0 }
-    }
-
-    /// Whether the row can show anything under the pointer beyond its highlight.
-    var hasReading: Bool { !reading.isEmpty }
 }
 
 extension WidgetData {
     /// The row for this reading at `now`.
     func dashboardRow(now: Date = Date()) -> DashboardRowModel {
-        guard hasData, isBounded else {
-            return DashboardRowModel(label: title, mark: .value(unboundedDetail), reading: [], tails: [[]])
-        }
-        let state = meterState(now: now)
-        let severity = state.severity ?? .normal
-        let tint: MeterSeverity? = severity == .normal ? nil : severity
+        guard hasData, isBounded else { return DashboardRowModel(label: title, mark: .value(unboundedDetail)) }
         return DashboardRowModel(
             label: title,
-            mark: .bar(fill: fraction, severity: severity),
-            reading: [
-                DashboardRowModel.Span(text: valueText, role: .value, tint: tint),
-                DashboardRowModel.Span(text: displayMode.label.lowercased(), role: .unit, tint: tint),
-            ],
-            tails: hoverTails(state: state, now: now)
+            mark: .bar(
+                fill: fraction,
+                severity: meterState(now: now).severity ?? .normal,
+                value: valueText,
+                reset: compactResetText(now: now)
+            )
         )
+    }
+
+    /// The reset column's reading: "1h 40m" as a countdown, or "5:30 PM" / "Wed 4 PM" as a clock time
+    /// under that setting; "soon" once the reset is due. `nil` when the row has no live reset: no reset
+    /// date, a status badge, or a session window that has not started.
+    func compactResetText(now: Date = Date()) -> String? {
+        guard hasData, subtitleOverride == nil, let resetsAt, !isFreshSessionWindow(now: now) else { return nil }
+        guard resetsAt.timeIntervalSince(now) > 0 else { return Formatters.imminent }
+        switch resetDisplayMode {
+        case .relative: return Formatters.compactDuration(resetsAt.timeIntervalSince(now))
+        case .absolute: return Formatters.compactClock(resetsAt, now: now)
+        }
     }
 
     /// When the quota is projected to run out before it resets, that instant.
@@ -74,45 +54,5 @@ extension WidgetData {
               )
         else { return nil }
         return now.addingTimeInterval(seconds)
-    }
-
-    /// "in 2h 41m", or "Tue 5 PM" under the clock setting; "soon" within five minutes.
-    func resetPhrase(for date: Date, now: Date = Date()) -> String {
-        let seconds = date.timeIntervalSince(now)
-        guard seconds > 5 * 60 else { return Formatters.imminent }
-        switch resetDisplayMode {
-        case .relative: return "in " + (Formatters.compactDuration(seconds) ?? Formatters.imminent)
-        case .absolute: return Formatters.compactClock(date, now: now)
-        }
-    }
-
-    private func hoverTails(state: MeterState, now: Date) -> [[DashboardRowModel.Span]] {
-        func note(_ text: String, _ tint: MeterSeverity? = nil) -> DashboardRowModel.Span {
-            DashboardRowModel.Span(text: "· " + text, role: .note, tint: tint)
-        }
-        if isFreshSessionWindow(now: now) {
-            return [[note("starts when you first use it")], [note("not started")], []]
-        }
-        guard let resetsAt else {
-            // A cap with no reset date says what it is a cap on ("$500 limit"); a plain count says nothing.
-            guard kind != .count || periodDurationMs != nil, let subtitle = boundedSubtitle else { return [[]] }
-            return [[note(subtitle.prefix(1).lowercased() + subtitle.dropFirst())], []]
-        }
-        let reset = resetPhrase(for: resetsAt, now: now)
-        switch state {
-        case .spent, .runningOut:
-            guard let runsOut = runsOutAt(now: now) else { return [[note("resets " + reset)], [note(reset)], []] }
-            let runway = resetPhrase(for: runsOut, now: now)
-            return [
-                [note("runs out " + runway, .critical), note("resets " + reset)],
-                [note("runs out " + runway, .critical)],
-                [note("out " + runway, .critical)],
-                [],
-            ]
-        case .closeToLimit:
-            return [[note("close at this pace", .warning), note("resets " + reset)], [note("resets " + reset)], [note(reset)], []]
-        case .healthy, .level, .noData:
-            return [[note("resets " + reset)], [note(reset)], []]
-        }
     }
 }

@@ -449,7 +449,7 @@ final class WidgetDataStore {
         case .progress(_, let used, let limit, let format, let resetsAt, let periodDurationMs, _):
             // A percent meter is a bounded 0...100 domain; sanitize an out-of-range sample (a provider
             // reporting a negative or >100 utilization) here, at the single construction choke point
-            // every provider funnels through, so no surface — the row, its hover text, the menu bar — can
+            // every provider funnels through, so no surface — the row, the menu bar — can
             // render "-5%" or "105%". For percent the limit is always 100, so clamping `used` also
             // keeps the meter's spent verdict intact (>=100 still reads spent). Non-percent
             // meters keep their raw `used`: a dollar/count overage (used > limit) is real and is
@@ -464,8 +464,7 @@ final class WidgetDataStore {
                 countSuffix: format.countSuffix,
                 valuePrefix: descriptor.sample.valuePrefix,
                 resetsAt: resetsAt,
-                periodDurationMs: periodDurationMs,
-                limitNoun: descriptor.sample.limitNoun
+                periodDurationMs: periodDurationMs
             )
             // Descriptor opt-in (session-window meters read "Not started" when unused); the fresh
             // `.progress` result doesn't start from the sample, so carry the signal explicitly.

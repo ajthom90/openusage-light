@@ -9,8 +9,6 @@ struct ShareCardView: View {
     let family: DashboardFamily
     /// The plan of an account, by its id.
     var plans: [String: String] = [:]
-    /// The panel's label column, so the image matches the screen.
-    var labelWidth: CGFloat = DashboardGrid.minimumLabelWidth
     let appearance: ColorScheme
 
     /// Authored card width in points. The renderer multiplies this by `ShareCardRenderer.scale` for the
@@ -23,10 +21,7 @@ struct ShareCardView: View {
             DashboardProviderSection(family: shown, plans: plans) {
                 ProviderIcon(source: shown.provider.icon, inset: 0.04)
             } account: { account in
-                DashboardAccountRows(
-                    account: account, plan: plans[account.id], labelWidth: labelWidth,
-                    showsCaption: shown.soleAccount == nil
-                )
+                DashboardAccountRows(account: account, plan: plans[account.id], showsCaption: shown.soleAccount == nil)
             }
         }
     }
