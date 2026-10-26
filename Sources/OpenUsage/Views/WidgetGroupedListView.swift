@@ -1,16 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// The dashboard display: one card per provider, holding each of its accounts (`DashboardFamily`).
-/// Every account shows its plan and reset tags and every metric that has data, fed by the same
-/// `WidgetDataStore` the menu bar uses. A card with one account shows them in its header and has no
-/// account name line. The ↺ tag is the one thing that reacts to hover or a click: it opens the account's
-/// resets timeline, where a reset is claimed. A double-click on an account's name renames it, the same
-/// as the menu's Rename.
+/// The dashboard display: one provider after another (`DashboardFamily`), each a header above a card
+/// of its accounts, every account one row per metric that has data, fed by the same `WidgetDataStore`
+/// the menu bar uses. Nothing shows at rest beyond the labels, the bars and the values. Under the
+/// pointer a row lights and reads out, and its account's resets open below it after a moment; while the
+/// pointer is anywhere on a provider its logo turns into the copy button. A double-click on an
+/// account's name, in the header or on its caption, renames it, the same as the menu's Rename.
 ///
-/// Right-click a provider's card, an account, or a metric line for its menu (`DashboardMenus`); a
-/// one-account card's menu holds the account's commands too. Everything reorders by dragging: a card by
-/// its header, an account by its name line within its card, a metric line within its account.
+/// Right-click a provider's header or card, an account, or a metric row for its menu (`DashboardMenus`);
+/// a one-account provider's menu holds the account's commands too. Everything reorders by dragging: a
+/// provider by its header, an account by its caption within its card, a metric row within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
     @Environment(LayoutStore.self) private var layout
@@ -24,22 +24,18 @@ struct WidgetGroupedListView: View {
     @State private var activeMetricID: String?
     @State private var activeAccountID: String?
     @State private var activeFamilyID: String?
+    /// The provider under the pointer, whose logo is the copy button.
+    @State private var hoveredFamilyID: String?
 
     var body: some View {
-        let groups = layout.displayGroups
-        let families = DashboardFamily.make(groups: groups, line: resolveLine)
-        VStack(alignment: .leading, spacing: DashboardBox.cardSpacing) {
+        let families = liveFamilies()
+        let labelWidth = DashboardGrid.labelWidth(for: families)
+        VStack(alignment: .leading, spacing: DashboardGrid.sectionSpacing) {
             ForEach(families) { family in
-                DashboardProviderCard(
-                    family: family,
-                    badges: badges,
-                    handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
-                ) { account in
-                    accountSection(account, in: family)
-                }
-                .contextMenu { DashboardMenu(sections: cardMenu(family), perform: perform) }
-                .opacity(activeFamilyID == Self.familyFrameID(family.id) ? 0 : 1)
-                .reorderFrame(id: Self.familyFrameID(family.id), in: .named(reorderSpaceName))
+                section(family, labelWidth: labelWidth)
+                    .contextMenu { DashboardMenu(sections: familyMenu(family), perform: perform) }
+                    .opacity(activeFamilyID == Self.familyFrameID(family.id) ? 0 : 1)
+                    .reorderFrame(id: Self.familyFrameID(family.id), in: .named(reorderSpaceName))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -52,24 +48,97 @@ struct WidgetGroupedListView: View {
         return DashboardLine(descriptor: descriptor, data: dataStore.data(for: descriptor))
     }
 
-    /// The account's visible line ids, read live so a drag sees each reorder it has already made.
-    private func visibleLineIDs(for accountID: String) -> [String] {
-        let groups = layout.displayGroups.filter { $0.provider.id == accountID }
-        guard let account = DashboardFamily.make(groups: groups, line: resolveLine).first?.accounts.first else {
-            return []
+    private func liveFamilies() -> [DashboardFamily] {
+        DashboardFamily.make(groups: layout.displayGroups, line: resolveLine)
+    }
+
+    private func plans(for family: DashboardFamily) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: family.accounts.compactMap { account in
+            dataStore.plan(for: account.id).map { (account.id, $0) }
+        })
+    }
+
+    private func status(for accountID: String) -> AccountStatus {
+        AccountStatus(
+            refreshing: dataStore.refreshingProviderIDs.contains(accountID),
+            notice: dataStore.headerNotice(for: accountID),
+            staleness: dataStore.stalenessHint(for: accountID)
+        )
+    }
+
+    // MARK: - Sections
+
+    /// A provider with its hover: while the pointer is on its header or card, the logo is the copy button.
+    private func section(_ family: DashboardFamily, labelWidth: CGFloat) -> some View {
+        let plans = plans(for: family)
+        return DashboardProviderSection(
+            family: family,
+            plans: plans,
+            status: family.soleAccount.map { status(for: $0.id) } ?? AccountStatus(),
+            handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
+        ) {
+            DashboardCopyButton(provider: family.provider, active: hoveredFamilyID == family.id) {
+                copyImage(of: family, plans: plans, labelWidth: labelWidth)
+            }
+        } account: { account in
+            accountSection(account, in: family, labelWidth: labelWidth)
         }
-        return account.lines.map(\.id)
+        .contentShape(Rectangle())
+        .onHover { inside in
+            if inside {
+                hoveredFamilyID = family.id
+            } else if hoveredFamilyID == family.id {
+                hoveredFamilyID = nil
+            }
+        }
     }
 
-    /// Metrics the user hid from this account that have something to show.
-    private func hiddenMetricIDs(for accountID: String) -> [String] {
-        layout.orderedSupportedMetrics(for: accountID)
-            .filter { !layout.isMetricEnabled($0.id) && dataStore.data(for: $0).hasData }
-            .map(\.id)
+    /// An account with its menu and drag. In a one-account card it is only its rows: the header and the
+    /// provider's menu stand in for its caption and menu, and there is no other account to reorder.
+    @ViewBuilder
+    private func accountSection(_ account: DashboardAccount, in family: DashboardFamily, labelWidth: CGFloat) -> some View {
+        if family.soleAccount != nil {
+            rows(of: account, labelWidth: labelWidth)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                DashboardAccountCaption(account: account, plan: dataStore.plan(for: account.id), status: status(for: account.id))
+                    .highPriorityGesture(accountDragGesture(for: account, in: family))
+                rows(of: account, labelWidth: labelWidth)
+            }
+            .contextMenu {
+                DashboardMenu(
+                    sections: DashboardMenus.account(
+                        account,
+                        status: statusReason(for: account.id),
+                        canShare: canShare(account.id),
+                        hasHiddenMetrics: !hiddenMetricIDs(for: account.id).isEmpty
+                    ),
+                    perform: perform
+                )
+            }
+            .opacity(activeAccountID == account.id ? 0 : 1)
+            .reorderFrame(id: account.id, in: .named(reorderSpaceName))
+        }
     }
 
-    /// A one-account card's menu merges the account's commands into the provider's.
-    private func cardMenu(_ family: DashboardFamily) -> DashboardMenus.Sections {
+    /// The account's rows, each with its hover, right-click menu and drag.
+    private func rows(of account: DashboardAccount, labelWidth: CGFloat) -> some View {
+        ForEach(account.lines) { line in
+            DashboardHoverRow(line: line, account: account, labelWidth: labelWidth, resetClaim: container.resetClaim(for: account.id))
+                .opacity(activeMetricID == line.id ? 0 : 1)
+                .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
+                .contextMenu {
+                    DashboardMenu(
+                        sections: DashboardMenus.metric(line.descriptor, isStarred: layout.isPinned(line.descriptor.id)),
+                        perform: perform
+                    )
+                }
+                .reorderFrame(id: line.id, in: .named(reorderSpaceName))
+        }
+    }
+
+    /// A one-account provider's menu merges the account's commands into the provider's.
+    private func familyMenu(_ family: DashboardFamily) -> DashboardMenus.Sections {
         guard let account = family.soleAccount else { return DashboardMenus.provider(family) }
         return DashboardMenus.soleAccount(
             account,
@@ -88,75 +157,18 @@ struct WidgetGroupedListView: View {
         layout.displayGroups.contains { $0.provider.id == accountID }
     }
 
-    private func badges(for account: DashboardAccount) -> AccountBadges {
-        AccountBadges(
-            resets: account.resets,
-            plan: dataStore.plan(for: account.id),
-            notice: dataStore.headerNotice(for: account.id),
-            refreshing: dataStore.refreshingProviderIDs.contains(account.id),
-            staleness: dataStore.stalenessHint(for: account.id),
-            resetClaim: container.resetClaim(for: account.id)
-        )
+    /// Metrics the user hid from this account that have something to show.
+    private func hiddenMetricIDs(for accountID: String) -> [String] {
+        layout.orderedSupportedMetrics(for: accountID)
+            .filter { !layout.isMetricEnabled($0.id) && dataStore.data(for: $0).hasData }
+            .map(\.id)
     }
 
-    /// An account with its menu and drag. On a one-account card it is only its metric lines: the card's
-    /// header and menu stand in for its name line and menu, and there is no other account to reorder.
-    @ViewBuilder
-    private func accountSection(_ account: DashboardAccount, in family: DashboardFamily) -> some View {
-        if family.soleAccount != nil {
-            plainAccountSection(account, in: family) { metricLine($0, in: account) }
-        } else {
-            plainAccountSection(
-                account,
-                in: family,
-                handle: { AnyView($0.highPriorityGesture(accountDragGesture(for: account, in: family))) }
-            ) { line in
-                metricLine(line, in: account)
-            }
-            .contextMenu {
-                DashboardMenu(
-                    sections: DashboardMenus.account(
-                        account,
-                        status: statusReason(for: account.id),
-                        canShare: canShare(account.id),
-                        hasHiddenMetrics: !hiddenMetricIDs(for: account.id).isEmpty
-                    ),
-                    perform: perform
-                )
-            }
-            .opacity(activeAccountID == account.id ? 0 : 1)
-            .reorderFrame(id: account.id, in: .named(reorderSpaceName))
-        }
-    }
+    // MARK: - Copying
 
-    private func plainAccountSection<Line: View>(
-        _ account: DashboardAccount,
-        in family: DashboardFamily,
-        handle: @escaping (AnyView) -> AnyView = { $0 },
-        @ViewBuilder line: @escaping (DashboardLine) -> Line
-    ) -> some View {
-        DashboardAccountSection(
-            account: account,
-            badges: badges(for: account),
-            showsAccountLine: family.soleAccount == nil,
-            handle: handle,
-            line: line
-        )
-    }
-
-    /// A metric line with its right-click menu. It drags to reorder within its account.
-    private func metricLine(_ line: DashboardLine, in account: DashboardAccount) -> some View {
-        DashboardMetricLine(data: line.data)
-            .contentShape(Rectangle())
-            .opacity(activeMetricID == line.id ? 0 : 1)
-            .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
-            .contextMenu {
-                DashboardMenu(
-                    sections: DashboardMenus.metric(line.descriptor, isStarred: layout.isPinned(line.descriptor.id)),
-                    perform: perform
-                )
-            }
-            .reorderFrame(id: line.id, in: .named(reorderSpaceName))
+    /// Copies an image of the provider's header and card at rest to the clipboard.
+    private func copyImage(of family: DashboardFamily, plans: [String: String], labelWidth: CGFloat) -> Bool {
+        ShareCardRenderer.copy(ShareCardView(family: family, plans: plans, labelWidth: labelWidth, appearance: colorScheme))
     }
 
     // MARK: - Menu commands
@@ -177,7 +189,7 @@ struct WidgetGroupedListView: View {
             openAccounts(accountID)
         case .shareScreenshot(let accountID):
             guard let group = layout.displayGroups.first(where: { $0.provider.id == accountID }) else { return }
-            _ = ShareCardRenderer.share(group: group, dataStore: dataStore, layout: layout, appearance: colorScheme)
+            ShareCardRenderer.share(group: group, dataStore: dataStore, layout: layout, appearance: colorScheme)
         case .showHiddenMetrics(let accountID):
             layout.showMetrics(hiddenMetricIDs(for: accountID))
         case .toggleStar(let descriptorID):
@@ -201,6 +213,11 @@ struct WidgetGroupedListView: View {
 
     // MARK: - Reordering
 
+    /// The account's visible line ids, read live so a drag sees each reorder it has already made.
+    private func visibleLineIDs(for accountID: String) -> [String] {
+        liveFamilies().flatMap(\.accounts).first { $0.id == accountID }?.lines.map(\.id) ?? []
+    }
+
     private func metricDragGesture(for line: DashboardLine, accountID: String) -> some Gesture {
         reorderDragGesture(
             id: line.id,
@@ -209,8 +226,8 @@ struct WidgetGroupedListView: View {
             active: $activeMetricID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardMetricLine(data: line.data)
-                    .padding(.horizontal, 4)
+                let preview = DashboardMetricRow(model: line.data.dashboardRow(), labelWidth: DashboardGrid.labelWidth(for: liveFamilies()))
+                    .padding(.horizontal, DashboardGrid.cardPadding)
                     .liftedRowSurface()
                 return ReorderLift.make(id: line.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
@@ -221,10 +238,6 @@ struct WidgetGroupedListView: View {
 
     private static func familyFrameID(_ familyID: String) -> String { "family:\(familyID)" }
 
-    private func liveFamilies() -> [DashboardFamily] {
-        DashboardFamily.make(groups: layout.displayGroups, line: resolveLine)
-    }
-
     private func accountDragGesture(for account: DashboardAccount, in family: DashboardFamily) -> some Gesture {
         reorderDragGesture(
             id: account.id,
@@ -233,8 +246,12 @@ struct WidgetGroupedListView: View {
             active: $activeAccountID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = plainAccountSection(account, in: family) { DashboardMetricLine(data: $0.data) }
-                    .liftedRowSurface()
+                let preview = DashboardAccountRows(
+                    account: account, plan: dataStore.plan(for: account.id),
+                    labelWidth: DashboardGrid.labelWidth(for: liveFamilies())
+                )
+                .padding(DashboardGrid.cardPadding)
+                .liftedRowSurface()
                 return ReorderLift.make(id: account.id, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },
             orderedIDs: { liveFamilies().first { $0.id == family.id }?.accounts.map(\.id) ?? [] },
@@ -251,8 +268,15 @@ struct WidgetGroupedListView: View {
             active: $activeFamilyID,
             lift: $reorderLift,
             makeLift: { value in
-                let preview = DashboardProviderCard(family: family, badges: badges) {
-                    plainAccountSection($0, in: family) { DashboardMetricLine(data: $0.data) }
+                let plans = plans(for: family)
+                let labelWidth = DashboardGrid.labelWidth(for: liveFamilies())
+                let preview = DashboardProviderSection(family: family, plans: plans) {
+                    ProviderIcon(source: family.provider.icon, inset: 0.04)
+                } account: { account in
+                    DashboardAccountRows(
+                        account: account, plan: plans[account.id], labelWidth: labelWidth,
+                        showsCaption: family.soleAccount == nil
+                    )
                 }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },

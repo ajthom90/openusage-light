@@ -20,10 +20,6 @@ struct WidgetData: Hashable {
     var displayMode: WidgetDisplayMode = .used
     /// Global relative/absolute reset display, stamped by `WidgetDataStore` (like `displayMode`).
     var resetDisplayMode: ResetDisplayMode = .relative
-    /// Global "always show pacing" opt-in, stamped by `WidgetDataStore` (like `displayMode`). When on,
-    /// the blue/healthy row also shows the even-pace tick and its projection copy. Orange and red rows
-    /// always show the tick when a reset window exists; this toggle only adds it on blue.
-    var alwaysShowPacing: Bool = false
     var resetsAt: Date?
     /// Zero or more future expiry instants surfaced in the row's hover tooltip (Codex rate-limit-reset
     /// credits — one entry per still-available credit). Empty for every other row. Kept as raw `Date`s so
@@ -107,8 +103,8 @@ struct WidgetData: Hashable {
         case normal, warning, critical
     }
 
-    /// The meter's full visual state, derived once (`meterState(now:)`) so the bar color, the
-    /// tick (`paceTick(for:)`), and the label-line warning copy can never contradict each other.
+    /// The meter's full visual state, derived once (`meterState(now:)`) so the bar color and the
+    /// row's hover text can never contradict each other.
     /// Precedence, highest first: no data → spent → live pace verdict → absolute level bands.
     enum MeterState: Hashable {
         /// No real metric backs the tile — gray, empty track, no copy.
@@ -417,8 +413,7 @@ extension WidgetData {
     ///    used, red once 10% or less is left, rounded to the whole percent the headline shows.
     ///
     /// Every band keys off the share *used*, never the displayed fraction, so the color and copy
-    /// don't flip with the Used/Left toggle. The even-pace tick (`paceTick(for:)`) is independent:
-    /// orange and red always show it when a reset window exists; blue only with "always show pacing".
+    /// don't flip with the Used/Left toggle.
     func meterState(now: Date = Date()) -> MeterState {
         guard hasData, let limit, limit > 0 else { return hasData ? .level(.normal) : .noData }
         if roundedAtDisplayPrecision(limit - used) <= 0 { return .spent }
@@ -466,24 +461,6 @@ extension WidgetData {
         if percentUsed >= 90 { return .level(.critical) }
         if percentUsed >= 80 { return .level(.warning) }
         return .level(.normal)
-    }
-
-    /// Even-pace tick position on the bar (0...1), or `nil` when hidden. Always the elapsed fraction
-    /// of the reset window, framed like the fill (Used view → share used at an even burn; Left view →
-    /// share remaining). Orange and red pace states always show it; blue `healthy` only when
-    /// `alwaysShowPacing` is on. Spent, no-data, and rows without a reset window never show a tick.
-    func paceTick(for state: MeterState, now: Date = Date()) -> Double? {
-        switch state {
-        case .spent, .noData, .level: return nil
-        case .healthy: guard alwaysShowPacing else { return nil }
-        case .closeToLimit, .runningOut: break
-        }
-        guard let ctx = paceContext else { return nil }
-        let windowStart = ctx.resetsAt.addingTimeInterval(-ctx.period)
-        let elapsed = now.timeIntervalSince(windowStart)
-        guard elapsed >= Pace.minimumElapsed(periodDuration: ctx.period), now < ctx.resetsAt else { return nil }
-        let elapsedFraction = min(max(elapsed / ctx.period, 0), 1)
-        return displayMode == .remaining ? 1 - elapsedFraction : elapsedFraction
     }
 
     /// Trailing text on the bounded primary row, reset-display-mode aware. Priority mirrors
@@ -540,19 +517,5 @@ extension WidgetData {
         return resetDisplayMode == .absolute
             ? Formatters.resetRelativeLabel(until: resetsAt, now: now)
             : Formatters.resetAbsoluteLabel(at: resetsAt, now: now)
-    }
-}
-
-extension WidgetData {
-    /// The neighbor-aware condensing rule, in one place: within a list of rows, the offsets
-    /// of text-only rows that sit directly under another text-only row. A text-only row has no meter fill
-    /// (`!isBounded`); a run of them (Today / Yesterday / Last 30 Days) pulls up into one cluster. The
-    /// dashboard maps these offsets back to descriptor IDs; the share-card export maps them to flat indices.
-    static func condensedTextRowOffsets(in rows: [WidgetData]) -> Set<Int> {
-        var offsets = Set<Int>()
-        for index in rows.indices.dropFirst() where !rows[index - 1].isBounded && !rows[index].isBounded {
-            offsets.insert(index)
-        }
-        return offsets
     }
 }

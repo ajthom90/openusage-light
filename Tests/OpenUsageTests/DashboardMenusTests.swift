@@ -1,7 +1,8 @@
 import XCTest
 @testable import OpenUsage
 
-/// Apart from the ↺ tag's resets popover, right-click is the only way to act on the dashboard.
+/// Apart from the copy button and the Limit Resets row's popover, right-click is the only way to act on
+/// the dashboard.
 @MainActor
 final class DashboardMenusTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
@@ -14,15 +15,15 @@ final class DashboardMenusTests: XCTestCase {
     }
 
     private func account(resetExpiries: [Date]? = nil) -> DashboardAccount {
-        var resets: WidgetData?
+        var lines: [DashboardLine] = []
         if let resetExpiries {
-            var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("claude"), kind: .count, used: 2, limit: nil)
+            var data = WidgetData(title: "Limit Resets", icon: .providerMark("claude"), kind: .count, used: 2, limit: nil)
             data.values = [MetricValue(number: 2, kind: .count, label: "available")]
             data.showsResetExpiries = true
             data.expiriesAt = resetExpiries
-            resets = data
+            lines = [DashboardLine(descriptor: WidgetDescriptor(id: "resets", providerID: "claude", metricLabel: data.title, sample: data), data: data)]
         }
-        return DashboardAccount(provider: claude, lines: [], resets: resets)
+        return DashboardAccount(provider: claude, lines: lines)
     }
 
     func testTheProviderMenuRefreshesManagesAndOpensTheLinks() {
@@ -46,8 +47,8 @@ final class DashboardMenusTests: XCTestCase {
         ])
     }
 
-    /// The menu says why the account line shows a warning and that metrics are hidden. Resets live in
-    /// the ↺ tag's popover, so the menu has no reset item even when the account has resets.
+    /// The menu says why the caption shows a warning and that metrics are hidden. Resets live in the
+    /// Limit Resets row's popover, so the menu has no reset item even when the account has resets.
     func testTheAccountMenuExplainsItsStatusAndShowsHiddenMetrics() {
         let menu = DashboardMenus.account(
             account(resetExpiries: [now.addingTimeInterval(6 * 86_400)]),
@@ -66,7 +67,7 @@ final class DashboardMenusTests: XCTestCase {
         XCTAssertEqual(menu[3][0].command, .showHiddenMetrics("claude@1"))
     }
 
-    /// A card with one account has no account line, so its menu carries the account's commands and the
+    /// A provider with one account has no caption, so its menu carries the account's commands and the
     /// provider's, with one Refresh.
     func testAOneAccountCardsMenuMergesTheAccountAndProviderMenus() {
         let menu = DashboardMenus.soleAccount(

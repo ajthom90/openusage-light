@@ -1,20 +1,16 @@
 import SwiftUI
 
-/// An off-screen, branded PNG of one provider's usage, rendered for the right-click "Share Screenshot"
-/// action. It is a static snapshot — no drag grips, spinners, staleness tags, or refresh warnings — that
-/// mirrors what the provider's card currently shows in the popover, drawn at the popover's own scale and
-/// rasterized at ×4 for a crisp, large share image.
-///
-/// The layout is intentionally not a fixed canvas: the card height grows with its rows, so a provider
-/// with few metrics exports a short card and one with many a tall one, with little wasted whitespace. The view
-/// takes already-resolved `[WidgetData]` (not a store), so it has no environment dependency and renders
-/// the same way in the app and in tests. It paints an opaque `Theme.traySurface` background (an
-/// `ImageRenderer` has no window backdrop) and forces the appearance via `.environment(\.colorScheme, …)`
-/// so a Light-mode user gets a light card even when the OS is in dark mode.
+/// The image the copy button and the right-click "Share Screenshot" put on the clipboard: one provider's
+/// header and card as the dashboard draws them at rest — no hover, no popover, the logo in place — on the
+/// panel's background, with the watermark footer, rasterized at ×4. An account named by its email reads
+/// as its provider alone, so the email never leaves the panel. The view takes already-resolved data, so
+/// it has no environment dependency and renders the same way in the app and in tests.
 struct ShareCardView: View {
-    let provider: Provider
-    var plan: String?
-    let rows: [WidgetData]
+    let family: DashboardFamily
+    /// The plan of an account, by its id.
+    var plans: [String: String] = [:]
+    /// The panel's label column, so the image matches the screen.
+    var labelWidth: CGFloat = DashboardGrid.minimumLabelWidth
     let appearance: ColorScheme
 
     /// Authored card width in points. The renderer multiplies this by `ShareCardRenderer.scale` for the
@@ -22,59 +18,15 @@ struct ShareCardView: View {
     static let width: CGFloat = 360
 
     var body: some View {
+        let shown = family.hidingEmails
         ShareCardChrome(appearance: appearance) {
-            headerRow
-            metricsCard
-        }
-    }
-
-    // MARK: - Header
-
-    /// Provider mark + name (+ optional plan), leading — logo, then name, then plan — at the popover's
-    /// type scale so it sits in proportion to the rows. Static: no drag grip, spinner, staleness tag, or
-    /// warning triangle.
-    var headerRow: some View {
-        HStack(spacing: 10) {
-            ProviderIcon(source: provider.icon, inset: 0.04)
-                .frame(width: 22, height: 22)
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(provider.displayName)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                if let plan, !plan.isEmpty {
-                    Text(plan)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .layoutPriority(1)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    // MARK: - Body
-
-    /// The provider's visible metric rows in the shared card surface, drawn by `WidgetRowView`. An empty
-    /// provider falls back to a quiet placeholder so the card never renders blank.
-    @ViewBuilder
-    private var metricsCard: some View {
-        if rows.isEmpty {
-            DashboardMetricCard {
-                Text("No metrics to show")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-            }
-        } else {
-            DashboardMetricCard {
-                let condensed = WidgetData.condensedTextRowOffsets(in: rows)
-                ForEach(Array(rows.enumerated()), id: \.offset) { index, data in
-                    WidgetRowView(data: data, condensedTop: condensed.contains(index))
-                }
+            DashboardProviderSection(family: shown, plans: plans) {
+                ProviderIcon(source: shown.provider.icon, inset: 0.04)
+            } account: { account in
+                DashboardAccountRows(
+                    account: account, plan: plans[account.id], labelWidth: labelWidth,
+                    showsCaption: shown.soleAccount == nil
+                )
             }
         }
     }

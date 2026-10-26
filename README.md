@@ -18,21 +18,21 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-The dashboard has one card per provider. Each account shows its name with its plan as a tag on the right, then every metric that has data, in the order you set. When a provider has only one account, the card's header shows that account's name next to the logo, with its tags on the right, and the metrics follow straight below. Apart from the ↺ tag and a double-click on an account's name, nothing on the dashboard reacts to hover or a click. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
+The dashboard has a header and a card per provider. The header names the provider, and the account too when there is one with a name of its own ("Codex — Sunstory"), with its plan and the provider's logo at the right end. The card holds every metric that has data, in the order you set, one row each: the label and a bar that fills with what is left (blue; orange when it is on course to run close; red when it is projected to run out before it resets), or a value for a balance or a count. When a provider has several accounts, each is named inside the card above its rows. Rest the pointer on a row to read it ("64% left · resets in 2h 41m") and, a moment later, to see the account's resets, soonest first. While the pointer is on a provider, its logo becomes a button that copies a picture of that provider's header and card; the picture uses the account's name when you have set one and leaves an email out. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
 
 Right-click for actions:
 
-- A provider's card: Refresh, Manage Accounts…, and the provider's links, such as Status Page and Usage Dashboard.
-- An account: Refresh, Rename, Edit Account…, and Share Screenshot. If the account line shows a warning or stale icon, the menu starts with the reason. Show Hidden Metrics appears when you have hidden any.
+- A provider's header or card: Refresh, Manage Accounts…, and the provider's links, such as Status Page and Usage Dashboard.
+- An account: Refresh, Rename, Edit Account…, and Share Screenshot. If the account's name shows a warning or stale icon, the menu starts with the reason. Show Hidden Metrics appears when you have hidden any.
 - A metric: Star for Menu Bar (or Unstar) and Hide. Hiding a metric, here or on the Accounts screen, also takes its star off the menu bar. Starring a hidden metric shows it again.
 
-On a card with one account, the header's menu combines the two: the warning reason if there is one, Refresh, Rename, Edit Account…, Manage Accounts…, Share Screenshot, Show Hidden Metrics, and the provider's links.
+On a provider with one account, the menu combines the two: the warning reason if there is one, Refresh, Rename, Edit Account…, Manage Accounts…, Share Screenshot, Show Hidden Metrics, and the provider's links.
 
-Drag a card by its header, an account by its name, or a metric by its line to reorder them. A new provider goes to the bottom of the dashboard and the Accounts list, and a new account goes to the bottom of its provider's accounts.
+Drag a provider by its header, an account by its name, or a metric by its row to reorder them. A new provider goes to the bottom of the dashboard and the Accounts list, and a new account goes to the bottom of its provider's accounts.
 
 When the menu bar shows more than one account of a provider, each mark carries a two-character tag from the account's name. The tag keeps the account's number, so "Attention Machine 1" and "Attention Machine 2" read A1 and A2. Names that would share a tag show the first letter that differs, such as WO and WE for Work and Web.
 
-Claude and Codex accounts show a ↺ tag with the number of available rate-limit resets. It turns orange when the soonest one expires within 7 days and red within 48 hours. Hover or click the tag to see when each reset expires. To spend one, hover its row, choose Use, then Reset.
+Claude and Codex accounts show a Limit Resets row with the number of available rate-limit resets while they have any. Rest the pointer on the row to see when each reset expires. To spend one, hover its line there, choose Use, then Reset.
 
 ## Building
 

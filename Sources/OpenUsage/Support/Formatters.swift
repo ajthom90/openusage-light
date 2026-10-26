@@ -94,6 +94,18 @@ enum Formatters {
         return monthDayLabel(date)
     }
 
+    /// The clock reading with its day, for the resets popover: "Today 5:50 PM", "Tomorrow 10:00 PM",
+    /// "Wed 4 PM" within the week, "Nov 1" further out.
+    static func dayClock(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let days = calendar.dateComponents(
+            [.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: date)
+        ).day ?? 0
+        if days <= 0 { return "Today " + TimeFormatSetting.current.shortTime(date) }
+        if days == 1 { return "Tomorrow " + TimeFormatSetting.current.shortTime(date) }
+        if days < 7 { return TimeFormatSetting.current.weekdayHour(date) }
+        return monthDayLabel(date)
+    }
+
     /// Compact "Xd Yh" / "Xh Ym" / "Xm" duration. At the day scale it always shows two units — the
     /// hours ride along even when zero ("4d 0h") — so a span 4 days + 52 min out never reads as a flat
     /// "4d" that hides the sub-day remainder. Minutes are dropped at the day scale.

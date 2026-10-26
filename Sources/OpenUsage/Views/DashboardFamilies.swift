@@ -2,24 +2,44 @@ import Foundation
 
 /// The dashboard's shape: one card per provider (Claude, Codex, …) holding that provider's accounts in
 /// the user's account order. Built from `LayoutStore.displayGroups`, which has one group per account.
-/// Every enabled reading that carries data becomes a line, except the Rate Limit Resets reading: while a
-/// reset is available it rides on the account line as the ↺ tag instead.
+/// Every enabled reading that carries data becomes a line; the Limit Resets reading only while a reset
+/// is available.
 struct DashboardFamily: Identifiable {
     let id: String
     /// The first account's provider, which supplies the card's mark and name.
     let provider: Provider
     var accounts: [DashboardAccount]
 
-    /// The card's account when it has exactly one. Its header then stands in for the account's name line.
+    /// The card's account when it has exactly one. Its header then names the account.
     var soleAccount: DashboardAccount? { accounts.count == 1 ? accounts[0] : nil }
+
+    /// The sole account when it has a name of its own: the header reads "Provider — name". An account
+    /// named like its provider, or one of several, leaves the header to the provider alone.
+    var namedSoleAccount: DashboardAccount? {
+        guard let account = soleAccount, account.name != provider.displayName else { return nil }
+        return account
+    }
+
+    /// The header's text: "Codex — Sunstory", or "Claude" for several accounts.
+    var headerTitle: String {
+        guard let account = namedSoleAccount else { return provider.displayName }
+        return "\(provider.displayName) — \(account.name)"
+    }
+
+    /// The same family with every email address left out of its account names, for an image that
+    /// leaves the panel: an account named by its email reads as its provider alone.
+    var hidingEmails: DashboardFamily {
+        DashboardFamily(
+            id: id, provider: provider.hidingEmail,
+            accounts: accounts.map { DashboardAccount(provider: $0.provider.hidingEmail, lines: $0.lines) }
+        )
+    }
 }
 
 struct DashboardAccount: Identifiable {
     let provider: Provider
     /// One line per enabled metric that has data, in the user's order.
     let lines: [DashboardLine]
-    /// The Rate Limit Resets reading, present only while at least one reset is available.
-    var resets: WidgetData?
 
     var id: String { provider.id }
     var name: String { provider.accountLabel ?? provider.displayName }
@@ -42,13 +62,10 @@ extension DashboardFamily {
     static func make(groups: [ProviderGroup], line: (PlacedWidget) -> DashboardLine?) -> [DashboardFamily] {
         var families: [DashboardFamily] = []
         for group in groups {
-            let all = group.widgets.compactMap(line)
-            let resets = all.first { $0.data.showsResetExpiries }?.data
-            let account = DashboardAccount(
-                provider: group.provider,
-                lines: all.filter { $0.data.hasData && !$0.data.showsResetExpiries },
-                resets: resets.flatMap { $0.hasData && $0.resetCreditCount > 0 ? $0 : nil }
-            )
+            let lines = group.widgets.compactMap(line).filter {
+                $0.data.hasData && (!$0.data.showsResetExpiries || $0.data.resetCreditCount > 0)
+            }
+            let account = DashboardAccount(provider: group.provider, lines: lines)
             let familyID = familyID(of: group.provider.id)
             if let index = families.firstIndex(where: { $0.id == familyID }) {
                 families[index].accounts.append(account)
@@ -57,5 +74,18 @@ extension DashboardFamily {
             }
         }
         return families
+    }
+}
+
+extension Provider {
+    /// Whether the account is named by an email address rather than a name of its own.
+    var isNamedByEmail: Bool {
+        accountLabel?.contains("@") ?? false
+    }
+
+    /// The provider with an email account name left out.
+    var hidingEmail: Provider {
+        guard isNamedByEmail else { return self }
+        return Provider(id: id, displayName: displayName, icon: icon, accountLabel: nil, links: links)
     }
 }

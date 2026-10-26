@@ -17,22 +17,25 @@ final class InlineRenameFocusTests: XCTestCase {
         let accounts: [String: String]
     }
 
-    /// A double-click on an account's name in a card with two accounts.
+    /// A double-click on an account's name on its caption, in a provider with two accounts.
     func testDoubleClickingAnAccountNameTakesTheKeyboard() async throws {
         let hosted = try await host()
         try await resignKey(hosted)
-        let nameLine = PanelMetrics.margin + DashboardBox.topPadding + 18 + DashboardBox.headerGap
-            + DashboardBox.accountPadding + DashboardAccountSection<EmptyView>.lineHeight / 2
-        try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardBox.inset + 10, y: nameLine), hosted)
+        let caption = PanelMetrics.margin + DashboardGrid.headerHeight + DashboardGrid.headerGap
+            + DashboardGrid.cardPadding + DashboardGrid.captionHeight / 2
+        try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardGrid.cardPadding + DashboardGrid.inset + 10, y: caption), hosted)
         try await assertRenameTakesTyping("Personal", hosted)
     }
 
-    /// A double-click on the account's name in a one-account card's header.
+    /// A double-click on the account's name in a one-account provider's header.
     func testDoubleClickingAOneAccountHeaderTakesTheKeyboard() async throws {
         let hosted = try await host(soleCodex: true)
         try await resignKey(hosted)
-        let header = PanelMetrics.margin + DashboardBox.topPadding + 9
-        try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardBox.inset + 16 + 6 + 10, y: header), hosted)
+        let header = PanelMetrics.margin + DashboardGrid.headerHeight / 2
+        // The name follows "Codex — " in the header's Title 3 Semibold.
+        let font = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold)
+        let prefix = ("Codex — " as NSString).size(withAttributes: [.font: font]).width
+        try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardGrid.cardPadding + DashboardGrid.inset + prefix + 10, y: header), hosted)
         try await assertRenameTakesTyping("Sunstory", hosted)
     }
 

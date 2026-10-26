@@ -4,9 +4,10 @@ import XCTest
 @testable import OpenUsage
 
 /// One severity palette: blue, orange, red. Each severity maps to its system colour, and the meter
-/// bar, the ↺ tag, the resets timeline dot and the claim banner all paint that same colour. The views
-/// are rasterized and their dominant opaque colour is matched to the nearest candidate colour, so a
-/// surface that drifts to yellow, the accent colour, or SwiftUI's own orange/red fails here.
+/// bar, the hovered row's text, the resets popover's dot, the claim timeline's dot and the claim banner
+/// all paint that same colour. The views are rasterized and their dominant opaque colour is matched to
+/// the nearest candidate colour, so a surface that drifts to yellow, the accent colour, or SwiftUI's own
+/// orange/red fails here.
 @MainActor
 final class SeverityPaletteTests: XCTestCase {
     private let d: TimeInterval = 86400
@@ -28,14 +29,29 @@ final class SeverityPaletteTests: XCTestCase {
         XCTAssertEqual(Self.nearest(NSColor(Theme.severityColor(nil))), "systemBlue")
     }
 
-    func testMeterChipTimelineDotAndBannerAgree() throws {
+    func testMeterHoverTextPopoverDotTimelineDotAndBannerAgree() throws {
         for (severity, name) in Self.palette {
-            let meter = UsageMeterBar(data: percent(), state: .level(severity)).frame(width: 60)
+            let meter = UsageMeterBar(fill: 1, severity: severity).frame(width: 60)
             XCTAssertEqual(try dominant(meter), name, "meter \(severity)")
 
-            let expiry = Date().addingTimeInterval(expiryOffset(severity))
-            XCTAssertEqual(try dominant(ResetCountChip(data: resets([expiry]))), name, "↺ tag \(severity)")
+            let tinted = severity == .normal ? nil : severity
+            let spans = [
+                DashboardRowModel.Span(text: "41%", role: .value, tint: tinted),
+                DashboardRowModel.Span(text: "left", role: .unit, tint: tinted),
+                DashboardRowModel.Span(text: "· runs out in 1d 8h", role: .note, tint: tinted),
+            ]
+            if let tinted {
+                XCTAssertEqual(try dominant(DashboardMetricRow.text(spans)), name, "hover text \(tinted)")
+            }
 
+            let node = AccountResetsTimeline.Node(
+                id: "weekly", date: Date(), title: "Weekly resets", when: "Today 5 PM · in 3h",
+                runway: nil, severity: severity, emphasized: false
+            )
+            let popover = AccountResetsPopover(title: "Codex", nodes: [node], onHoverChange: { _ in })
+            XCTAssertEqual(try dominant(popover), name, "popover dot \(severity)")
+
+            let expiry = Date().addingTimeInterval(expiryOffset(severity))
             let timeline = RateLimitResetsDetail(count: 1, expiries: [expiry], onHoverChange: { _ in })
             XCTAssertEqual(try dominant(timeline), name, "timeline dot \(severity)")
         }
@@ -74,22 +90,10 @@ final class SeverityPaletteTests: XCTestCase {
         }
     }
 
-    private func percent() -> WidgetData {
-        WidgetData(title: "Session", icon: .providerMark("claude"), kind: .percent, used: 100, limit: 100)
-    }
-
-    private func resets(_ expiries: [Date]) -> WidgetData {
-        var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"), kind: .count, used: Double(expiries.count), limit: nil)
-        data.values = [MetricValue(number: Double(expiries.count), kind: .count, label: "available")]
-        data.showsResetExpiries = true
-        data.expiriesAt = expiries
-        return data
-    }
-
     // MARK: - Colour sampling
 
     /// The most common fully opaque, saturated pixel of the rendered view (fills and glyphs, never the
-    /// gray text or the translucent capsule behind the ↺ tag), named by its nearest candidate colour.
+    /// gray text or a translucent track), named by its nearest candidate colour.
     private func dominant(_ view: some View) throws -> String {
         let renderer = ImageRenderer(content: view.environment(\.colorScheme, .light))
         renderer.scale = 2

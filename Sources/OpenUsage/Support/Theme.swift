@@ -47,6 +47,7 @@ enum Theme {
         static let l: CGFloat = 10
         static let xl: CGFloat = 12
         static let xxl: CGFloat = 14
+        static let xxxl: CGFloat = 16
     }
 
     // MARK: - Surfaces

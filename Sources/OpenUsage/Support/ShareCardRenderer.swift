@@ -52,11 +52,22 @@ enum ShareCardRenderer {
         return true
     }
 
-    /// Orchestrates a Share Screenshot action end to end: resolve the provider's visible rows from the data
-    /// store, build the card with the effective appearance, render it, and copy the PNG to the clipboard.
-    /// On a successful copy it asks the layout store to surface a transient "Copied to clipboard" pill —
-    /// a clipboard write gives no other signal that it landed.
-    /// The rows are every enabled metric of the provider, in the order the dashboard shows them.
+    /// Rasterizes the card and copies the PNG to the clipboard. Beeps and logs on failure, so a failed
+    /// export is never silently swallowed. Returns whether the PNG landed on the pasteboard; the caller
+    /// shows its own confirmation, since a clipboard write gives no other signal.
+    @discardableResult
+    static func copy(_ card: ShareCardView) -> Bool {
+        guard let image = image(for: card) else {
+            AppLog.error(.lifecycle, "share card: ImageRenderer produced no image for \(card.family.id)")
+            NSSound.beep()
+            return false
+        }
+        return copyToPasteboard(image)
+    }
+
+    /// The right-click and footer "Share Screenshot" action for one account: the account alone under its
+    /// provider's header, as the dashboard shows it, with the panel's label column. On a successful copy
+    /// it asks the layout store to surface the transient "Copied to clipboard" pill.
     @discardableResult
     static func share(
         group: ProviderGroup,
@@ -64,31 +75,18 @@ enum ShareCardRenderer {
         layout: LayoutStore,
         appearance: ColorScheme
     ) -> Bool {
-        let rows = group.widgets.compactMap { widget -> WidgetData? in
+        func line(_ widget: PlacedWidget) -> DashboardLine? {
             guard let descriptor = layout.descriptor(for: widget) else { return nil }
-            return dataStore.data(for: descriptor)
+            return DashboardLine(descriptor: descriptor, data: dataStore.data(for: descriptor))
         }
-        let view = ShareCardView(
-            provider: group.provider,
-            plan: dataStore.plan(for: group.provider.id),
-            rows: rows,
+        guard let family = DashboardFamily.make(groups: [group], line: line).first else { return false }
+        let card = ShareCardView(
+            family: family,
+            plans: dataStore.plan(for: group.provider.id).map { [group.provider.id: $0] } ?? [:],
+            labelWidth: DashboardGrid.labelWidth(for: DashboardFamily.make(groups: layout.displayGroups, line: line)),
             appearance: appearance
         )
-        return renderAndCopy(view, label: group.provider.id, layout: layout)
-    }
-
-    /// Shared render→copy pipeline for both share actions: rasterizes `view`, copies the PNG, and on a
-    /// successful copy surfaces the transient "Copied to clipboard" pill (a clipboard write gives no other
-    /// signal). Beeps and logs (naming the card with `label`) on failure, so a failed export is never
-    /// silently swallowed. Returns whether the PNG landed on the pasteboard.
-    @discardableResult
-    private static func renderAndCopy<Card: View>(_ view: Card, label: String, layout: LayoutStore) -> Bool {
-        guard let image = image(for: view) else {
-            AppLog.error(.lifecycle, "share card: ImageRenderer produced no image for \(label)")
-            NSSound.beep()
-            return false
-        }
-        guard copyToPasteboard(image) else { return false }
+        guard copy(card) else { return false }
         layout.presentShareConfirmation()
         return true
     }

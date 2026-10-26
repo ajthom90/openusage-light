@@ -128,9 +128,10 @@ final class AccountProviderRuntime: ProviderRuntime {
         }
     }
 
-    /// The row behind each Claude and Codex card's resets popover, where the account's resets are claimed.
+    /// Each Claude and Codex account's Limit Resets row, whose popover is where the account's resets are
+    /// claimed. The snapshot line keeps its "Rate Limit Resets" label.
     private static func rateLimitResets(id: String, provider: Provider) -> WidgetDescriptor {
-        .values(id: id, provider: provider, title: "Rate Limit Resets", metricLabel: "Rate Limit Resets",
+        .values(id: id, provider: provider, title: "Limit Resets", metricLabel: "Rate Limit Resets",
                 traySuffix: "resets", showsResetExpiries: true)
     }
 

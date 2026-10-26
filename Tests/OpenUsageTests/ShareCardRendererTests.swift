@@ -10,8 +10,9 @@ import SwiftUI
 final class ShareCardRendererTests: XCTestCase {
     private func sampleCard() -> ShareCardView {
         let provider = MockData.claude
-        let rows = MockData.descriptors(for: provider.id).map { $0.sample }
-        return ShareCardView(provider: provider, plan: "Max", rows: rows, appearance: .light)
+        let lines = MockData.descriptors(for: provider.id).map { DashboardLine(descriptor: $0, data: $0.sample) }
+        let family = DashboardFamily(id: provider.id, provider: provider, accounts: [DashboardAccount(provider: provider, lines: lines)])
+        return ShareCardView(family: family, plans: [provider.id: "Max"], appearance: .light)
     }
 
     func testImageRasterizesAtAuthoredWidthMultiple() throws {
@@ -40,24 +41,13 @@ final class ShareCardRendererTests: XCTestCase {
     }
 
     func testRendersEmptyProviderWithoutCrashing() throws {
-        let card = ShareCardView(provider: MockData.cursor, plan: nil, rows: [], appearance: .dark)
+        let empty = DashboardFamily(id: "cursor", provider: MockData.cursor, accounts: [DashboardAccount(provider: MockData.cursor, lines: [])])
+        let card = ShareCardView(family: empty, appearance: .dark)
         let image = try XCTUnwrap(ShareCardRenderer.image(for: card))
         let rep = try XCTUnwrap(image.representations.first)
         // Same scale-agnostic width check; the point is it doesn't crash on an empty provider.
         XCTAssertEqual(rep.pixelsWide % Int(ShareCardView.width), 0)
         XCTAssertGreaterThan(rep.pixelsHigh, 0)
-    }
-
-    /// The neighbor-aware condensing rule on a fixed fixture: a text-only row condenses only under
-    /// another text-only row.
-    func testCondensedTextRowOffsetsFollowNeighborRule() {
-        func row(bounded: Bool) -> WidgetData {
-            WidgetData(title: "Row", icon: .providerMark("claude"), kind: .percent, used: 0, limit: bounded ? 100 : nil)
-        }
-        // Meter, then a run of three text-only rows.
-        let rows = [row(bounded: true), row(bounded: false), row(bounded: false), row(bounded: false)]
-
-        XCTAssertEqual(WidgetData.condensedTextRowOffsets(in: rows), [2, 3])
     }
 
     // MARK: - Clipboard write result

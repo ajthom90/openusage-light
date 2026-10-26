@@ -38,7 +38,6 @@ final class WidgetDataStore {
 
     private static let meterStyleKey = "meterStyle"
     private static let resetDisplayModeKey = "resetDisplayMode"
-    private static let alwaysShowPacingKey = "alwaysShowPacing"
     /// How long a failed account refresh is skipped before the loop probes it again. A failed
     /// refresh isn't cached, so — unlike a success, which the snapshot cache gates for an interval —
     /// nothing else stops the loop from re-probing a broken account on every wake, making network calls
@@ -95,20 +94,12 @@ final class WidgetDataStore {
         didSet { defaults.set(resetDisplayMode.rawValue, forKey: Self.resetDisplayModeKey) }
     }
 
-    /// Global "always show pacing" opt-in: when on, on-track rows surface their pace projection (the
-    /// blue/healthy row gains its "~N% left at reset" copy + an even-pace tick, the orange tick switches
-    /// to the same even-pace line). Persisted across relaunch; defaults to `false` (every row unchanged).
-    var alwaysShowPacing: Bool {
-        didSet { defaults.set(alwaysShowPacing, forKey: Self.alwaysShowPacingKey) }
-    }
-
-    /// Restores the Usage Display preferences (meter style, reset-time format, always-show-pacing) to
-    /// their defaults — the Settings "Reset All Settings" path. Cached usage snapshots are data, not
-    /// settings, and stay untouched.
+    /// Restores the Usage Display preferences (meter style, reset-time format) to their defaults — the
+    /// Settings "Reset All Settings" path. Cached usage snapshots are data, not settings, and stay
+    /// untouched.
     func resetDisplaySettings() {
         meterStyle = .remaining
         resetDisplayMode = .relative
-        alwaysShowPacing = false
     }
 
     init(
@@ -142,7 +133,6 @@ final class WidgetDataStore {
             }
         self.meterStyle = defaults.enumValue(forKey: Self.meterStyleKey, default: .remaining)
         self.resetDisplayMode = defaults.enumValue(forKey: Self.resetDisplayModeKey, default: .relative)
-        self.alwaysShowPacing = defaults.bool(forKey: Self.alwaysShowPacingKey)
         // Stale-while-revalidate: load whatever was cached (expired included) so the menu bar and
         // dashboard show last-known values immediately at launch instead of "—"; the refresh loop
         // replaces them as soon as fresh data lands.
@@ -422,7 +412,6 @@ final class WidgetDataStore {
         // (limit == nil), whose displayed value ignores displayMode.
         result.displayMode = meterStyle
         result.resetDisplayMode = resetDisplayMode
-        result.alwaysShowPacing = alwaysShowPacing
         return result
     }
 
