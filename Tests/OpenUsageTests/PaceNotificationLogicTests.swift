@@ -16,10 +16,9 @@ private extension PaceNotificationToggles {
 final class PaceNotificationLogicTests: XCTestCase {
     private let reset = Date(timeIntervalSince1970: 1_700_000_000)
 
-    // Meter states with a comfortable fraction so the under-10% rule doesn't co-fire unless intended.
-    private let healthy = WidgetData.MeterState.healthy(projectedFraction: 0.5)
-    private let close = WidgetData.MeterState.closeToLimit(spare: "~5% spare", projectedFraction: 0.95)
-    private let running = WidgetData.MeterState.runningOut(eta: nil, projectedFraction: 1.2)
+    private let healthy = WidgetData.MeterState.healthy
+    private let close = WidgetData.MeterState.closeToLimit
+    private let running = WidgetData.MeterState.runningOut
 
     /// Run one evaluation from a prior state with all toggles on.
     private func step(

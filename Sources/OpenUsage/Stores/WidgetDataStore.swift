@@ -289,7 +289,7 @@ final class WidgetDataStore {
         let start = monotonicNow()
         // A provider that never returns would otherwise hold the in-flight entry — and the spinner —
         // forever. Past the deadline, stop waiting and treat it as any other failed refresh.
-        guard var snapshot = await ProviderRefreshDeadline.snapshot(
+        guard let snapshot = await ProviderRefreshDeadline.snapshot(
             from: provider,
             force: force,
             timeout: providerRefreshTimeout
@@ -449,9 +449,9 @@ final class WidgetDataStore {
         case .progress(_, let used, let limit, let format, let resetsAt, let periodDurationMs, _):
             // A percent meter is a bounded 0...100 domain; sanitize an out-of-range sample (a provider
             // reporting a negative or >100 utilization) here, at the single construction choke point
-            // every provider funnels through, so no surface — headline, flip tooltip, menu bar — can
+            // every provider funnels through, so no surface — the row, its hover text, the menu bar — can
             // render "-5%" or "105%". For percent the limit is always 100, so clamping `used` also
-            // keeps the meter's spent verdict intact (>=100 still reads "Limit reached"). Non-percent
+            // keeps the meter's spent verdict intact (>=100 still reads spent). Non-percent
             // meters keep their raw `used`: a dollar/count overage (used > limit) is real and is
             // conveyed by the meter's spent state rather than hidden.
             let normalizedUsed = format == .percent ? ProviderParse.clampPercent(used) : used
@@ -485,8 +485,8 @@ final class WidgetDataStore {
             // `claude.extra` is `boundedDollars` for its capped `.progress` case but feeds an uncapped
             // `.values` row when there's no monthly cap.
             data.limit = nil
-            // Optional expiry instants (Codex rate-limit-reset credits): surfaced in the row's hover
-            // tooltip (see `expiryTooltip`), with the row re-rendering on the clock tick so they stay live.
+            // Optional expiry instants (Claude and Codex rate-limit resets): listed in the row's hover
+            // popover, which formats them live against the clock.
             data.expiriesAt = expiriesAt
             data.hasData = !data.selectedValues.isEmpty
             return data

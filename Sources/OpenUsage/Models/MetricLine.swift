@@ -68,8 +68,8 @@ enum MetricLine: Hashable, Sendable, Codable {
     /// the display edge, so the menu bar never has to re-parse a finished string. `.text` stays only for
     /// genuinely string-valued provider notices exposed through the local API; widgets do not parse it.
     ///
-    /// `expiriesAt` carries zero or more future expiry instants the row surfaces in its hover tooltip —
-    /// used for the Rate Limit Resets row ("2 available", with each reset's expiry listed on hover).
+    /// `expiriesAt` carries zero or more future expiry instants the row lists in its hover popover —
+    /// used for the Limit Resets row ("2 available", with each reset's expiry on its own line).
     /// Carried as raw `Date`s (not baked strings) so they count down on the popover's clock tick and honor
     /// the global relative/absolute reset mode, like a bounded row's reset countdown.
     ///

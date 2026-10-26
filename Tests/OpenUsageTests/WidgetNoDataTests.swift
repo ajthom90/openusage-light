@@ -2,8 +2,8 @@ import XCTest
 @testable import OpenUsage
 
 /// Covers the "No data" state: a placed tile whose provider snapshot has no line matching the
-/// descriptor's metric label must report `hasData == false`, render the exact "—"/"No data" copy,
-/// and never leak its placeholder sample numbers into the menu bar.
+/// descriptor's metric label must report `hasData == false`, render the exact "—"/"No data" copy, and
+/// never leak its placeholder sample numbers into the menu bar.
 @MainActor
 final class WidgetNoDataTests: XCTestCase {
     func testMissingLineShowsNoDataAcrossDashboardAndMenuBar() async {
@@ -11,14 +11,14 @@ final class WidgetNoDataTests: XCTestCase {
 
         let blank = store.data(for: missing)
         XCTAssertFalse(blank.hasData)
-        XCTAssertEqual(blank.headline, "—")
-        XCTAssertEqual(blank.boundedTrailingText(), "No data")
+        XCTAssertEqual(blank.dashboardRow().mark, .value("No data"))
+        XCTAssertFalse(blank.dashboardRow().hasReading)
         XCTAssertEqual(blank.valueText, WidgetData.noDataHeadline)
 
         let real = store.data(for: present)
         XCTAssertTrue(real.hasData)
-        XCTAssertNotEqual(real.headline, "—")
-        XCTAssertNotEqual(real.boundedTrailingText(), "No data")
+        XCTAssertEqual(real.dashboardRow().mark, .bar(fill: 0.6, severity: .normal))
+        XCTAssertEqual(real.dashboardRow().reading.map(\.text), ["60%", "left"])
         XCTAssertNotEqual(real.valueText, WidgetData.noDataHeadline)
     }
 

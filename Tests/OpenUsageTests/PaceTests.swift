@@ -2,9 +2,8 @@ import XCTest
 @testable import OpenUsage
 
 /// Locks the burn-rate pacing: the three-state thresholds (blue ahead / orange cutting-it-close /
-/// red behind), the "~N% spare" copy, the numeric projection-at-reset tooltip, and the run-out
-/// projection. All cases pin `now` and derive `resetsAt` from a target elapsed fraction so the math is
-/// deterministic.
+/// red behind), the meter state they resolve to, and the run-out projection. All cases pin `now` and
+/// derive `resetsAt` from a target elapsed fraction so the math is deterministic.
 final class PaceTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private let week: TimeInterval = 7 * 24 * 60 * 60
@@ -72,12 +71,6 @@ final class PaceTests: XCTestCase {
         return data
     }
 
-    /// The orange spare copy, present only in the `closeToLimit` state.
-    private func spare(_ data: WidgetData) -> String? {
-        if case .closeToLimit(let spare, _) = data.meterState(now: now) { return spare }
-        return nil
-    }
-
     func testNoPaceVerdictWithoutAResetWindow() {
         var data = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars,
                               used: 12, limit: 20)
@@ -86,69 +79,53 @@ final class PaceTests: XCTestCase {
         XCTAssertEqual(data.meterState(now: now), .level(.normal)) // reset date but unknown period
     }
 
-    func testTooltipShowsNumericProjectionAtReset() {
-        XCTAssertEqual(pacedData(used: 30).meterState(now: now).tooltip, "~40% left at reset")
-        XCTAssertEqual(pacedData(used: 46).meterState(now: now).tooltip, "~92% used at reset")
-        XCTAssertEqual(pacedData(used: 60).meterState(now: now).tooltip, "~20% over limit at reset")
+    func testThePaceVerdictPicksTheMeterState() {
+        XCTAssertEqual(pacedData(used: 30).meterState(now: now), .healthy)
+        XCTAssertEqual(pacedData(used: 46).meterState(now: now), .closeToLimit)
+        XCTAssertEqual(pacedData(used: 60).meterState(now: now), .runningOut)
+        // Projected barely over the limit is still red.
+        XCTAssertEqual(pacedData(used: 50.2).meterState(now: now), .runningOut)
     }
 
     func testZeroUsageFallsBackToPlainLevelBar() {
-        // An untouched meter has no pace story: calm level bar, no projection tooltip.
+        // An untouched meter has no pace story: a calm level bar.
         XCTAssertEqual(pacedData(used: 0).meterState(now: now), .level(.normal))
-        XCTAssertNil(pacedData(used: 0).meterState(now: now).tooltip)
     }
 
-    func testTooltipRedOverageFlooredToOnePercent() {
-        XCTAssertEqual(pacedData(used: 50.2).meterState(now: now).tooltip, "~1% over limit at reset")
-    }
-
-    func testSpentReadsLimitReached() {
+    func testSpentOutranksThePaceVerdictAndTheLevelBands() {
         XCTAssertEqual(pacedData(used: 100).meterState(now: now), .spent)
-        XCTAssertEqual(pacedData(used: 100).meterState(now: now).tooltip, "Limit reached")
         let nearlyEmpty = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars,
                                      used: 99.999, limit: 100)
         XCTAssertEqual(nearlyEmpty.meterState(now: now), .spent)
         let withHeadroom = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars,
                                       used: 99.0, limit: 100)
-        XCTAssertNil(withHeadroom.meterState(now: now).tooltip)
-    }
+        XCTAssertEqual(withHeadroom.meterState(now: now), .level(.critical))
 
-    func testSpareCopyOnlyWhenAmber() {
-        XCTAssertEqual(spare(pacedData(used: 46)), "~8% spare")
-        XCTAssertNil(spare(pacedData(used: 30)))
-        XCTAssertNil(spare(pacedData(used: 60)))
-    }
-
-    func testSpentOutranksCloseToLimitSoNoSpare() {
         var data = WidgetData(title: "Weekly", icon: .providerMark("codex"), kind: .percent,
                               used: 99.6, limit: 100)
         data.resetsAt = resetsAt(elapsed: 0.997, period: week)
         data.periodDurationMs = Int(week * 1000)
         XCTAssertEqual(data.meterState(now: now), .spent)
-        XCTAssertNil(spare(data))
     }
 
-    func testProjectionAtOrRoundedToLimitIsRedWithoutAnEta() {
+    func testProjectionAtOrRoundedToLimitIsRedWithoutARunOut() {
         for used in [49.8, 50] {
             let data = pacedData(used: used)
-            guard case .runningOut(let eta, _) = data.meterState(now: now) else {
-                return XCTFail("expected runningOut for \(used)% used")
-            }
-            XCTAssertNil(eta)
-            XCTAssertNil(spare(data))
-            XCTAssertEqual(data.meterState(now: now).tooltip, "~100% used at reset")
+            XCTAssertEqual(data.meterState(now: now), .runningOut, "\(used)% used")
+            XCTAssertNil(data.runsOutAt(now: now), "\(used)% used lands at the limit, not past it")
         }
     }
 
     func testSmallButRealCushionStaysAmber() {
-        XCTAssertEqual(spare(pacedData(used: 49)), "~2% spare")
+        XCTAssertEqual(pacedData(used: 49).meterState(now: now), .closeToLimit)
     }
 
-    func testRunningOutCarriesAnEtaBeforeReset() {
-        guard case .runningOut(let eta, _) = pacedData(used: 60).meterState(now: now) else {
-            return XCTFail("expected runningOut")
-        }
-        XCTAssertNotNil(eta)
+    func testRunningOutProjectsARunOutBeforeTheReset() {
+        let data = pacedData(used: 60)
+        guard let runsOut = data.runsOutAt(now: now) else { return XCTFail("expected a run-out") }
+        XCTAssertGreaterThan(runsOut, now)
+        XCTAssertLessThan(runsOut, data.resetsAt!)
+        XCTAssertNil(pacedData(used: 30).runsOutAt(now: now))
     }
 
     func testRunsOutOnlyWhenBehindAndBeforeReset() {
@@ -189,9 +166,8 @@ final class PaceTests: XCTestCase {
 
     func testUntouchedMeterEarlyInItsWindowStaysLevel() {
         // Regression: an unstarted window (0 used, e.g. a fresh Cursor billing cycle) used to project
-        // "~100% left at reset".
+        // a full cushion at reset.
         let data = pacedData(used: 0, elapsed: 0.03)
         XCTAssertEqual(data.meterState(now: now), .level(.normal))
-        XCTAssertNil(data.meterState(now: now).tooltip)
     }
 }

@@ -2,8 +2,8 @@ import XCTest
 @testable import OpenUsage
 
 /// Regression for #703: a percent meter fed an out-of-range sample (a provider reporting a negative or
-/// >100 utilization) must never surface "-5%" or "105%" on any rendering path — the tile headline or the
-/// menu-bar value — in either meter style. The sample is sanitized at the
+/// >100 utilization) must never surface "-5%" or "105%" on any rendering path — the row's hover text or
+/// the menu-bar value — in either meter style. The sample is sanitized at the
 /// construction choke point (`WidgetDataStore.resolve`), with a defensive clamp in `MetricFormatter`.
 @MainActor
 final class WidgetPercentClampTests: XCTestCase {
@@ -21,7 +21,7 @@ final class WidgetPercentClampTests: XCTestCase {
                 let data = store.data(for: descriptor)
                 XCTAssertEqual(data.used, clamped, suite)
                 XCTAssertEqual(data.valueText, value, suite)
-                XCTAssertEqual(data.boundedHeadline, "\(value) \(word)", suite)
+                XCTAssertEqual(data.dashboardRow().reading.map(\.text), [value, word], suite)
                 XCTAssertEqual(data.menuBarValue, value, suite)
             }
 

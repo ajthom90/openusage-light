@@ -1,7 +1,7 @@
 import Foundation
 
-/// Shared display formatters for live usage data: the mode-aware deadline/reset phrasing
-/// (`deadlineLabel`, `resetRelativeLabel`, `resetAbsoluteLabel`), compact durations, and USD currency.
+/// Shared display formatters for live usage data: the mode-aware `whenLabel`, the compact clock
+/// readings, compact durations, and USD currency.
 enum Formatters {
     static func currency(_ amount: Double, fractionDigits: Int = 2) -> String {
         let f = NumberFormatter()
@@ -21,30 +21,9 @@ enum Formatters {
         date.formatted(.dateTime.month(.abbreviated).day())
     }
 
-    /// The one mode-aware deadline phrase, shared by every "<verb> + when" label (reset countdowns,
-    /// run-out projections): `.relative` → "<prefix> in 2d 6h", `.absolute` → "<prefix> today at
-    /// 5:30 PM" / "<prefix> tomorrow at 9:00 AM" / "<prefix> Feb 15 at 3:45 PM" (ported from the
-    /// original's `formatResetAbsoluteLabel`; time uses the locale's 12/24-hour convention). An
-    /// imminent deadline (≤5 min out relative, past-due absolute) collapses to "<prefix> soon".
-    static func deadlineLabel(
-        _ prefix: String,
-        at date: Date,
-        mode: ResetDisplayMode,
-        now: Date = Date(),
-        calendar: Calendar = .current
-    ) -> String? {
-        guard let when = whenLabel(at: date, mode: mode, now: now, calendar: calendar) else { return nil }
-        if when == imminent { return "\(prefix) \(when)" }
-        switch mode {
-        case .relative: return "\(prefix) in \(when)"
-        case .absolute: return "\(prefix) \(when)"
-        }
-    }
-
-    /// The verb-less "when" phrase shared by `deadlineLabel` (which prefixes a verb) and the
-    /// reset-credit tooltip (which lists bare entries): `.relative` → "2d 6h" / `imminent`;
-    /// `.absolute` → "today at 5:30 PM" / "tomorrow at 9:00 AM" / "Feb 15 at 3:45 PM" / `imminent`
-    /// (past-due or ≤5 min out). `nil` only when the duration is non-finite.
+    /// The verb-less "when" phrase of the claim timeline and the claim notice: `.relative` → "2d 6h" /
+    /// `imminent`; `.absolute` → "today at 5:30 PM" / "tomorrow at 9:00 AM" / "Feb 15 at 3:45 PM" /
+    /// `imminent` (past-due or ≤5 min out). `nil` only when the duration is non-finite.
     static func whenLabel(
         at date: Date,
         mode: ResetDisplayMode,
@@ -72,16 +51,8 @@ enum Formatters {
     }
 
     /// The collapsed phrase for a deadline that's past-due or within ~5 minutes — too close to print a
-    /// useful countdown. Shared so `deadlineLabel` and any bare-`whenLabel` caller agree on the wording.
+    /// useful countdown. Shared so every caller agrees on the wording.
     static let imminent = "soon"
-
-    static func resetRelativeLabel(until resetsAt: Date, now: Date = Date()) -> String? {
-        deadlineLabel("Resets", at: resetsAt, mode: .relative, now: now)
-    }
-
-    static func resetAbsoluteLabel(at resetsAt: Date, now: Date = Date(), calendar: Calendar = .current) -> String? {
-        deadlineLabel("Resets", at: resetsAt, mode: .absolute, now: now, calendar: calendar)
-    }
 
     /// The shortest clock reading for a reset column: "5:30 PM" today, "Tue 5 PM" within the week,
     /// "Oct 29" further out.

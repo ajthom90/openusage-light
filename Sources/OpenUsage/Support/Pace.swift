@@ -1,12 +1,11 @@
 import Foundation
 
 /// Burn-rate pacing for a bounded metric, ported from the original OpenUsage
-/// (`src/lib/pace-status.ts`, `src/lib/pace-tooltip.ts`). Given how much of a quota is spent and how far
+/// (`src/lib/pace-status.ts`). Given how much of a quota is spent and how far
 /// through the reset window we are, it projects usage at the current rate to the end of the window.
-/// This drives the meter's severity color, the orange state's spare marker + "~3% spare" copy, the
-/// hover tooltip, and the "Runs out in …" projection.
+/// This drives the meter's severity colour and the row's "runs out in …" projection.
 ///
-/// Pure logic (no SwiftUI) so it stays unit-testable; `WidgetData` exposes the view-facing strings.
+/// Pure logic (no SwiftUI) so it stays unit-testable; `WidgetData` turns it into the meter state.
 enum Pace {
     enum Status {
         case ahead     // projected to finish with ≥10% of the quota to spare → calm blue
@@ -15,7 +14,7 @@ enum Pace {
     }
 
     /// Classification plus the projected end-of-period usage (same unit as `used`/`limit`), mirroring the
-    /// original's `PaceResult`. `projectedUsage` feeds the tooltip's "% used/left at reset" detail.
+    /// original's `PaceResult`. `projectedUsage` decides how much cushion an on-track meter keeps.
     struct Result {
         let status: Status
         let projectedUsage: Double
@@ -29,9 +28,7 @@ enum Pace {
 
     /// Full pace evaluation, or `nil` when there's no signal (window not started yet, already reset,
     /// too early in the window for a stable projection, or nothing spent yet). Mirrors
-    /// `calculatePaceStatus`, minus its zero-usage "ahead": zero usage carries no burn rate to
-    /// project, and the fabricated 0-usage projection surfaced as a tautological "~100% left at
-    /// reset" on every untouched meter once Always Show Pacing was on.
+    /// `calculatePaceStatus`, minus its zero-usage "ahead": zero usage carries no burn rate to project.
     static func evaluate(used: Double, limit: Double, resetsAt: Date, periodDuration: TimeInterval,
                          now: Date = Date()) -> Result? {
         guard limit > 0, periodDuration > 0, used > 0 else { return nil }

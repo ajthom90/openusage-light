@@ -21,14 +21,14 @@ final class WidgetMeterStyleTests: XCTestCase {
 
             let remaining = store.data(for: descriptor)
             XCTAssertEqual(remaining.valueText, item.remaining, item.name)
-            XCTAssertEqual(remaining.boundedHeadline, "\(item.remaining) left", item.name)
+            XCTAssertEqual(remaining.dashboardRow().reading.map(\.text), [item.remaining, "left"], item.name)
             XCTAssertEqual(remaining.boundedSubtitle, item.subtitle, item.name)
             XCTAssertEqual(remaining.fraction, 1 - item.used / item.limit, accuracy: 0.0001, item.name)
 
             store.meterStyle = .used
             let used = store.data(for: descriptor)
             XCTAssertEqual(used.valueText, item.consumed, item.name)
-            XCTAssertEqual(used.boundedHeadline, "\(item.consumed) used", item.name)
+            XCTAssertEqual(used.dashboardRow().reading.map(\.text), [item.consumed, "used"], item.name)
             XCTAssertEqual(used.boundedSubtitle, item.subtitle, item.name)
             XCTAssertEqual(used.fraction, item.used / item.limit, accuracy: 0.0001, item.name)
         }
@@ -114,9 +114,9 @@ final class WidgetMeterStyleTests: XCTestCase {
         let used = store.data(for: descriptor)
 
         XCTAssertEqual(remaining.valueText, "$42.50")
-        XCTAssertEqual(remaining.unboundedSubtitle, "on-device estimate")
+        XCTAssertEqual(remaining.dashboardRow().mark, .value("$42.50"))
         XCTAssertEqual(used.valueText, remaining.valueText)
-        XCTAssertEqual(used.unboundedSubtitle, remaining.unboundedSubtitle)
+        XCTAssertEqual(used.dashboardRow(), remaining.dashboardRow())
         XCTAssertEqual(used.displayedValue, remaining.displayedValue)
     }
 

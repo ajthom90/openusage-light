@@ -7,15 +7,13 @@ import Foundation
 /// This replaces the scattered number→string logic that used to live in `WidgetData.format`, the
 /// menu bar's `compactValue`, and the providers' own `formatTokens` / credit-label builders.
 enum MetricFormatter {
-    /// Three surfaces, three needs:
+    /// Two surfaces, two needs:
     /// - `.tray` — the menu-bar strip: shortest. Whole dollars under $1,000, abbreviated above; counts abbreviated.
     /// - `.row` — the popover row: abbreviated like the tray, and money keeps its cents unless it's whole
     ///   dollars ("$2.1K", "$40.76", "$500").
-    /// - `.full` — tooltips and bounded headlines: every digit, grouped ("$2,059.07", "56,904,995").
     enum Style {
         case tray
         case row
-        case full
     }
 
     /// Pinned to en_US so USD-denominated values render identically regardless of system locale, which
@@ -29,12 +27,11 @@ enum MetricFormatter {
             // Percent is a bounded 0...100 domain, so clamp defensively: a bad sample (a provider
             // reporting a negative or >100 utilization) can never print "-5%" or "105%" on any
             // surface that formats through here. Over-limit is conveyed by the meter's spent state
-            // and color (see `WidgetData.meterState`), not by an out-of-range headline number.
+            // and color (see `WidgetData.meterState`), not by an out-of-range number.
             return "\(Int(ProviderParse.clampPercent(value).rounded()))%"
         case .dollars:
-            // Tray and row abbreviate four figures and up ("$1.2M", "$2.1K") so neither carries
-            // "$2,059.07"; the full form (tooltips/headlines) always keeps grouped cents.
-            if abs(value) >= 1000, style != .full {
+            // Four figures and up abbreviate ("$1.2M", "$2.1K") so neither surface carries "$2,059.07".
+            if abs(value) >= 1000 {
                 return "$" + value.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)).locale(locale))
             }
             switch style {
@@ -45,14 +42,11 @@ enum MetricFormatter {
                 // Cents below $1k, dropped when they're zero so a whole amount reads "$500".
                 let whole = (value * 100).rounded().truncatingRemainder(dividingBy: 100) == 0
                 return Formatters.currency(value, fractionDigits: whole ? 0 : 2)
-            case .full:
-                return Formatters.currency(value, fractionDigits: 2)
             }
         case .count:
-            // Tray and row abbreviate at the thousands (token counts run into the billions); the full
-            // form keeps every digit for the tooltip. Below 1,000 keeps up to one decimal either way, so
-            // a fractional balance (e.g. 820.6) survives.
-            if style != .full, abs(value) >= 1000 {
+            // Abbreviated at the thousands (token counts run into the billions). Below 1,000 keeps up to
+            // one decimal, so a fractional balance (e.g. 820.6) survives.
+            if abs(value) >= 1000 {
                 return value.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)).locale(locale))
             }
             return value.formatted(.number.precision(.fractionLength(0...1)).locale(locale))
@@ -66,11 +60,4 @@ enum MetricFormatter {
         guard let label = value.label, !label.isEmpty else { return text }
         return "\(text) \(label)"
     }
-
-    /// Dollars per million tokens for legends and tooltips — dollar formatting plus a fixed `/MTok`
-    /// suffix so those one-line surfaces never drift.
-    static func costPerMtok(_ value: Double, style: Style) -> String {
-        number(value, kind: .dollars, style: style) + "/MTok"
-    }
-
 }

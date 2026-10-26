@@ -1,172 +1,120 @@
 import XCTest
 @testable import OpenUsage
 
-/// Covers the relative/absolute reset display: the shared `Formatters.deadlineLabel` (one helper for
-/// every "<verb> + when" string), its absolute day buckets (ported from the original
-/// `formatResetAbsoluteLabel`), and `WidgetData` honoring the global mode for the trailing label,
-/// the opposite-format tooltip, and the "Limit in …" run-out projection.
+/// Covers the relative/absolute reset display: `Formatters.whenLabel` (the claim timeline's and claim
+/// notice's "when" phrase) with its absolute day buckets, the session rows' "not started" state, the
+/// reset-credit expiry bands, and the resets popover's entries.
 final class ResetDisplayTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
     private func utcCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         return calendar
     }
 
-    func testAbsoluteLabelDayBuckets() {
+    private func texts(_ row: DashboardRowModel) -> [String] {
+        row.hoverCandidates.map { $0.map(\.text).joined(separator: " ") }
+    }
+
+    func testWhenLabelBucketsTheDayAndCollapsesImminentDeadlines() {
         let calendar = utcCalendar()
         let now = calendar.date(from: DateComponents(year: 2024, month: 6, day: 1, hour: 12))! // noon, stable
 
-        XCTAssertTrue(Formatters.resetAbsoluteLabel(at: now.addingTimeInterval(2 * 3600),
-                                                    now: now, calendar: calendar)!.hasPrefix("Resets today at "))
+        XCTAssertEqual(Formatters.whenLabel(at: now.addingTimeInterval(2 * 3600 + 360), mode: .relative, now: now), "2h 6m")
+        XCTAssertTrue(Formatters.whenLabel(at: now.addingTimeInterval(2 * 3600),
+                                           mode: .absolute, now: now, calendar: calendar)!.hasPrefix("today at "))
 
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: now)!.addingTimeInterval(3600)
-        XCTAssertTrue(Formatters.resetAbsoluteLabel(at: tomorrow,
-                                                    now: now, calendar: calendar)!.hasPrefix("Resets tomorrow at "))
+        XCTAssertTrue(Formatters.whenLabel(at: tomorrow,
+                                           mode: .absolute, now: now, calendar: calendar)!.hasPrefix("tomorrow at "))
 
         let later = calendar.date(byAdding: .day, value: 5, to: now)!
-        let label = Formatters.resetAbsoluteLabel(at: later, now: now, calendar: calendar)!
-        XCTAssertTrue(label.hasPrefix("Resets ") && label.contains(" at "))
-        XCTAssertFalse(label.hasPrefix("Resets today"))
-        XCTAssertFalse(label.hasPrefix("Resets tomorrow"))
+        let label = Formatters.whenLabel(at: later, mode: .absolute, now: now, calendar: calendar)!
+        XCTAssertTrue(label.contains(" at "))
+        XCTAssertFalse(label.hasPrefix("today") || label.hasPrefix("tomorrow"))
 
-        XCTAssertEqual(Formatters.resetAbsoluteLabel(at: now.addingTimeInterval(-1),
-                                                     now: now, calendar: calendar), "Resets soon")
+        // Imminent deadlines collapse to "soon" in both modes.
+        XCTAssertEqual(Formatters.whenLabel(at: now.addingTimeInterval(60), mode: .relative, now: now), "soon")
+        XCTAssertEqual(Formatters.whenLabel(at: now.addingTimeInterval(-1),
+                                            mode: .absolute, now: now, calendar: calendar), "soon")
     }
 
-    func testWidgetDataTrailingAndTooltipHonorMode() {
-        var data = WidgetData(title: "Weekly", icon: .providerMark("codex"),
-                              kind: .percent, used: 50, limit: 100)
-        data.resetsAt = Date().addingTimeInterval(4 * 24 * 3600 + 17 * 3600) // ~4d17h out
-        data.periodDurationMs = 7 * 24 * 60 * 60 * 1000
-        XCTAssertTrue(data.hasResetLabel())
-
-        data.resetDisplayMode = .relative
-        XCTAssertEqual(data.boundedTrailingText()?.hasPrefix("Resets in "), true)
-        XCTAssertEqual(data.resetTooltip()?.hasPrefix("Resets "), true)         // opposite = absolute
-
-        data.resetDisplayMode = .absolute
-        XCTAssertEqual(data.boundedTrailingText()?.hasPrefix("Resets "), true)
-        XCTAssertEqual(data.resetTooltip()?.hasPrefix("Resets in "), true)      // opposite = relative
-    }
-
-    func testFreshSessionWindowShowsNotStartedAndSuppressesPacing() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
+    func testFreshSessionWindowReadsNotStartedAndSuppressesPacing() {
         let period: TimeInterval = 5 * 3600
         var data = WidgetData(title: "Session", icon: .providerMark("codex"), kind: .percent, used: 0, limit: 100)
         data.sessionStartSignal = .zeroUsage
         data.periodDurationMs = Int(period * 1000)
         data.resetsAt = now.addingTimeInterval(period / 2)
 
-        XCTAssertEqual(data.boundedTrailingText(now: now), "Not started")
-        XCTAssertFalse(data.hasResetLabel(now: now))
-        XCTAssertEqual(data.resetTooltip(now: now), WidgetData.freshSessionTooltip)
+        XCTAssertTrue(data.isFreshSessionWindow(now: now))
+        XCTAssertEqual(texts(data.dashboardRow(now: now)), ["0% used · starts when you first use it", "0% used · not started", "0% used"])
+        XCTAssertEqual(data.meterState(now: now), .level(.normal))
 
-        let state = data.meterState(now: now)
-        XCTAssertEqual(state, .level(.normal))
-        XCTAssertNil(state.tooltip)
+        // Once the reset has passed the snapshot is stale: no "not started" claim, the normal countdown.
+        XCTAssertFalse(data.isFreshSessionWindow(now: data.resetsAt!.addingTimeInterval(1)))
     }
 
     func testMissingResetDateSignalKeepsCountdownForSubOnePercentSession() {
         // #1160: Claude reports utilization in whole percents, so an in-flight session under 1% reads
         // used == 0 — but its reset date exists precisely because the window started. The row must show
-        // the normal countdown, never "Not started".
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        // the normal countdown, never "not started".
         var data = WidgetData(title: "Session", icon: .providerMark("claude"), kind: .percent, used: 0, limit: 100)
         data.sessionStartSignal = .missingResetDate
         data.periodDurationMs = 5 * 3600 * 1000
         data.resetsAt = now.addingTimeInterval(2 * 3600)
 
         XCTAssertFalse(data.isFreshSessionWindow(now: now))
-        XCTAssertTrue(data.hasResetLabel(now: now))
-        XCTAssertEqual(data.boundedTrailingText(now: now)?.hasPrefix("Resets in"), true)
+        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "0% used · resets in 2h")
 
-        // A genuinely fresh session carries no reset date — that is this signal's "Not started" state.
+        // A genuinely fresh session carries no reset date — that is this signal's "not started" state.
         data.resetsAt = nil
         XCTAssertTrue(data.isFreshSessionWindow(now: now))
-        XCTAssertEqual(data.boundedTrailingText(now: now), "Not started")
-        XCTAssertEqual(data.resetTooltip(now: now), WidgetData.freshSessionTooltip)
+        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "0% used · starts when you first use it")
     }
 
     func testNonSessionWindowNeverReadsNotStarted() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
         let period: TimeInterval = 7 * 24 * 3600
         var data = WidgetData(title: "Weekly", icon: .providerMark("codex"), kind: .percent, used: 0, limit: 100)
         data.periodDurationMs = Int(period * 1000)
         data.resetsAt = now.addingTimeInterval(period / 2)
 
         XCTAssertFalse(data.isFreshSessionWindow(now: now))
-        XCTAssertEqual(data.boundedTrailingText(now: now)?.hasPrefix("Resets"), true)
+        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "0% used · resets in 3d 12h")
     }
 
-    func testExpiryTooltipSingleCreditFollowsTimeSetting() {
-        // One reset credit: the row reads "1 available" and the hover tooltip is a single line. Relative
-        // → "Reset expires in 12d 18h"; absolute → a wall-clock phrase ("Reset expires … at …").
-        var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"),
-                              kind: .count, used: 0, limit: nil)
-        data.values = [MetricValue(number: 1, kind: .count, label: "available")]
-        data.expiriesAt = [Date().addingTimeInterval(12 * 24 * 3600 + 18 * 3600)] // ~12d18h out
-
-        XCTAssertEqual(data.unboundedDetail, "1 available")
+    func testTheRunOutAndTheResetFollowTheClockSetting() {
+        // Halfway through a 10h window with 90/100 used → behind pace, projected to run out ~34m out,
+        // well before the reset 5h out. Both instants take the clock form under that setting.
+        var data = WidgetData(title: "Session", icon: .providerMark("codex"), kind: .percent, used: 90, limit: 100)
+        data.resetsAt = now.addingTimeInterval(5 * 3600)
+        data.periodDurationMs = 10 * 3600 * 1000
+        let runsOut = data.runsOutAt(now: now)!
+        XCTAssertEqual(runsOut.timeIntervalSince(now), 2000, accuracy: 1)
 
         data.resetDisplayMode = .relative
-        XCTAssertEqual(data.expiryTooltip, "Reset expires in 12d 18h")
+        XCTAssertEqual(texts(data.dashboardRow(now: now))[0], "90% used · runs out in 34m · resets in 5h")
 
         data.resetDisplayMode = .absolute
-        XCTAssertEqual(data.expiryTooltip?.hasPrefix("Reset expires "), true)
-        XCTAssertEqual(data.expiryTooltip?.contains(" at "), true)        // wall-clock, not "in"
+        XCTAssertEqual(
+            texts(data.dashboardRow(now: now))[0],
+            "90% used · runs out \(Formatters.compactClock(runsOut, now: now)) · resets \(Formatters.compactClock(data.resetsAt!, now: now))"
+        )
     }
 
-    func testExpiryTooltipMultipleCreditsIsNumberedList() {
-        // Several credits: the tooltip is a numbered list under a header, sorted soonest-first, each
-        // entry following the global mode. The row itself still reads just the count.
-        var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"),
-                              kind: .count, used: 0, limit: nil)
-        data.values = [MetricValue(number: 2, kind: .count, label: "available")]
-        data.expiriesAt = [
-            Date().addingTimeInterval(12 * 24 * 3600 + 18 * 3600), // ~12d18h
-            Date().addingTimeInterval(22 * 24 * 3600 + 12 * 3600)  // ~22d12h
-        ]
-        data.resetDisplayMode = .relative
-
-        XCTAssertEqual(data.unboundedDetail, "2 available")
-        XCTAssertEqual(data.expiryTooltip, "Resets expire in:\n1. 12d 18h\n2. 22d 12h")
+    func testACapWithoutAResetDateNamesItsLimitUnderEitherClockSetting() {
+        var data = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars, used: 12, limit: 20)
+        data.resetDisplayMode = .absolute
+        XCTAssertEqual(texts(data.dashboardRow(now: now)), ["$12 used · $20 limit", "$12 used"])
+        XCTAssertNil(data.runsOutAt(now: now))
     }
 
-    func testExpirySeverityTracksSoonestExpiry() {
-        // The reset-credit dot reflects the soonest expiry: blue normally, orange under 7 days, red under
-        // 48 hours.
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-        var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"),
-                              kind: .count, used: 0, limit: nil)
-        data.values = [MetricValue(number: 2, kind: .count, label: "available")]
-
-        // Soonest under 48 hours -> red, even though a later credit is well outside it.
-        data.expiriesAt = [
-            now.addingTimeInterval(WidgetData.expiryCriticalWindow - 3600),
-            now.addingTimeInterval(WidgetData.expiryWarningWindow + 10 * 24 * 3600)
-        ]
-        XCTAssertEqual(data.expirySeverity(now: now), .critical)
-
-        // Under 7 days but outside 48 hours -> orange.
-        data.expiriesAt = [now.addingTimeInterval(WidgetData.expiryCriticalWindow + 3600)]
-        XCTAssertEqual(data.expirySeverity(now: now), .warning)
-
-        // Every credit comfortably outside the warning window -> blue.
-        data.expiriesAt = [now.addingTimeInterval(WidgetData.expiryWarningWindow + 24 * 3600)]
-        XCTAssertEqual(data.expirySeverity(now: now), .normal)
-
-        // No expiries at all -> no dot.
-        data.expiriesAt = []
-        XCTAssertNil(data.expirySeverity(now: now))
-    }
-
-    func testNoExpiryTooltipWhenNoExpiries() {
-        // The empty state — "0 available" — and any row without expiries carry no expiry tooltip.
-        var data = WidgetData(title: "Rate Limit Resets", icon: .providerMark("codex"),
-                              kind: .count, used: 0, limit: nil)
-        data.values = [MetricValue(number: 0, kind: .count, label: "available")]
-        XCTAssertEqual(data.unboundedDetail, "0 available")
-        XCTAssertNil(data.expiryTooltip)
+    func testExpirySeverityBands() {
+        // A reset credit's dot: red under 48 hours, orange under 7 days, blue beyond.
+        XCTAssertEqual(WidgetData.expirySeverity(secondsRemaining: WidgetData.expiryCriticalWindow - 3600), .critical)
+        XCTAssertEqual(WidgetData.expirySeverity(secondsRemaining: -60), .critical)
+        XCTAssertEqual(WidgetData.expirySeverity(secondsRemaining: WidgetData.expiryCriticalWindow + 3600), .warning)
+        XCTAssertEqual(WidgetData.expirySeverity(secondsRemaining: WidgetData.expiryWarningWindow + 24 * 3600), .normal)
     }
 
     @MainActor
@@ -190,8 +138,7 @@ final class ResetDisplayTests: XCTestCase {
 
     func testResetsPopoverEntriesAreSoonestFirstAndNumbered() {
         // The popover timeline sorts the resets soonest-first, numbers them from 1, and pairs each exact
-        // expiry time with its countdown. Per-reset dot color reuses the row's severity bands.
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        // expiry time with its countdown. Per-reset dot color reuses the expiry severity bands.
         let entries = RateLimitResetsDetail.entries(
             from: [
                 // Deliberately out of order to prove the sort.
@@ -209,7 +156,6 @@ final class ResetDisplayTests: XCTestCase {
     }
 
     func testResetsPopoverPastDueAndImminentEntriesReadSoonWithNoCountdown() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
         for offset in [-60.0, 180.0] {
             let entries = RateLimitResetsDetail.entries(from: [now.addingTimeInterval(offset)], now: now)
 
@@ -221,12 +167,10 @@ final class ResetDisplayTests: XCTestCase {
     }
 
     func testResetsPopoverEmptyWhenNoResets() {
-        XCTAssertTrue(RateLimitResetsDetail.entries(from: [], now: Date()).isEmpty)
+        XCTAssertTrue(RateLimitResetsDetail.entries(from: [], now: now).isEmpty)
     }
 
     func testResetsPopoverContentResolvesEmptyCountOnlyAndTimeline() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-
         // Zero resets -> the genuine empty state.
         XCTAssertEqual(RateLimitResetsDetail.content(count: 0, expiries: [], now: now), .empty)
 
@@ -253,59 +197,5 @@ final class ResetDisplayTests: XCTestCase {
         XCTAssertEqual(Formatters.compactDuration(9 * 24 * 3600 + 21 * 3600), "9d 21h")
         XCTAssertEqual(Formatters.compactDuration(5 * 3600), "5h")                    // sub-day unchanged
         XCTAssertEqual(Formatters.compactDuration(52 * 60), "52m")
-    }
-
-    func testDeadlineLabelSharesFormatAcrossPrefixesAndModes() {
-        let calendar = utcCalendar()
-        let now = calendar.date(from: DateComponents(year: 2024, month: 6, day: 1, hour: 12))!
-
-        XCTAssertEqual(Formatters.deadlineLabel("Runs out", at: now.addingTimeInterval(2 * 3600 + 360),
-                                                mode: .relative, now: now), "Runs out in 2h 6m")
-        XCTAssertTrue(Formatters.deadlineLabel("Runs out", at: now.addingTimeInterval(2 * 3600),
-                                               mode: .absolute, now: now, calendar: calendar)!
-            .hasPrefix("Runs out today at "))
-        // Imminent deadlines collapse to "soon" in both modes, same as the reset label.
-        XCTAssertEqual(Formatters.deadlineLabel("Runs out", at: now.addingTimeInterval(60),
-                                                mode: .relative, now: now), "Runs out soon")
-        XCTAssertEqual(Formatters.deadlineLabel("Runs out", at: now.addingTimeInterval(-1),
-                                                mode: .absolute, now: now, calendar: calendar), "Runs out soon")
-    }
-
-    /// The `runningOut` run-out time, present only when the bar is red and projects to run out
-    /// before the reset. Evaluated against the real clock (default `now`) to match the resetsAt set
-    /// from `Date()` below.
-    private func runningOutEta(_ data: WidgetData) -> String? {
-        if case .runningOut(let eta, _) = data.meterState() { return eta }
-        return nil
-    }
-
-    func testRunningOutEtaHonorsResetDisplayMode() {
-        // Halfway through a 10h window with 90/100 used → behind pace, projected run-out ~34m away,
-        // safely before the reset 5h out. The label carries its own "Limit" verb (no flame in tests),
-        // so the copy reads "Limit in 34m" / "Limit today at …".
-        var data = WidgetData(title: "Session", icon: .providerMark("codex"),
-                              kind: .percent, used: 90, limit: 100)
-        data.resetsAt = Date().addingTimeInterval(5 * 3600)
-        data.periodDurationMs = 10 * 3600 * 1000
-
-        data.resetDisplayMode = .relative
-        XCTAssertEqual(runningOutEta(data)?.hasPrefix("Limit in "), true) // e.g. "Limit in 34m"
-        XCTAssertEqual(runningOutEta(data)?.hasSuffix("m"), true)         // compact duration like "34m"
-
-        data.resetDisplayMode = .absolute
-        // Wall-clock reading ~34m out: "Limit today at …", or "Limit tomorrow at …" when the test runs
-        // near local midnight (`WidgetData` evaluates against the real clock, so the bucket can roll).
-        let absolute = runningOutEta(data)
-        XCTAssertEqual(absolute?.hasPrefix("Limit today at ") == true
-                        || absolute?.hasPrefix("Limit tomorrow at ") == true, true)
-    }
-
-    func testNoResetLabelWithoutResetDate() {
-        var data = WidgetData(title: "Credits", icon: .providerMark("codex"),
-                              kind: .dollars, used: 12, limit: 20)
-        data.resetDisplayMode = .absolute
-        XCTAssertFalse(data.hasResetLabel())        // no resetsAt → not a clickable reset
-        XCTAssertNil(data.resetTooltip())
-        XCTAssertEqual(data.boundedTrailingText(), "$20 limit") // falls back to limit context, unflipped
     }
 }

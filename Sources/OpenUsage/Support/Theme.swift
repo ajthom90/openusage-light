@@ -15,8 +15,8 @@ enum Theme {
     /// Hierarchical secondary tint for the provider marks.
     static let iconGray = AnyShapeStyle(.secondary)
 
-    /// The one severity palette: blue, orange, red. Every severity-coloured element (meter fills, pace
-    /// flames, the ↺ tag, reset dots, claim banners) takes its colour from here, so a severity reads
+    /// The one severity palette: blue, orange, red. Every severity-coloured element (meter fills, hover
+    /// text, reset dots, claim banners) takes its colour from here, so a severity reads
     /// the same everywhere. `nil` is normal. System colours, never `.accentColor` (it follows the
     /// user's accent setting) or hand-tuned values, so they track light/dark and Increase Contrast.
     static func severityColor(_ severity: WidgetData.MeterSeverity?) -> Color {

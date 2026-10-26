@@ -102,8 +102,9 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertEqual(data.used, 42)
         XCTAssertEqual(data.displayedValue, 58)
         XCTAssertEqual(data.valueText, "58%")
-        XCTAssertEqual(data.boundedHeadline, "58% left")
-        XCTAssertEqual(data.boundedSubtitle?.hasPrefix("Resets in "), true)
+        let row = data.dashboardRow()
+        XCTAssertEqual(row.reading.map(\.text), ["58%", "left"])
+        XCTAssertEqual(row.tails[0].map(\.text).joined().hasPrefix("· resets in "), true)
     }
 
     func testSoftWarningSurfacesOnHeaderWhilePartialDataStillLoads() async {
@@ -259,12 +260,13 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertFalse(remaining.isBounded)
         XCTAssertEqual(remaining.unboundedDetail, "1K credits")
         XCTAssertEqual(remaining.menuBarValue, "1K credits")
-        XCTAssertNil(remaining.unboundedSubtitle)
+        XCTAssertEqual(remaining.dashboardRow().mark, .value("1K credits"))
+        XCTAssertFalse(remaining.dashboardRow().hasReading)
 
         store.meterStyle = .used
         let used = store.data(for: descriptor)
         XCTAssertEqual(used.unboundedDetail, remaining.unboundedDetail)
-        XCTAssertEqual(used.headline, remaining.headline)
+        XCTAssertEqual(used.dashboardRow(), remaining.dashboardRow())
     }
 
     func testRateLimitResetsTileShowsCountInTrayAndPopover() async {
@@ -340,7 +342,7 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertTrue(data.showsResetExpiries)
         XCTAssertTrue(data.hasData)
         XCTAssertTrue(data.expiriesAt.isEmpty)
-        XCTAssertNil(data.expirySeverity())          // no dot at zero
+        XCTAssertEqual(data.resetCreditCount, 0)
         XCTAssertEqual(data.unboundedDetail, "0 available")
     }
 
@@ -457,7 +459,6 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertFalse(data.isBounded)                          // sample's limit: 100 dropped for a .values row
         XCTAssertEqual(data.unboundedDetail, "$1.2K spent")     // popover row — compact, not "$1,234.56"
         XCTAssertEqual(data.menuBarValue, "$1.2K")              // tray — same shorthand
-        XCTAssertEqual(data.unboundedTooltip, "$1,234.56")      // hover still reveals the exact figure
     }
 
     func testCreditValuesFloorAndClampBalance() {
