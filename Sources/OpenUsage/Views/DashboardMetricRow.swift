@@ -2,9 +2,11 @@ import SwiftUI
 
 /// One metric on one row inside an account: label, bar, value and reset in fixed columns, so every bar
 /// in the panel starts and ends at the same x. The label is secondary, the value medium in the
-/// severity's colour once the bar is orange or red, the reset secondary. A reading without a limit (a
-/// balance, a count, a status) has no bar: its figure takes the bar's place. Nothing on a row reacts to
-/// the pointer; the dashboard wraps the Limit Resets row's figure in its hover through `figure`.
+/// severity's colour once the bar is orange or red, the reset secondary. While the pace is hot a flame
+/// sits before the value, inside the value column, in the pace's colour: orange cutting it close, red
+/// running out; nothing at rest, so the columns never move. A reading without a limit (a balance, a
+/// count, a status) has no bar: its figure takes the bar's place. Nothing on a row reacts to the
+/// pointer; the dashboard wraps the Limit Resets row's figure in its hover through `figure`.
 struct DashboardMetricRow: View {
     let model: DashboardRowModel
     /// Wraps a value row's figure, so the live dashboard can attach the resets hover to the figure alone.
@@ -20,15 +22,23 @@ struct DashboardMetricRow: View {
                 .lineLimit(1)
                 .frame(width: DashboardGrid.labelWidth, alignment: .leading)
             switch model.mark {
-            case .bar(let fill, let severity, let value, let reset):
+            case .bar(let fill, let severity, let value, let reset, let flame):
                 UsageMeterBar(fill: fill, severity: severity)
-                Text(value)
-                    .fontWeight(.medium)
-                    .foregroundStyle(severity == .normal ? AnyShapeStyle(.primary) : AnyShapeStyle(Theme.severityColor(severity)))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .contentTransition(.numericText())
-                    .frame(width: DashboardGrid.valueWidth, alignment: .trailing)
+                HStack(spacing: Theme.Spacing.xxs) {
+                    if let flame {
+                        Image(systemName: "flame.fill")
+                            .imageScale(.small)
+                            .foregroundStyle(Theme.severityColor(flame))
+                            .accessibilityLabel(flame == .critical ? "Running out" : "Close to the limit")
+                    }
+                    Text(value)
+                        .fontWeight(.medium)
+                        .foregroundStyle(severity == .normal ? AnyShapeStyle(.primary) : AnyShapeStyle(Theme.severityColor(severity)))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .contentTransition(.numericText())
+                }
+                .frame(width: DashboardGrid.valueWidth, alignment: .trailing)
                 Text(reset ?? "")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()

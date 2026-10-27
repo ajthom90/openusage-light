@@ -102,7 +102,7 @@ final class WidgetDataStoreTests: XCTestCase {
         XCTAssertEqual(data.used, 42)
         XCTAssertEqual(data.displayedValue, 58)
         XCTAssertEqual(data.valueText, "58%")
-        guard case .bar(_, _, let value, let reset) = data.dashboardRow().mark else { return XCTFail("not a bar") }
+        guard case .bar(_, _, let value, let reset, _) = data.dashboardRow().mark else { return XCTFail("not a bar") }
         XCTAssertEqual(value, "58%")
         XCTAssertNotNil(reset, "a meter with a reset date shows its countdown")
     }

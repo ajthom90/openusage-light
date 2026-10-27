@@ -123,7 +123,7 @@ struct WidgetData: Hashable {
     }
 
     /// Where the quota is heading against its reset window (`paceState(now:)`): what the notifications
-    /// read. Never the bar's colour.
+    /// and the row's flame read. Never the bar's colour.
     /// Precedence, highest first: no data → spent → the live pace verdict → unpaced.
     enum PaceState: Hashable {
         /// No real metric backs the row.
@@ -286,8 +286,8 @@ extension WidgetData {
         return .level(levelSeverity(used: used, limit: limit))
     }
 
-    /// Where the quota is heading against its reset window at `now`, for the notifications.
-    /// Precedence, highest first:
+    /// Where the quota is heading against its reset window at `now`, for the notifications and the
+    /// row's flame. Precedence, highest first:
     ///
     /// 1. **No data**.
     /// 2. **Spent**, whenever the remainder rounds to zero at the value's precision.

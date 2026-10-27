@@ -4,7 +4,8 @@ import XCTest
 @testable import OpenUsage
 
 /// One severity palette: blue, orange, red. Each severity maps to its system colour, and the meter
-/// bar, the row's value, the resets timeline's dot and the claim banner all paint that same colour. The views are rasterized and their dominant opaque colour is matched to
+/// bar, the row's value, the row's flame, the resets timeline's dot and the claim banner all paint that
+/// same colour. The views are rasterized and their dominant opaque colour is matched to
 /// the nearest candidate colour, so a surface that drifts to yellow, the accent colour, or SwiftUI's own
 /// orange/red fails here.
 @MainActor
@@ -39,6 +40,10 @@ final class SeverityPaletteTests: XCTestCase {
                 let row = DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0, severity: severity, value: "0%", reset: "1d 8h")))
                     .frame(width: 292)
                 XCTAssertEqual(try dominant(row), name, "value \(severity)")
+                // A blue row running hot: the flame is the row's only colour besides the bar's fill.
+                let flame = DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0, severity: .normal, value: "60%", reset: "1d 8h", flame: severity)))
+                    .frame(width: 292)
+                XCTAssertEqual(try dominant(flame), name, "flame \(severity)")
             }
 
             let expiry = Date().addingTimeInterval(expiryOffset(severity))

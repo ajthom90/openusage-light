@@ -141,7 +141,7 @@ final class WidgetMeterStyleTests: XCTestCase {
 
     /// The value column of a bar row, `nil` for a value row.
     private func barValue(_ row: DashboardRowModel) -> String? {
-        guard case .bar(_, _, let value, _) = row.mark else { return nil }
+        guard case .bar(_, _, let value, _, _) = row.mark else { return nil }
         return value
     }
 
