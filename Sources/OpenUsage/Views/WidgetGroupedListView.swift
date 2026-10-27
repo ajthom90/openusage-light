@@ -120,19 +120,22 @@ struct WidgetGroupedListView: View {
         }
     }
 
-    /// The account's rows, each with its popover, right-click menu and drag.
+    /// The account's rows, one under the other with nothing between, each with its popover, right-click
+    /// menu and drag. One view, so the card's account spacing never lands between two rows.
     private func rows(of account: DashboardAccount) -> some View {
-        ForEach(account.lines) { line in
-            DashboardHoverRow(line: line, account: account, resetClaim: container.resetClaim(for: account.id))
-                .opacity(activeMetricID == line.id ? 0 : 1)
-                .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
-                .contextMenu {
-                    DashboardMenu(
-                        sections: DashboardMenus.metric(line.descriptor, isStarred: layout.isPinned(line.descriptor.id)),
-                        perform: perform
-                    )
-                }
-                .reorderFrame(id: line.id, in: .named(reorderSpaceName))
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(account.lines) { line in
+                DashboardHoverRow(line: line, account: account, resetClaim: container.resetClaim(for: account.id))
+                    .opacity(activeMetricID == line.id ? 0 : 1)
+                    .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
+                    .contextMenu {
+                        DashboardMenu(
+                            sections: DashboardMenus.metric(line.descriptor, isStarred: layout.isPinned(line.descriptor.id)),
+                            perform: perform
+                        )
+                    }
+                    .reorderFrame(id: line.id, in: .named(reorderSpaceName))
+            }
         }
     }
 
