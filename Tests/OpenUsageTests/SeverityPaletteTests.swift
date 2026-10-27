@@ -4,8 +4,7 @@ import XCTest
 @testable import OpenUsage
 
 /// One severity palette: blue, orange, red. Each severity maps to its system colour, and the meter
-/// bar, the row's value, the resets popover's dot, the claim timeline's dot and the claim banner
-/// all paint that same colour. The views are rasterized and their dominant opaque colour is matched to
+/// bar, the row's value, the resets timeline's dot and the claim banner all paint that same colour. The views are rasterized and their dominant opaque colour is matched to
 /// the nearest candidate colour, so a surface that drifts to yellow, the accent colour, or SwiftUI's own
 /// orange/red fails here.
 @MainActor
@@ -29,7 +28,7 @@ final class SeverityPaletteTests: XCTestCase {
         XCTAssertEqual(Self.nearest(NSColor(Theme.severityColor(nil))), "systemBlue")
     }
 
-    func testMeterValuePopoverDotTimelineDotAndBannerAgree() throws {
+    func testMeterValueTimelineDotAndBannerAgree() throws {
         for (severity, name) in Self.palette {
             let meter = UsageMeterBar(fill: 1, severity: severity).frame(width: 60)
             XCTAssertEqual(try dominant(meter), name, "meter \(severity)")
@@ -41,13 +40,6 @@ final class SeverityPaletteTests: XCTestCase {
                     .frame(width: 292)
                 XCTAssertEqual(try dominant(row), name, "value \(severity)")
             }
-
-            let node = AccountResetsTimeline.Node(
-                id: "weekly", date: Date(), title: "Weekly resets", when: "Today 5 PM · in 3h",
-                runway: nil, severity: severity, emphasized: false
-            )
-            let popover = AccountResetsPopover(title: "Codex", nodes: [node], onHoverChange: { _ in })
-            XCTAssertEqual(try dominant(popover), name, "popover dot \(severity)")
 
             let expiry = Date().addingTimeInterval(expiryOffset(severity))
             let timeline = RateLimitResetsDetail(count: 1, expiries: [expiry], onHoverChange: { _ in })

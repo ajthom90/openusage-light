@@ -123,15 +123,15 @@ struct WidgetData: Hashable {
     }
 
     /// Where the quota is heading against its reset window (`paceState(now:)`): what the notifications
-    /// and the resets popover's run-out mark read. Never the bar's colour.
+    /// read. Never the bar's colour.
     /// Precedence, highest first: no data → spent → the live pace verdict → unpaced.
     enum PaceState: Hashable {
         /// No real metric backs the row.
         case noData
         /// Spent to nothing the user can see (see `MeterState.spent`).
         case spent
-        /// Projected to run out before the reset (`runsOutAt(now:)` says when), or to land right at the
-        /// limit with no cushion to speak of.
+        /// Projected to run out before the reset, or to land right at the limit with no cushion to
+        /// speak of.
         case runningOut
         /// Projected to land inside the last 10% — cutting it close — but still with a cushion of at
         /// least 1%. (A cushion that rounds to 0% promotes to `runningOut` instead.)
@@ -286,8 +286,8 @@ extension WidgetData {
         return .level(levelSeverity(used: used, limit: limit))
     }
 
-    /// Where the quota is heading against its reset window at `now`, for the notifications and the
-    /// resets popover's run-out mark. Precedence, highest first:
+    /// Where the quota is heading against its reset window at `now`, for the notifications.
+    /// Precedence, highest first:
     ///
     /// 1. **No data**.
     /// 2. **Spent**, whenever the remainder rounds to zero at the value's precision.

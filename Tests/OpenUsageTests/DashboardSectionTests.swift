@@ -5,11 +5,11 @@ import XCTest
 
 /// The dashboard shows what it shows: nothing on a provider's header, a caption or a row opens on a
 /// click, no plan or name reacts to the pointer, a plan is plain text and never a badge, and a row under
-/// the pointer draws exactly as it does at rest. Three things react: resting the pointer on a row opens
-/// the account's resets after the hover dwell, a double-click on an account's name renames it, on its
-/// caption or in a one-account provider's header, and the logo turns into the copy button while the
-/// pointer is on the provider. Dragging still reorders: the header drags the provider, a caption drags
-/// its account, and a row drags itself.
+/// the pointer draws exactly as it does at rest. Three things react: resting the pointer on the Limit
+/// Resets row's count opens the resets timeline after the hover dwell, a double-click on an account's
+/// name renames it, on its caption or in a one-account provider's header, and the logo turns into the
+/// copy button while the pointer is on the provider. Dragging still reorders: the header drags the
+/// provider, a caption drags its account, and a row drags itself.
 @MainActor
 final class DashboardSectionTests: QuietWindowTestCase {
     private final class Log {
@@ -41,10 +41,19 @@ final class DashboardSectionTests: QuietWindowTestCase {
         return DashboardLine(descriptor: WidgetDescriptor(id: title, providerID: "claude", metricLabel: title, sample: data), data: data)
     }
 
+    /// The Limit Resets row: "2 available", the one row with a hover.
+    private let resets: DashboardLine = {
+        var data = WidgetData(title: "Limit Resets", icon: .providerMark("claude"), kind: .count, used: 2, limit: nil)
+        data.values = [MetricValue(number: 2, kind: .count, label: "available")]
+        data.showsResetExpiries = true
+        data.expiriesAt = [Date().addingTimeInterval(3 * 86_400), Date().addingTimeInterval(20 * 86_400)]
+        return DashboardLine(descriptor: WidgetDescriptor(id: "resets", providerID: "claude", metricLabel: "Limit Resets", sample: data), data: data)
+    }()
+
     private let work = Provider(id: "claude@2", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Work")
 
-    private func account(_ provider: Provider) -> DashboardAccount {
-        DashboardAccount(provider: provider, lines: lines)
+    private func account(_ provider: Provider, lines: [DashboardLine]? = nil) -> DashboardAccount {
+        DashboardAccount(provider: provider, lines: lines ?? self.lines)
     }
 
     /// SwiftUI names every modifier and control in a view's body type: `_HoverRegionModifier` for
@@ -65,7 +74,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         XCTAssertFalse(interactiveParts(Text("x").help("y")).isEmpty)
     }
 
-    func testOnlyTheLiveRowTheNameAndTheCopyButtonReact() {
+    func testOnlyTheResetsCountTheNameAndTheCopyButtonReact() {
         let personal = account(Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"))
         let family = DashboardFamily(id: "claude", provider: personal.provider, accounts: [personal, account(work)])
         let section = DashboardProviderSection(family: family, plans: ["claude@1": "Max 5x"], status: AccountStatus(notice: "Refresh failed")) {
@@ -87,28 +96,39 @@ final class DashboardSectionTests: QuietWindowTestCase {
         XCTAssertEqual(interactiveParts(AccountName(account: personal, font: .body).body), ["TapGesture"], "name")
         XCTAssertEqual(interactiveParts(DashboardMetricRow(model: lines[0].data.dashboardRow()).body), [], "row")
         XCTAssertEqual(interactiveParts(DashboardMetricRow(model: credits.dashboardRow()).body), [], "value row")
-        XCTAssertEqual(interactiveParts(DashboardHoverRow(line: lines[0], account: personal).body), ["Hover", "Popover"], "live row")
+        XCTAssertEqual(interactiveParts(DashboardLiveRow(line: lines[0]).body), [], "live row")
+        XCTAssertEqual(interactiveParts(DashboardLiveRow(line: DashboardLine(descriptor: WidgetDescriptor(id: "extra", providerID: "codex", metricLabel: "Extra Usage", sample: credits), data: credits)).body), [], "live value row")
+        XCTAssertEqual(interactiveParts(DashboardLiveRow(line: resets).body), [], "the resets row itself")
+        XCTAssertEqual(interactiveParts(DashboardLiveRow(line: resets).resetsTrigger(AnyView(Text("2 available")))), ["Hover", "Popover"], "the resets count")
         XCTAssertEqual(interactiveParts(DashboardCopyButton(provider: personal.provider, active: true, copy: { true }).body), ["Hover", "Button", "Tooltip"], "copy button")
     }
 
-    /// Resting the pointer on a row opens the account's resets after the hover dwell, with no click,
-    /// and changes nothing on the panel itself: no highlight, no text swap, no height; resting it on the
-    /// caption's name opens nothing.
-    func testHoveringARowOpensTheAccountsResetsAndDrawsTheRowAsAtRest() throws {
+    /// Resting the pointer on a metric row, on its label or on the caption's name opens nothing and
+    /// changes nothing on the panel: no highlight, no text swap, no height. Only the Limit Resets row's
+    /// count opens the resets timeline after the hover dwell, with no click, and the panel keeps its
+    /// height.
+    func testOnlyTheResetsCountOpensAPopoverAndEveryOtherRowDrawsAsAtRest() throws {
         let log = Log()
-        let hosted = hostWithRenaming(log: log)
+        let hosted = hostWithRenaming(log: log, lines: lines + [resets])
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         func popoverIsOpen() -> Bool { NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
         let height = hosted.host.fittingSize.height
         let atRest = try pixels(of: hosted.host)
+        let resetsRowY = Self.firstRowY + 3 * DashboardGrid.rowHeight
+        let figureX = DashboardGrid.cardPadding + DashboardGrid.inset + DashboardGrid.labelWidth + DashboardGrid.columnGap + 12
 
-        try hover(CGPoint(x: Self.nameX, y: Self.captionY), hosted.window, hosted.host)
-        XCTAssertFalse(popoverIsOpen(), "hovering the name opens something")
+        for (name, point) in [("the name", CGPoint(x: Self.nameX, y: Self.captionY)),
+                              ("a row", CGPoint(x: hosted.host.bounds.width / 2, y: Self.firstRowY)),
+                              ("a row's value", CGPoint(x: hosted.host.bounds.width - DashboardGrid.cardPadding - DashboardGrid.inset - DashboardGrid.resetWidth - DashboardGrid.columnGap - 10, y: Self.firstRowY)),
+                              ("the resets row's label", CGPoint(x: Self.nameX, y: resetsRowY))] {
+            try hover(point, hosted.window, hosted.host)
+            XCTAssertFalse(popoverIsOpen(), "hovering \(name) opens something")
+            XCTAssertEqual(try pixels(of: hosted.host), atRest, "\(name) under the pointer draws differently from at rest")
+        }
 
-        try hover(CGPoint(x: hosted.host.bounds.width / 2, y: Self.firstRowY), hosted.window, hosted.host)
-        XCTAssertTrue(popoverIsOpen(), "hovering a row opens no popover")
+        try hover(CGPoint(x: figureX, y: resetsRowY), hosted.window, hosted.host)
+        XCTAssertTrue(popoverIsOpen(), "hovering the resets count opens no popover")
         XCTAssertEqual(hosted.host.fittingSize.height, height, "the hover changed the height")
-        XCTAssertEqual(try pixels(of: hosted.host), atRest, "the row under the pointer draws differently from the row at rest")
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
         HoverPopoverState.dismissAll()
     }
@@ -284,11 +304,11 @@ final class DashboardSectionTests: QuietWindowTestCase {
     }
 
     /// A provider with two accounts, Personal (saved, so it can be renamed) and Work, as the dashboard
-    /// hosts it: each caption carries its account's drag, every row its own hover and drag, and the
-    /// environment holds the rename store.
-    private func hostWithRenaming(log: Log) -> Hosted {
+    /// hosts it: each caption carries its account's drag, every row its drag, and the environment holds
+    /// the rename store.
+    private func hostWithRenaming(log: Log, lines: [DashboardLine]? = nil) -> Hosted {
         let (renaming, provider) = storedAccount(label: "Personal")
-        let family = DashboardFamily(id: "claude", provider: provider, accounts: [account(provider), account(work)])
+        let family = DashboardFamily(id: "claude", provider: provider, accounts: [account(provider, lines: lines), account(work)])
         let view = DashboardProviderSection(family: family) {
             ProviderIcon(source: provider.icon, inset: 0.04)
         } account: { account, _ in
@@ -296,7 +316,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
                 DashboardAccountCaption(account: account, plan: "Max 5x")
                     .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })
                 ForEach(account.lines) { line in
-                    DashboardHoverRow(line: line, account: account)
+                    DashboardLiveRow(line: line)
                         .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.metricDrags += 1 })
                 }
             }

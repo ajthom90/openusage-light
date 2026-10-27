@@ -3,10 +3,10 @@ import SwiftUI
 
 /// The dashboard display: one provider after another (`DashboardFamily`), each a header above a card
 /// of its accounts, every account one row per metric that has data, fed by the same `WidgetDataStore`
-/// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing but
-/// a dwell: its account's resets open below it after a moment. While the pointer is anywhere on a
-/// provider its logo turns into the copy button. A double-click on an
-/// account's name, in the header or on its caption, renames it, the same as the menu's Rename.
+/// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing;
+/// only the Limit Resets row's count opens the resets timeline after a dwell. While the pointer is
+/// anywhere on a provider its logo turns into the copy button. A double-click on an account's name, in
+/// the header or on its caption, renames it, the same as the menu's Rename.
 ///
 /// Right-click a provider's header or card, an account, or a metric row for its menu (`DashboardMenus`);
 /// a one-account provider's menu holds the account's commands too. Everything reorders by dragging: a
@@ -126,12 +126,12 @@ struct WidgetGroupedListView: View {
         }
     }
 
-    /// The account's rows, one under the other with nothing between, each with its popover, right-click
-    /// menu and drag. One view, so the card's account spacing never lands between two rows.
+    /// The account's rows, one under the other with nothing between, each with its right-click menu
+    /// and drag. One view, so the card's account spacing never lands between two rows.
     private func rows(of account: DashboardAccount) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(account.lines) { line in
-                DashboardHoverRow(line: line, account: account, resetClaim: container.resetClaim(for: account.id))
+                DashboardLiveRow(line: line, resetClaim: container.resetClaim(for: account.id))
                     .opacity(activeMetricID == line.id ? 0 : 1)
                     .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
                     .contextMenu {

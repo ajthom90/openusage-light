@@ -79,13 +79,12 @@ final class ResetDisplayTests: XCTestCase {
         XCTAssertEqual(data.compactResetText(now: now), "3d 12h")
     }
 
-    func testTheResetFollowsTheClockSettingAndARunOutIsRed() {
-        // Halfway through a 10h window with 90/100 used → behind pace, projected to run out ~34m out,
-        // well before the reset 5h out: a red bar, and the reset in the clock form under that setting.
+    func testTheResetFollowsTheClockSetting() {
+        // Halfway through a 10h window with 90/100 used: a red bar, and the reset in the clock form
+        // under that setting.
         var data = WidgetData(title: "Session", icon: .providerMark("codex"), kind: .percent, used: 90, limit: 100)
         data.resetsAt = now.addingTimeInterval(5 * 3600)
         data.periodDurationMs = 10 * 3600 * 1000
-        XCTAssertEqual(data.runsOutAt(now: now)!.timeIntervalSince(now), 2000, accuracy: 1)
 
         data.resetDisplayMode = .relative
         XCTAssertEqual(data.dashboardRow(now: now).mark, .bar(fill: 0.9, severity: .critical, value: "90%", reset: "5h"))
@@ -100,7 +99,6 @@ final class ResetDisplayTests: XCTestCase {
             data.resetDisplayMode = mode
             XCTAssertNil(data.compactResetText(now: now))
         }
-        XCTAssertNil(data.runsOutAt(now: now))
     }
 
     func testExpirySeverityBands() {

@@ -1,10 +1,10 @@
 import XCTest
 @testable import OpenUsage
 
-/// Locks the burn-rate pacing: the three-state thresholds (ahead / cutting-it-close / behind), the
-/// pace state they resolve to for the notifications and the resets popover, and the run-out
-/// projection. All cases pin `now` and derive `resetsAt` from a target elapsed fraction so the math is
-/// deterministic. The bar's colour never reads any of this (`MeterSeverityTests`).
+/// Locks the burn-rate pacing: the three-state thresholds (ahead / cutting-it-close / behind) and the
+/// pace state they resolve to for the notifications. All cases pin `now` and derive `resetsAt` from a
+/// target elapsed fraction so the math is deterministic. The bar's colour never reads any of this
+/// (`MeterSeverityTests`).
 final class PaceTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private let week: TimeInterval = 7 * 24 * 60 * 60
@@ -56,7 +56,7 @@ final class PaceTests: XCTestCase {
         XCTAssertNil(Pace.evaluate(used: 50, limit: 100, resetsAt: now, periodDuration: week, now: now))
     }
 
-    // MARK: PaceState (the pace verdict the notifications and the resets popover read)
+    // MARK: PaceState (the pace verdict the notifications read)
 
     private func pacedData(
         used: Double,
@@ -109,31 +109,14 @@ final class PaceTests: XCTestCase {
         XCTAssertEqual(data.paceState(now: now), .spent)
     }
 
-    func testProjectionAtOrRoundedToLimitIsRedWithoutARunOut() {
+    func testProjectionAtOrRoundedToLimitIsRunningOut() {
         for used in [49.8, 50] {
-            let data = pacedData(used: used)
-            XCTAssertEqual(data.paceState(now: now), .runningOut, "\(used)% used")
-            XCTAssertNil(data.runsOutAt(now: now), "\(used)% used lands at the limit, not past it")
+            XCTAssertEqual(pacedData(used: used).paceState(now: now), .runningOut, "\(used)% used")
         }
     }
 
     func testSmallButRealCushionStaysAmber() {
         XCTAssertEqual(pacedData(used: 49).paceState(now: now), .closeToLimit)
-    }
-
-    func testRunningOutProjectsARunOutBeforeTheReset() {
-        let data = pacedData(used: 60)
-        guard let runsOut = data.runsOutAt(now: now) else { return XCTFail("expected a run-out") }
-        XCTAssertGreaterThan(runsOut, now)
-        XCTAssertLessThan(runsOut, data.resetsAt!)
-        XCTAssertNil(pacedData(used: 30).runsOutAt(now: now))
-    }
-
-    func testRunsOutOnlyWhenBehindAndBeforeReset() {
-        let reset = resetsAt(elapsed: 0.33, period: week)
-        let eta = Pace.secondsToRunOut(used: 50, limit: 100, resetsAt: reset, periodDuration: week, now: now)
-        XCTAssertEqual(eta ?? 0, 0.33 * week, accuracy: week * 0.01)
-        XCTAssertNil(Pace.secondsToRunOut(used: 30, limit: 100, resetsAt: reset, periodDuration: week, now: now))
     }
 
     func testPlentyRemainingSuppressesFalseRunOutFlame() {

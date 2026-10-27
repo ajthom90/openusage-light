@@ -1,8 +1,8 @@
 import Foundation
 
-/// Drives a hover-revealed popover (the ↺ tag's resets timeline): opens after a short dwell while the
-/// tag is hovered, and closes once the cursor has left BOTH the tag and the popover (a brief grace lets
-/// the cursor travel between them). An
+/// Drives a hover-revealed popover (the Limit Resets row's resets timeline): opens after a short dwell
+/// while the row's count is hovered, and closes once the cursor has left BOTH the count and the popover
+/// (a brief grace lets the cursor travel between them). An
 /// `@Observable` reference type so a SwiftUI `View` can hold it in `@State` and bind `isPresented` to
 /// the popover — value-type closure capture can't track this state reliably.
 @MainActor

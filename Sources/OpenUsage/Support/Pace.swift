@@ -3,7 +3,7 @@ import Foundation
 /// Burn-rate pacing for a bounded metric, ported from the original OpenUsage
 /// (`src/lib/pace-status.ts`). Given how much of a quota is spent and how far
 /// through the reset window we are, it projects usage at the current rate to the end of the window.
-/// This drives the notifications and the resets popover's "runs out" mark; never the bar's colour.
+/// This drives the notifications; never the bar's colour.
 ///
 /// Pure logic (no SwiftUI) so it stays unit-testable; `WidgetData` turns it into the meter state.
 enum Pace {
@@ -43,20 +43,5 @@ enum Pace {
         else if projected <= limit { status = .onTrack }     // lands inside the last 10%
         else { status = .behind }
         return Result(status: status, projectedUsage: projected)
-    }
-
-    /// Projected seconds until the quota is exhausted, but only when we're `behind` and the run-out lands
-    /// before the window resets (otherwise there's nothing to warn about). Mirrors `getRunsOutDurationText`.
-    static func secondsToRunOut(used: Double, limit: Double, resetsAt: Date, periodDuration: TimeInterval,
-                                now: Date = Date()) -> TimeInterval? {
-        guard let result = evaluate(used: used, limit: limit, resetsAt: resetsAt,
-                                    periodDuration: periodDuration, now: now),
-              result.status == .behind else { return nil }
-        let rate = result.projectedUsage / periodDuration   // usage per second at the current burn rate
-        guard rate > 0 else { return nil }
-        let eta = (limit - used) / rate                      // seconds until the remaining quota is gone
-        let remaining = resetsAt.timeIntervalSince(now)
-        guard eta > 0, eta < remaining else { return nil }
-        return eta
     }
 }

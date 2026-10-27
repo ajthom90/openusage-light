@@ -18,7 +18,7 @@ The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, O
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 
-The dashboard has a header and a card per provider. The header names the provider, and the account too when there is one with a name of its own ("Codex — Sunstory") that fits the line, with its plan and the provider's logo at the right end; nothing is ever cut short, so a name that does not fit goes inside the card with its plan, the way several accounts are shown. The card holds every metric that has data, in the order you set, one row each: the label, a bar that fills with what is left (blue; orange once 80% is used; red once 90% is), the percentage, and the time to the reset; a balance or a count shows its value in the bar's place. When a provider has several accounts, each is named inside the card above its rows, with its plan at the right. Rest the pointer on a row for a moment to see the account's resets, soonest first. While the pointer is on a provider, its logo becomes a button that copies a picture of that provider's header and card; the picture uses the account's name when you have set one and leaves an email out. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
+The dashboard has a header and a card per provider. The header names the provider, and the account too when there is one with a name of its own ("Codex — Sunstory") that fits the line, with its plan and the provider's logo at the right end; nothing is ever cut short, so a name that does not fit goes inside the card with its plan, the way several accounts are shown. The card holds every metric that has data, in the order you set, one row each: the label, a bar that fills with what is left (blue; orange once 80% is used; red once 90% is), the percentage, and the time to the reset; a balance or a count shows its value in the bar's place. When a provider has several accounts, each is named inside the card above its rows, with its plan at the right. Nothing on a row reacts to the pointer. While the pointer is on a provider, its logo becomes a button that copies a picture of that provider's header and card; the picture uses the account's name when you have set one and leaves an email out. Settings → Usage Display chooses whether usage reads as used or left, and whether reset times read as countdowns or exact times.
 
 Right-click for actions:
 
@@ -32,7 +32,7 @@ Drag a provider by its header, an account by its name, or a metric by its row to
 
 When the menu bar shows more than one account of a provider, each mark carries a two-character tag from the account's name. The tag keeps the account's number, so "Attention Machine 1" and "Attention Machine 2" read A1 and A2. Names that would share a tag show the first letter that differs, such as WO and WE for Work and Web.
 
-Claude and Codex accounts show a Limit Resets row with the number of available rate-limit resets while they have any. Rest the pointer on the row to see when each reset expires. To spend one, hover its line there, choose Use, then Reset.
+Claude and Codex accounts show a Limit Resets row with the number of available rate-limit resets while they have any. Rest the pointer on the count for a moment to see when each reset expires. To spend one, hover its line there, choose Use, then Reset.
 
 ## Building
 
