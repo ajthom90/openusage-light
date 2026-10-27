@@ -49,7 +49,7 @@ struct CopilotLogin: ProviderLogin {
 }
 
 struct GrokLogin: ProviderLogin {
-    static let clientID = "b1a00492-073a-47ea-816f-4c329264a828"
+    static let clientID = OAuthClients.grokClientID
     static let scopes = "openid profile email offline_access grok-cli:access api:access"
     var http: any HTTPClient = URLSessionHTTPClient()
 

@@ -2,7 +2,7 @@ import Foundation
 import OpenUsageCore
 
 struct ClaudeLogin: ProviderLogin {
-    static let clientID = String(data: Data(base64Encoded: "OWQxYzI1MGEtZTYxYi00NGQ5LTg4ZWQtNTk0NGQxOTYyZjVl")!, encoding: .utf8)!
+    static let clientID = OAuthClients.claudeClientID
     static let authorizeURL = URL(string: "https://claude.ai/oauth/authorize")!
     static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
     static let scopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
@@ -160,8 +160,8 @@ struct CodexLogin: ProviderLogin {
 }
 
 struct AntigravityLogin: ProviderLogin {
-    static let clientID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
-    static let clientSecret = "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"
+    static let clientID = OAuthClients.antigravityClientID
+    static let clientSecret = OAuthClients.antigravityClientSecret
     var http: any HTTPClient = URLSessionHTTPClient()
 
     func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
