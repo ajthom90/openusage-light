@@ -1,6 +1,6 @@
 # Muse Code usage tracking: findings and open questions
 
-Status: **the usage request is confirmed against a real account (2026-10-27). One side effect (minting a key per call) is still being checked. Nothing built.** Findings are from Meta's public pages read on 2026-10-27.
+Status: **the usage request is confirmed against a real account and is safe to poll. Implementation under way.** Findings are from Meta's public pages read on 2026-10-27.
 
 ## What Muse Code is
 
@@ -60,11 +60,11 @@ A throwaway script (stdlib only, nothing stored, secrets redacted) ran the devic
   Percentages are integers; `resets_at` is in **seconds** (the CLI's own `resetsAtMs` is milliseconds).
 - `GET /muse-code/config` with the sign-in token returns 401 "Invalid or expired API key": other routes want the *minted* key, not the sign-in token.
 
-## Open question: does each call mint a new key?
+## Does each call mint a new key? No.
 
-The response carries a fresh `api_key`. If every call creates a key on the account, polling every five minutes would create hundreds a day. The CLI re-mints only when needed ("mint-once"). A second probe compares two consecutive calls (by hash, never printing a key) to see whether the key is stable. If it is not, the provider would mint rarely and cache nothing secret beyond the sign-in token, or the feature should not poll on the shared interval.
+A second probe signed in once and called the mint route twice, two seconds apart, comparing the returned `api_key` by a hash prefix (no key value printed): **the key was identical both times**, and both calls returned the same live usage (37% of the window, 12% weekly; the first probe had seen 30% and 10%). So the call is idempotent for a given sign-in, and polling on the shared five-minute interval does not create keys. *Tested only for two calls seconds apart.*
 
-## Plan once that is settled
+## Plan
 
 1. `MuseCodeLogin` (device flow, same shape as `GrokLogin`/`CopilotLogin`) storing the sign-in token in the app's own vault.
 2. A `ProviderKind.musecode` with `MuseCodeUsageClient` (the mint call) and `MuseCodeUsageMapper`: a "Session" meter from `window` (percent, `window_duration_mins`), a "Weekly" meter from `weekly`, plan from `subs_tier_name`. Treat `used_percent > 100` as over quota.
