@@ -8,8 +8,8 @@ import XCTest
 /// the pointer draws exactly as it does at rest. Five things react: resting the pointer on the Limit
 /// Resets row's count opens the resets timeline after the hover dwell, resting it on the warning or
 /// clock after an account's name opens a tooltip with the reason, a click on a row's value or reset
-/// flips the display, a double-click on an account's name renames it, on its caption or in a one-account
-/// provider's header, and the logo turns into the copy button while the pointer is on the provider.
+/// flips the display, and a double-click on an account's name renames it, on its caption or in a
+/// one-account provider's header. The header's logo is a picture and nothing else.
 /// Dragging still reorders: the header drags the provider, a caption drags its account, and a row
 /// drags itself.
 @MainActor
@@ -35,8 +35,10 @@ final class DashboardSectionTests: QuietWindowTestCase {
     /// The first row's centre line, under the caption.
     private static let firstRowY = DashboardGrid.headerHeight + DashboardGrid.headerGap + DashboardGrid.cardPadding
         + DashboardGrid.captionHeight + DashboardGrid.rowHeight / 2
-    /// A point on a name that starts 12 pt in.
+    /// A point on a caption's name, which starts 12 pt in.
     private static let nameX = DashboardGrid.cardPadding + DashboardGrid.inset + 10
+    /// A point on the header's name, which starts 8 pt after the logo.
+    private static let headerNameX = DashboardGrid.cardPadding + DashboardGrid.inset + DashboardGrid.iconSize + DashboardGrid.columnGap + 10
 
     private let lines: [DashboardLine] = ["Session", "Weekly", "Fable"].map { title in
         var data = WidgetData(title: title, icon: .providerMark("claude"), kind: .percent, used: 30, limit: 100)
@@ -78,12 +80,10 @@ final class DashboardSectionTests: QuietWindowTestCase {
         XCTAssertFalse(interactiveParts(Text("x").help("y")).isEmpty)
     }
 
-    func testOnlyTheResetsCountTheNameAndTheCopyButtonReact() {
+    func testOnlyTheResetsCountTheNameAndTheStatusGlyphReact() {
         let personal = account(Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"))
         let family = DashboardFamily(id: "claude", provider: personal.provider, accounts: [personal, account(work)])
-        let section = DashboardProviderSection(family: family, plans: ["claude@1": "Max 5x"], status: AccountStatus(notice: "Refresh failed")) {
-            ProviderIcon(source: family.provider.icon, inset: 0.04)
-        } account: { account, _ in
+        let section = DashboardProviderSection(family: family, plans: ["claude@1": "Max 5x"], status: AccountStatus(notice: "Refresh failed")) { account, _ in
             DashboardAccountRows(account: account, plan: "Max 5x")
         }
         var credits = WidgetData(title: "Extra Usage", icon: .providerMark("codex"), kind: .count, used: 452, limit: nil)
@@ -92,6 +92,9 @@ final class DashboardSectionTests: QuietWindowTestCase {
 
         XCTAssertEqual(interactiveParts(section.body), [], "section")
         XCTAssertEqual(interactiveParts(section.header), [], "header")
+        // The header's one reaction is the status glyph's tooltip: the logo is a picture, no button and
+        // no hover.
+        XCTAssertEqual(interactiveParts(section.header.body), ["Hover", "Tooltip"], "header's body")
         // The caption's one reaction is the status glyph's tooltip, which the warning and the clock carry.
         XCTAssertEqual(interactiveParts(DashboardAccountCaption(account: personal, plan: "Max 5x").body), ["Hover", "Tooltip"], "caption")
         XCTAssertEqual(interactiveParts(stale.body), ["Hover", "Tooltip"], "stale caption")
@@ -108,7 +111,6 @@ final class DashboardSectionTests: QuietWindowTestCase {
         XCTAssertEqual(interactiveParts(DashboardLiveRow(line: DashboardLine(descriptor: WidgetDescriptor(id: "extra", providerID: "codex", metricLabel: "Extra Usage", sample: credits), data: credits)).body), [], "live value row")
         XCTAssertEqual(interactiveParts(DashboardLiveRow(line: resets).body), [], "the resets row itself")
         XCTAssertEqual(interactiveParts(DashboardLiveRow(line: resets).resetsTrigger(AnyView(Text("2 available")))), ["Hover", "Popover"], "the resets count")
-        XCTAssertEqual(interactiveParts(DashboardCopyButton(provider: personal.provider, active: true, copy: { true }).body), ["Hover", "Button", "Tooltip"], "copy button")
     }
 
     /// Resting the pointer on a metric row, on its label or on the caption's name opens nothing and
@@ -143,23 +145,25 @@ final class DashboardSectionTests: QuietWindowTestCase {
 
     /// The warning after the name of an account whose refresh failed explains itself: resting the pointer
     /// on it opens a tooltip with the notice after the hover dwell, which goes once the pointer leaves.
-    /// The name beside it opens nothing.
+    /// The name and the logo before it open nothing.
     func testHoveringTheWarningShowsTheNoticeAndHoveringTheNameShowsNothing() throws {
         let notice = "Refresh failed: the token has expired."
         let (renaming, provider) = storedAccount(label: "Work")
         let family = DashboardFamily(id: "claude", provider: provider, accounts: [account(provider)])
-        let section = DashboardProviderSection(family: family, status: AccountStatus(notice: notice)) {
-            ProviderIcon(source: provider.icon, inset: 0.04)
-        } account: { account, captioned in
+        let section = DashboardProviderSection(family: family, status: AccountStatus(notice: notice)) { account, captioned in
             DashboardAccountRows(account: account, captioned: captioned)
         }
         let (window, host) = hostView(section, renaming: renaming)
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         func opened() -> [NSWindow] { NSApp.windows.filter { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
         let headerMid = DashboardGrid.headerHeight / 2
-        let nameEnd = DashboardGrid.cardPadding + DashboardGrid.inset + ("Work" as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width
+        let nameEnd = Self.headerNameX - 10 + ("Work" as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width
 
-        try hover(CGPoint(x: Self.nameX, y: headerMid), window, host)
+        try hover(CGPoint(x: DashboardGrid.cardPadding + DashboardGrid.inset + DashboardGrid.iconSize / 2, y: headerMid), window, host)
+        XCTAssertTrue(opened().isEmpty, "hovering the logo opens something")
+        XCTAssertNil(HoverTooltips.visibleText)
+
+        try hover(CGPoint(x: Self.headerNameX, y: headerMid), window, host)
         XCTAssertTrue(opened().isEmpty, "hovering the name opens something")
         XCTAssertNil(HoverTooltips.visibleText)
 
@@ -178,7 +182,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
     func testAPlanIsNeverABadge() {
         let personal = account(Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"))
         let family = DashboardFamily(id: "claude", provider: personal.provider, accounts: [personal])
-        let header = DashboardProviderHeader(provider: family.provider, account: personal, plan: "Max 20x") { EmptyView() }
+        let header = DashboardProviderHeader(provider: family.provider, account: personal, plan: "Max 20x")
         for (name, body) in [("header", String(reflecting: type(of: header.body))),
                              ("caption", String(reflecting: type(of: DashboardAccountCaption(account: personal, plan: "Max 20x").body)))] {
             for badge in ["Capsule", "Background", "RoundedRectangle"] {
@@ -292,9 +296,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         let section = DashboardProviderSection(
             family: family, plans: [provider.id: "Max 5x"],
             handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.headerDrags += 1 })) }
-        ) {
-            ProviderIcon(source: provider.icon, inset: 0.04)
-        } account: { account, captioned in
+        ) { account, captioned in
             DashboardAccountRows(account: account, captioned: captioned)
         }
         let (window, host) = hostView(section, renaming: renaming)
@@ -307,7 +309,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         )
 
         let headerMid = DashboardGrid.headerHeight / 2
-        let name = CGPoint(x: Self.nameX, y: headerMid)
+        let name = CGPoint(x: Self.headerNameX, y: headerMid)
         click(name, window, host)
         RunLoop.main.run(until: Date().addingTimeInterval(0.6))
         XCTAssertNil(renaming.edit, "a single click on the name starts a rename")
@@ -378,9 +380,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
     private func hostWithRenaming(log: Log, lines: [DashboardLine]? = nil) -> Hosted {
         let (renaming, provider) = storedAccount(label: "Personal")
         let family = DashboardFamily(id: "claude", provider: provider, accounts: [account(provider, lines: lines), account(work)])
-        let view = DashboardProviderSection(family: family) {
-            ProviderIcon(source: provider.icon, inset: 0.04)
-        } account: { account, _ in
+        let view = DashboardProviderSection(family: family) { account, _ in
             VStack(alignment: .leading, spacing: 0) {
                 DashboardAccountCaption(account: account, plan: "Max 5x")
                     .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })

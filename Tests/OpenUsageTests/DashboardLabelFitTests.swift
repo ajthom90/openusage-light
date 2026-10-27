@@ -39,9 +39,7 @@ final class DashboardLabelFitTests: XCTestCase {
             XCTAssertFalse(plans.isEmpty, kind.displayName)
             let account = account(kind, kind.displayName)
             for plan in plans {
-                let header = DashboardProviderHeader(provider: account.provider, account: account, plan: plan) {
-                    ProviderIcon(source: account.provider.icon, inset: 0.04)
-                }
+                let header = DashboardProviderHeader(provider: account.provider, account: account, plan: plan)
                 XCTAssertLessThanOrEqual(idealWidth(header), cardWidth, "\(kind.displayName): \(plan)")
             }
         }

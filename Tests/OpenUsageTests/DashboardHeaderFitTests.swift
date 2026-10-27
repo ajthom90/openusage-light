@@ -14,24 +14,24 @@ final class DashboardHeaderFitTests: QuietWindowTestCase {
     private let cardWidth = DashboardGrid.cardWidth
     private let inset = DashboardGrid.cardPadding + DashboardGrid.inset
 
-    /// Every one of Robin's one-account providers: the name starts 12 pt in and ends where the name
-    /// alone would, the plan ends 8 pt before the logo as wide as the plan alone, at least 8 pt between
-    /// them, and the line still has room for the warning glyph after the name.
+    /// Every one of Robin's one-account providers: the logo sits in its 16 pt box 12 pt in, the name 8 pt after it and
+    /// ends where the name alone would, the plan ends 12 pt before the card's edge as wide as the plan
+    /// alone, at least 8 pt between them, and the line still has room for the warning glyph after the
+    /// name.
     func testRobinsSoleAccountsFitTheirHeadersWhole() async throws {
         let headers: [(ProviderKind, String, String)] = [
             (.grok, "rob@sunstory.com", "SuperGrok Heavy"), (.cursor, "rob@sunstory.com", "Ultra"),
             (.codex, "sam@hey.com", "Plus"), (.codex, "Sunstory", "Pro 200"), (.opencodeGo, "OpenCode", "Go"),
             (.claude, "Personal", "Max 20x"), (.ollama, "Ollama", "Free"), (.openrouter, "OpenRouter", "Pay-as-you-go"),
         ]
-        let planEnd = cardWidth - inset - DashboardGrid.iconSize - DashboardGrid.columnGap
+        let nameStart = inset + DashboardGrid.iconSize + DashboardGrid.columnGap
+        let planEnd = cardWidth - inset
         for (kind, name, plan) in headers {
             let label = "\(name) · \(plan)"
             let account = account(kind, name)
-            func section(status: AccountStatus) -> DashboardProviderSection<ProviderIcon, DashboardAccountRows> {
+            func section(status: AccountStatus) -> DashboardProviderSection<DashboardAccountRows> {
                 let family = DashboardFamily(id: kind.rawValue, provider: account.provider, accounts: [account])
-                return DashboardProviderSection(family: family, plans: [account.id: plan], status: status) {
-                    ProviderIcon(source: account.provider.icon, inset: 0.04)
-                } account: { account, captioned in
+                return DashboardProviderSection(family: family, plans: [account.id: plan], status: status) { account, captioned in
                     DashboardAccountRows(account: account, plan: plan, captioned: captioned)
                 }
             }
@@ -46,11 +46,14 @@ final class DashboardHeaderFitTests: QuietWindowTestCase {
             let header = try await Ink(section(status: AccountStatus()).header, in: self, width: cardWidth)
             XCTAssertEqual(CGFloat(header.height) / header.scale, DashboardGrid.headerHeight, accuracy: 1, label)
 
-            let title = try XCTUnwrap(header.span(from: 0, to: inset + nameWidth + 4), "\(label): no name drawn")
-            XCTAssertEqual(title.first, inset, accuracy: 1.5, "\(label): the name doesn't start 12 pt in")
-            XCTAssertEqual(title.last, inset + nameWidth, accuracy: 1.5, "\(label): the name is cut")
+            let logo = try XCTUnwrap(header.span(from: 0, to: nameStart - 1), "\(label): no logo drawn")
+            XCTAssertGreaterThanOrEqual(logo.first, inset - 0.5, "\(label): the logo starts before 12 pt in")
+            XCTAssertLessThanOrEqual(logo.last, inset + DashboardGrid.iconSize + 0.5, "\(label): the logo leaves its 16 pt box")
+            let title = try XCTUnwrap(header.span(from: nameStart - 1, to: nameStart + nameWidth + 4), "\(label): no name drawn")
+            XCTAssertEqual(title.first, nameStart, accuracy: 1.5, "\(label): the name doesn't start 8 pt after the logo")
+            XCTAssertEqual(title.last, nameStart + nameWidth, accuracy: 1.5, "\(label): the name is cut")
             let drawnPlan = try XCTUnwrap(header.span(from: planEnd - planWidth - 2, to: planEnd + 2), "\(label): no plan drawn")
-            XCTAssertEqual(drawnPlan.last, planEnd, accuracy: 1.5, "\(label): the plan doesn't end 8 pt before the logo")
+            XCTAssertEqual(drawnPlan.last, planEnd, accuracy: 1.5, "\(label): the plan doesn't end 12 pt before the edge")
             XCTAssertEqual(drawnPlan.width, planWidth, accuracy: 1.5, "\(label): the plan is cut")
             XCTAssertLessThanOrEqual(title.last + DashboardGrid.columnGap, drawnPlan.first + 1, "\(label): the name runs into the plan")
             XCTAssertNil(header.span(from: title.last + 1, to: drawnPlan.first - 1), "\(label): something sits between the name and the plan")

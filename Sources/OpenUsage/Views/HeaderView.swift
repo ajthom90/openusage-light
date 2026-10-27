@@ -143,7 +143,7 @@ struct HeaderView: View {
     /// matches the card on screen instead of guessing from `NSApp.effectiveAppearance`.
     private func shareCard(_ group: ProviderGroup) {
         ShareCardRenderer.share(
-            group: group,
+            groups: [group],
             dataStore: dataStore,
             layout: layout,
             appearance: colorScheme

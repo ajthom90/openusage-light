@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Where things sit on the dashboard, on the 4/8/12/16 scale: a provider's header sits 4 pt above its
 /// card and 16 pt below the card before it; the card pads its rows by 8 and each row, caption and the
-/// header inset their text by 4 more, so every line starts 12 pt in from the card's edge and the logo
-/// ends 12 pt before it, where the reset column ends. Rows are 20 pt, bars 5. The header and the
+/// header inset their content by 4 more, so every label, caption and the header's logo start 12 pt in
+/// from the card's edge, and the reset column and every plan end 12 pt before it. Rows are 20 pt, bars 5. The header and the
 /// caption are as tall as one line of their type, and the logo is as tall as the header. A row's
 /// columns are fixed — 86 pt of label, the bar, 52 of value, 56 of reset, 8 between — so every bar in
 /// the panel starts and ends at the same x.
@@ -22,7 +22,7 @@ enum DashboardGrid {
     /// Between two accounts in one card.
     static let accountSpacing = Theme.Spacing.xxxl
     static let rowHeight: CGFloat = 20
-    /// Between a row's columns, and from the plan to the logo.
+    /// Between a row's columns, and from the header's logo to its name.
     static let columnGap = Theme.Spacing.m
     static let labelWidth: CGFloat = 86
     static let valueWidth: CGFloat = 52
@@ -45,7 +45,7 @@ enum DashboardGrid {
     static let headerHeight = lineHeight(headerNSFont)
     /// A caption is one line of its type.
     static let captionHeight = lineHeight(planNSFont)
-    /// The provider's logo, and the copy button in its place: as tall as the header's line.
+    /// The provider's logo: as tall as the header's line.
     static let iconSize = headerHeight
 
     /// The height of one line of `font`, in whole points.

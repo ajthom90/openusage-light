@@ -52,25 +52,13 @@ enum ShareCardRenderer {
         return true
     }
 
-    /// Rasterizes the card and copies the PNG to the clipboard. Beeps and logs on failure, so a failed
-    /// export is never silently swallowed. Returns whether the PNG landed on the pasteboard; the caller
-    /// shows its own confirmation, since a clipboard write gives no other signal.
-    @discardableResult
-    static func copy(_ card: ShareCardView) -> Bool {
-        guard let image = image(for: card) else {
-            AppLog.error(.lifecycle, "share card: ImageRenderer produced no image for \(card.family.id)")
-            NSSound.beep()
-            return false
-        }
-        return copyToPasteboard(image)
-    }
-
-    /// The right-click and footer "Share Screenshot" action for one account: the account alone under its
-    /// provider's header, as the dashboard shows it, with the panel's label column. On a successful copy
-    /// it asks the layout store to surface the transient "Copied to clipboard" pill.
+    /// The one "Share Screenshot": a picture of these accounts' card — a provider's accounts from its
+    /// header's right-click, one account from its caption's or the footer's — drawn as the dashboard
+    /// draws them, copied to the clipboard. On a successful copy it asks the layout store to surface the
+    /// transient "Copied to clipboard" pill; a failure beeps and logs instead.
     @discardableResult
     static func share(
-        group: ProviderGroup,
+        groups: [ProviderGroup],
         dataStore: WidgetDataStore,
         layout: LayoutStore,
         appearance: ColorScheme
@@ -79,13 +67,16 @@ enum ShareCardRenderer {
             guard let descriptor = layout.descriptor(for: widget) else { return nil }
             return DashboardLine(descriptor: descriptor, data: dataStore.data(for: descriptor))
         }
-        guard let family = DashboardFamily.make(groups: [group], line: line).first else { return false }
-        let card = ShareCardView(
-            family: family,
-            plans: dataStore.plan(for: group.provider.id).map { [group.provider.id: $0] } ?? [:],
-            appearance: appearance
-        )
-        guard copy(card) else { return false }
+        guard let family = DashboardFamily.make(groups: groups, line: line).first else { return false }
+        let plans = Dictionary(uniqueKeysWithValues: family.accounts.compactMap { account in
+            dataStore.plan(for: account.id).map { (account.id, $0) }
+        })
+        guard let image = image(for: ShareCardView(family: family, plans: plans, appearance: appearance)) else {
+            AppLog.error(.lifecycle, "share card: ImageRenderer produced no image for \(family.id)")
+            NSSound.beep()
+            return false
+        }
+        guard copyToPasteboard(image) else { return false }
         layout.presentShareConfirmation()
         return true
     }

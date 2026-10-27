@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// One provider on the dashboard: its header above its card. One rule for every card: a provider with
-/// one account puts that account on the header — its name, its status glyph, its plan right-aligned
-/// before the logo at the end of the line, where the rows' reset column ends — and its rows alone in
-/// the card; a provider with several accounts puts its own name on the header and each account inside
-/// the card as a caption, name and plan, over its rows. The logo says which provider it is, so the
-/// header never spells "Provider — name". Static but for the status glyph's tooltip: the dashboard
-/// adds hover, menus and drags around it, and the share image draws it as it is.
-struct DashboardProviderSection<Trailing: View, Account: View>: View {
+/// one account puts that account on the header — the provider's logo, its name, its status glyph, and
+/// its plan right-aligned where the rows' reset column ends — and its rows alone in the card; a provider
+/// with several accounts puts its logo and its own name on the header and each account inside the card
+/// as a caption, name and plan, over its rows. The logo says which provider it is, so the header never
+/// spells "Provider — name". Static but for the status glyph's tooltip: the dashboard adds menus and
+/// drags around it, and the share image draws it as it is.
+struct DashboardProviderSection<Account: View>: View {
     let family: DashboardFamily
     /// The plan of an account, by its id.
     var plans: [String: String] = [:]
@@ -15,8 +15,6 @@ struct DashboardProviderSection<Trailing: View, Account: View>: View {
     var status: AccountStatus = AccountStatus()
     /// Wraps the header, so the dashboard can attach the provider's drag gesture to it.
     var handle: (AnyView) -> AnyView = { $0 }
-    /// What ends the header line: the provider's logo, or the copy button in its place.
-    @ViewBuilder var trailing: () -> Trailing
     /// An account's block in the card: with its caption when `captioned`, or its rows alone.
     @ViewBuilder var account: (DashboardAccount, _ captioned: Bool) -> Account
 
@@ -32,29 +30,34 @@ struct DashboardProviderSection<Trailing: View, Account: View>: View {
         }
     }
 
-    var header: some View {
+    var header: DashboardProviderHeader {
         DashboardProviderHeader(
             provider: family.provider,
             account: family.soleAccount,
             plan: family.soleAccount.flatMap { plans[$0.id] },
-            status: status,
-            trailing: trailing
+            status: status
         )
     }
 }
 
-/// The line above a provider's card: the sole account's name, or the provider's over several accounts,
-/// the plan 8 pt before the logo, both centred on the line, nothing cut.
-struct DashboardProviderHeader<Trailing: View>: View {
+/// The line above a provider's card: the logo where the rows' labels start, 8 pt to the sole account's
+/// name or the provider's over several accounts, and the plan right-aligned where the reset column
+/// ends, all centred on the line, nothing cut.
+struct DashboardProviderHeader: View {
     let provider: Provider
     /// The sole account the header names, or `nil` for the provider over several accounts.
     var account: DashboardAccount?
     var plan: String?
     var status = AccountStatus()
-    @ViewBuilder var trailing: () -> Trailing
+
+    @Environment(\.popoverPartyMode) private var partyMode
 
     var body: some View {
         HStack(spacing: 0) {
+            ProviderIcon(source: provider.icon, inset: 0.04)
+                .partyPulse(partyMode)
+                .frame(width: DashboardGrid.iconSize, height: DashboardGrid.iconSize)
+                .padding(.trailing, DashboardGrid.columnGap)
             if let account {
                 AccountName(account: account, font: DashboardGrid.headerFont)
             } else {
@@ -70,10 +73,7 @@ struct DashboardProviderHeader<Trailing: View>: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .fixedSize()
-                    .padding(.trailing, DashboardGrid.columnGap)
             }
-            trailing()
-                .frame(width: DashboardGrid.iconSize, height: DashboardGrid.iconSize)
         }
         .padding(.horizontal, DashboardGrid.cardPadding + DashboardGrid.inset)
         .frame(height: DashboardGrid.headerHeight)

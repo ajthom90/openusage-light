@@ -7,7 +7,8 @@ enum DashboardCommand: Equatable {
     case open(URL)
     case rename(String)
     case editAccount(String)
-    case shareScreenshot(String)
+    /// Copies a picture of these accounts' card: a provider's accounts, or one of them.
+    case shareScreenshot([String])
     case showHiddenMetrics(String)
     case toggleStar(String)
     case hide(String)
@@ -22,7 +23,8 @@ struct DashboardMenuItem: Equatable {
 /// The dashboard's right-click menus, one per thing you can click: a provider's header or card, an
 /// account, and a metric row. A card with one account has no caption, so its menu merges the two
 /// (`soleAccount`). Each is a list of sections that render with dividers between them. Apart from the
-/// copy button and the Limit Resets row's popover, right-click is the only way to act on the dashboard.
+/// Limit Resets row's popover, right-click is the only way to act on the dashboard, and Share Screenshot
+/// here the only way to copy a picture of it.
 enum DashboardMenus {
     typealias Sections = [[DashboardMenuItem]]
 
@@ -30,6 +32,7 @@ enum DashboardMenus {
         [
             [DashboardMenuItem(title: "Refresh", command: .refresh(family.accounts.map(\.id)))],
             [DashboardMenuItem(title: "Manage Accounts…", command: .manageAccounts)],
+            [DashboardMenuItem(title: "Share Screenshot", command: .shareScreenshot(family.accounts.map(\.id)))],
             links(family.provider),
         ].filter { !$0.isEmpty }
     }
@@ -40,7 +43,6 @@ enum DashboardMenus {
     static func soleAccount(
         _ account: DashboardAccount,
         status: String?,
-        canShare: Bool,
         hasHiddenMetrics: Bool
     ) -> Sections {
         [
@@ -51,7 +53,7 @@ enum DashboardMenus {
                 DashboardMenuItem(title: "Edit Account…", command: .editAccount(account.id)),
                 DashboardMenuItem(title: "Manage Accounts…", command: .manageAccounts),
             ],
-            canShare ? [DashboardMenuItem(title: "Share Screenshot", command: .shareScreenshot(account.id))] : [],
+            [DashboardMenuItem(title: "Share Screenshot", command: .shareScreenshot([account.id]))],
             hasHiddenMetrics ? [DashboardMenuItem(title: "Show Hidden Metrics", command: .showHiddenMetrics(account.id))] : [],
             links(account.provider),
         ].filter { !$0.isEmpty }
@@ -67,7 +69,6 @@ enum DashboardMenus {
     static func account(
         _ account: DashboardAccount,
         status: String?,
-        canShare: Bool,
         hasHiddenMetrics: Bool
     ) -> Sections {
         [
@@ -77,7 +78,7 @@ enum DashboardMenus {
                 DashboardMenuItem(title: "Rename", command: .rename(account.id)),
                 DashboardMenuItem(title: "Edit Account…", command: .editAccount(account.id)),
             ],
-            canShare ? [DashboardMenuItem(title: "Share Screenshot", command: .shareScreenshot(account.id))] : [],
+            [DashboardMenuItem(title: "Share Screenshot", command: .shareScreenshot([account.id]))],
             hasHiddenMetrics ? [DashboardMenuItem(title: "Show Hidden Metrics", command: .showHiddenMetrics(account.id))] : [],
         ].filter { !$0.isEmpty }
     }

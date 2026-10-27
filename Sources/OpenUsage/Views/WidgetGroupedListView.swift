@@ -6,12 +6,12 @@ import SwiftUI
 /// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing
 /// under the pointer; only the Limit Resets row's count opens the resets timeline after a dwell. A click
 /// on a value flips every row between used and left, a click on a reset between countdown and exact
-/// time. While the pointer is
-/// anywhere on a provider its logo turns into the copy button. A double-click on an account's name, in
-/// the header or on its caption, renames it, the same as the menu's Rename.
+/// time. A double-click on an account's name, in the header or on its caption, renames it, the same as
+/// the menu's Rename.
 ///
 /// Right-click a provider's header or card, an account, or a metric row for its menu (`DashboardMenus`);
-/// a one-account provider's menu holds the account's commands too. Everything reorders by dragging: a
+/// a one-account provider's menu holds the account's commands too. Share Screenshot there is the one
+/// way to copy a picture: the provider's with all its accounts, or one account's. Everything reorders by dragging: a
 /// provider by its header, an account by its caption within its card, a metric row within its account.
 struct WidgetGroupedListView: View {
     @Environment(AppContainer.self) private var container
@@ -26,8 +26,6 @@ struct WidgetGroupedListView: View {
     @State private var activeMetricID: String?
     @State private var activeAccountID: String?
     @State private var activeFamilyID: String?
-    /// The provider under the pointer, whose logo is the copy button.
-    @State private var hoveredFamilyID: String?
 
     var body: some View {
         let families = liveFamilies()
@@ -69,29 +67,17 @@ struct WidgetGroupedListView: View {
 
     // MARK: - Sections
 
-    /// A provider with its hover: while the pointer is on its header or card, the logo is the copy button.
+    /// A provider with its drag on the header; the whole section takes its right-click menu.
     private func section(_ family: DashboardFamily) -> some View {
-        let plans = plans(for: family)
-        return DashboardProviderSection(
+        DashboardProviderSection(
             family: family,
-            plans: plans,
+            plans: plans(for: family),
             status: family.soleAccount.map { status(for: $0.id) } ?? AccountStatus(),
             handle: { AnyView($0.highPriorityGesture(familyDragGesture(for: family))) }
-        ) {
-            DashboardCopyButton(provider: family.provider, active: hoveredFamilyID == family.id) {
-                copyImage(of: family, plans: plans)
-            }
-        } account: { account, captioned in
+        ) { account, captioned in
             accountSection(account, in: family, captioned: captioned)
         }
         .contentShape(Rectangle())
-        .onHover { inside in
-            if inside {
-                hoveredFamilyID = family.id
-            } else if hoveredFamilyID == family.id {
-                hoveredFamilyID = nil
-            }
-        }
     }
 
     /// An account with its menu and drag. In a one-account card the header names the account, the
@@ -112,7 +98,6 @@ struct WidgetGroupedListView: View {
                     sections: DashboardMenus.account(
                         account,
                         status: statusReason(for: account.id),
-                        canShare: canShare(account.id),
                         hasHiddenMetrics: !hiddenMetricIDs(for: account.id).isEmpty
                     ),
                     perform: perform
@@ -153,7 +138,6 @@ struct WidgetGroupedListView: View {
         return DashboardMenus.soleAccount(
             account,
             status: statusReason(for: account.id),
-            canShare: canShare(account.id),
             hasHiddenMetrics: !hiddenMetricIDs(for: account.id).isEmpty
         )
     }
@@ -163,22 +147,11 @@ struct WidgetGroupedListView: View {
         dataStore.headerNotice(for: accountID) ?? dataStore.stalenessHint(for: accountID)?.tooltip
     }
 
-    private func canShare(_ accountID: String) -> Bool {
-        layout.displayGroups.contains { $0.provider.id == accountID }
-    }
-
     /// Metrics the user hid from this account that have something to show.
     private func hiddenMetricIDs(for accountID: String) -> [String] {
         layout.orderedSupportedMetrics(for: accountID)
             .filter { !layout.isMetricEnabled($0.id) && dataStore.data(for: $0).hasData }
             .map(\.id)
-    }
-
-    // MARK: - Copying
-
-    /// Copies an image of the provider's header and card at rest to the clipboard.
-    private func copyImage(of family: DashboardFamily, plans: [String: String]) -> Bool {
-        ShareCardRenderer.copy(ShareCardView(family: family, plans: plans, appearance: colorScheme))
     }
 
     // MARK: - Menu commands
@@ -197,9 +170,13 @@ struct WidgetGroupedListView: View {
             renaming.begin(accountID)
         case .editAccount(let accountID):
             openAccounts(accountID)
-        case .shareScreenshot(let accountID):
-            guard let group = layout.displayGroups.first(where: { $0.provider.id == accountID }) else { return }
-            ShareCardRenderer.share(group: group, dataStore: dataStore, layout: layout, appearance: colorScheme)
+        case .shareScreenshot(let accountIDs):
+            ShareCardRenderer.share(
+                groups: layout.displayGroups.filter { accountIDs.contains($0.provider.id) },
+                dataStore: dataStore,
+                layout: layout,
+                appearance: colorScheme
+            )
         case .showHiddenMetrics(let accountID):
             layout.showMetrics(hiddenMetricIDs(for: accountID))
         case .toggleStar(let descriptorID):
@@ -276,9 +253,7 @@ struct WidgetGroupedListView: View {
             lift: $reorderLift,
             makeLift: { value in
                 let plans = plans(for: family)
-                let preview = DashboardProviderSection(family: family, plans: plans) {
-                    ProviderIcon(source: family.provider.icon, inset: 0.04)
-                } account: { account, captioned in
+                let preview = DashboardProviderSection(family: family, plans: plans) { account, captioned in
                     DashboardAccountRows(account: account, plan: plans[account.id], captioned: captioned)
                 }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
