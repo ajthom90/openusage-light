@@ -45,8 +45,9 @@ package struct LimitsService {
         let selected = try accounts(matching: name)
         let runtimes = selected.map { AccountProviderRuntime(account: $0, vault: vault, http: http, now: now) }
         // Every account refreshes at once; they all run on the main actor and interleave at their awaits.
+        let refresher = SnapshotRefresher(cache: cache, now: now, refreshTimeout: refreshTimeout, freshFor: freshFor)
         let tasks = runtimes.map { runtime in
-            Task { @MainActor in await self.fetch(runtime, force: force) }
+            Task { @MainActor in await refresher.fetch(runtime, force: force) }
         }
         var entries: [LimitsProjection.Entry] = []
         var failures: [LimitsEnvelope.Failure] = []
@@ -65,42 +66,6 @@ package struct LimitsService {
             freshFor: freshFor
         )
         return Outcome(envelope: envelope)
-    }
-
-    // MARK: - One account
-
-    private struct Fetched: Sendable {
-        package let snapshot: ProviderSnapshot?
-        package let failure: LimitsEnvelope.Failure?
-    }
-
-    private func fetch(_ runtime: AccountProviderRuntime, force: Bool) async -> Fetched {
-        let id = runtime.provider.id
-        let stored = cache.loadSnapshots(providerIDs: [id])[id]
-        // The cache's own freshness gate only trusts snapshots written by this process; a one-shot
-        // command never wrote any, so judge the stored snapshot by its age instead.
-        if !force, let stored, now().timeIntervalSince(stored.refreshedAt) < freshFor {
-            return Fetched(snapshot: stored, failure: nil)
-        }
-        guard let refreshed = await ProviderRefreshDeadline.snapshot(from: runtime, force: force, timeout: refreshTimeout) else {
-            return failed(id, keeping: stored, "Refresh timed out after \(Int(refreshTimeout))s")
-        }
-        if let message = refreshed.lines.lazy.compactMap(Self.errorText).first {
-            return failed(id, keeping: stored, message)
-        }
-        cache.store(refreshed)
-        return Fetched(snapshot: refreshed, failure: nil)
-    }
-
-    private func failed(_ id: String, keeping stored: ProviderSnapshot?, _ message: String) -> Fetched {
-        Fetched(snapshot: stored, failure: LimitsEnvelope.Failure(providerId: id, message: message))
-    }
-
-    /// The friendly message of an error snapshot (the provider's badge text, which never carries a
-    /// credential or a response body).
-    private static func errorText(_ line: MetricLine) -> String? {
-        guard line.isError, case .badge(_, let text, _, _) = line else { return nil }
-        return text
     }
 
     private static func ordered(_ accounts: [Account], by saved: [String]) -> [Account] {
