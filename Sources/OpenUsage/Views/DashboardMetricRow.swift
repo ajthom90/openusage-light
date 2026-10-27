@@ -6,9 +6,14 @@ import SwiftUI
 /// sits before the value, inside the value column, in the pace's colour: orange cutting it close, red
 /// running out; nothing at rest, so the columns never move. A reading without a limit (a balance, a
 /// count, a status) has no bar: its figure takes the bar's place. Nothing on a row reacts to the
-/// pointer; the dashboard wraps the Limit Resets row's figure in its hover through `figure`.
+/// pointer; a click on the reset flips every row between countdown and exact time, where the dashboard
+/// supplies `onToggleResetDisplay`, and the dashboard wraps the Limit Resets row's figure in its hover
+/// through `figure`. A drag preview and the share image supply neither, and draw the row inert.
 struct DashboardMetricRow: View {
     let model: DashboardRowModel
+    /// Flips the global countdown/exact-time reset display, as the original OpenUsage's reset label
+    /// does. `nil` where the row is static: the reset is plain text.
+    var onToggleResetDisplay: (() -> Void)?
     /// Wraps a value row's figure, so the live dashboard can attach the resets hover to the figure alone.
     var figure: (AnyView) -> AnyView = { $0 }
 
@@ -39,11 +44,7 @@ struct DashboardMetricRow: View {
                         .contentTransition(.numericText())
                 }
                 .frame(width: DashboardGrid.valueWidth, alignment: .trailing)
-                Text(reset ?? "")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                resetColumn(reset)
                     .frame(width: DashboardGrid.resetWidth, alignment: .trailing)
             case .value(let text):
                 figure(AnyView(
@@ -61,5 +62,22 @@ struct DashboardMetricRow: View {
         .frame(height: DashboardGrid.rowHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    /// The reset: a countdown or a clock time, which flips the display on a click where the dashboard
+    /// supplies the flip; plain text in a preview, in the share image, and when there is no live reset.
+    @ViewBuilder
+    private func resetColumn(_ reset: String?) -> some View {
+        let text = Text(reset ?? "")
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        if reset != nil, let onToggleResetDisplay {
+            Button(action: onToggleResetDisplay) { text }
+                .buttonStyle(.plain)
+        } else {
+            text
+        }
     }
 }

@@ -3,8 +3,9 @@ import SwiftUI
 
 /// The dashboard display: one provider after another (`DashboardFamily`), each a header above a card
 /// of its accounts, every account one row per metric that has data, fed by the same `WidgetDataStore`
-/// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing;
-/// only the Limit Resets row's count opens the resets timeline after a dwell. While the pointer is
+/// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing
+/// under the pointer; only the Limit Resets row's count opens the resets timeline after a dwell. A click
+/// on a reset flips every row between countdown and exact time. While the pointer is
 /// anywhere on a provider its logo turns into the copy button. A double-click on an account's name, in
 /// the header or on its caption, renames it, the same as the menu's Rename.
 ///
@@ -131,7 +132,11 @@ struct WidgetGroupedListView: View {
     private func rows(of account: DashboardAccount) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(account.lines) { line in
-                DashboardLiveRow(line: line, resetClaim: container.resetClaim(for: account.id))
+                DashboardLiveRow(
+                    line: line,
+                    resetClaim: container.resetClaim(for: account.id),
+                    onToggleResetDisplay: { dataStore.resetDisplayMode.toggle() }
+                )
                     .opacity(activeMetricID == line.id ? 0 : 1)
                     .highPriorityGesture(metricDragGesture(for: line, accountID: account.id))
                     .contextMenu {
