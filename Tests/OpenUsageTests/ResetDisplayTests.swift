@@ -80,14 +80,14 @@ final class ResetDisplayTests: XCTestCase {
     }
 
     func testTheResetFollowsTheClockSetting() {
-        // Halfway through a 10h window with 90/100 used: a red bar, and the reset in the clock form
-        // under that setting.
+        // Halfway through a 10h window with 90/100 used: a red bar, the flame (projected to run out
+        // ~34m out, well before the reset 5h out), and the reset in the clock form under that setting.
         var data = WidgetData(title: "Session", icon: .providerMark("codex"), kind: .percent, used: 90, limit: 100)
         data.resetsAt = now.addingTimeInterval(5 * 3600)
         data.periodDurationMs = 10 * 3600 * 1000
 
         data.resetDisplayMode = .relative
-        XCTAssertEqual(data.dashboardRow(now: now).mark, .bar(fill: 0.9, severity: .critical, value: "90%", reset: "5h"))
+        XCTAssertEqual(data.dashboardRow(now: now).mark, .bar(fill: 0.9, severity: .critical, value: "90%", reset: "5h", flame: .critical))
 
         data.resetDisplayMode = .absolute
         XCTAssertEqual(data.compactResetText(now: now), Formatters.compactClock(data.resetsAt!, now: now))
