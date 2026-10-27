@@ -30,7 +30,7 @@ is_test_process() {
 ) &
 watcher=$!
 disown "$watcher"
-trap 'kill "$watcher" 2>/dev/null; rm -f "$seen"' EXIT
+trap 'pkill -P "$watcher" 2>/dev/null; kill "$watcher" 2>/dev/null; rm -f "$seen"' EXIT
 
 nice -n 19 swift test -j 2 "$@"
 status=$?
