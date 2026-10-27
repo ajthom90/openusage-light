@@ -22,7 +22,8 @@ final class CoreImportsTests: XCTestCase {
 
     func testCoreImportsOnlyPortableModules() throws {
         for file in try coreSources() {
-            let source = try String(contentsOf: file, encoding: .utf8)
+            // A Windows checkout may use CRLF line endings, which Swift reads as one character, not a newline.
+            let source = try String(contentsOf: file, encoding: .utf8).replacingOccurrences(of: "\r\n", with: "\n")
             let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
             for (index, line) in lines.enumerated() where line.hasPrefix("import ") || line.hasPrefix("@testable import ") {
                 let module = line.split(separator: " ").last.map(String.init) ?? ""
