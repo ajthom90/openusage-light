@@ -54,7 +54,7 @@ final class WidgetDataStore {
     /// This is a last-resort backstop, not a latency budget. Keep it above the combined per-request
     /// timeouts for providers that make several sequential API requests; slowness short of the deadline
     /// is reported separately by `slowProviderRefreshThreshold`.
-    static let defaultProviderRefreshTimeout: TimeInterval = 120
+    static let defaultProviderRefreshTimeout: TimeInterval = ProviderRefreshDeadline.defaultTimeout
 
     /// Rendered provider snapshots consumed by the UI.
     var snapshots: [String: ProviderSnapshot] = [:]

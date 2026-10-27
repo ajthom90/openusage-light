@@ -4,7 +4,7 @@ import XCTest
 /// on every platform Swift runs on. An `import AppKit` or `import os` slipping in would compile on a
 /// Mac and break the other ports without a failing test; this makes it fail here.
 final class CoreImportsTests: XCTestCase {
-    private static let portableModules: Set<String> = ["Foundation"]
+    private static let portableModules: Set<String> = ["Foundation", "FoundationNetworking", "Observation"]
 
     private var coreDirectory: URL {
         URL(fileURLWithPath: #filePath)
@@ -23,11 +23,14 @@ final class CoreImportsTests: XCTestCase {
     func testCoreImportsOnlyPortableModules() throws {
         for file in try coreSources() {
             let source = try String(contentsOf: file, encoding: .utf8)
-            for line in source.split(separator: "\n") where line.hasPrefix("import ") || line.hasPrefix("@testable import ") {
+            let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            for (index, line) in lines.enumerated() where line.hasPrefix("import ") || line.hasPrefix("@testable import ") {
                 let module = line.split(separator: " ").last.map(String.init) ?? ""
+                // A module that exists only on some platforms is fine behind `#if canImport(<module>)`.
+                let guarded = index > 0 && lines[index - 1].trimmingCharacters(in: .whitespaces) == "#if canImport(\(module))"
                 XCTAssertTrue(
-                    Self.portableModules.contains(module),
-                    "\(file.lastPathComponent) imports \(module); OpenUsageCore may import only \(Self.portableModules.sorted())"
+                    Self.portableModules.contains(module) || guarded,
+                    "\(file.lastPathComponent) imports \(module); OpenUsageCore may import only \(Self.portableModules.sorted()) unguarded"
                 )
             }
         }

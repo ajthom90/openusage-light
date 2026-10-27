@@ -1,15 +1,13 @@
 import Foundation
-import os
-import OpenUsageCore
 
-struct ProviderSnapshotCache {
+package struct ProviderSnapshotCache {
     private struct Payload: Codable {
-        var snapshots: [String: ProviderSnapshot]
+        package var snapshots: [String: ProviderSnapshot]
         /// Card id → the account identity key that produced the stored snapshot. A sidecar map rather
         /// than a field on `ProviderSnapshot` because that model is serialized verbatim to the local
         /// an API response — the stamp is cache bookkeeping, not provider data. Absent for
         /// providers without an account identity (everything outside the claude/codex families).
-        var producedByIdentityKeys: [String: String]
+        package var producedByIdentityKeys: [String: String]
     }
 
     /// In-memory mirror of the persisted blob. Reads (`snapshot`, `loadSnapshots`, and the read inside
@@ -18,17 +16,17 @@ struct ProviderSnapshotCache {
     /// MainActor. The blob is decoded at most once per cache instance (first access); writes update the
     /// mirror and persist through. Lock-backed so the value-type cache memoizes across calls and stays
     /// safe to share.
-    private let memo = OSAllocatedUnfairLock<Payload?>(initialState: nil)
+    private let memo = Locked<Payload?>(initialState: nil)
 
     /// Provider IDs whose snapshot was written by `store` *during this cache instance's lifetime* (i.e.
     /// this running session). The freshness gate (`snapshot(providerID:)`) trusts a snapshot only when
     /// its provider is in here — so a snapshot loaded from disk on launch is shown (via `loadSnapshots`)
     /// but never counts as fresh, forcing one refresh on the first post-launch pass. Lock-backed for the
     /// same reason as `memo`: the value-type cache shares it across copies and stays safe. See #697.
-    private let sessionWrites = OSAllocatedUnfairLock<Set<String>>(initialState: [])
-    private let hasDeferredWrites = OSAllocatedUnfairLock<Bool>(initialState: false)
+    private let sessionWrites = Locked<Set<String>>(initialState: [])
+    private let hasDeferredWrites = Locked<Bool>(initialState: false)
 
-    private let userDefaults: UserDefaults
+    private let userDefaults: any SettingsStore
     private let storageKey: String
     /// A snapshot written this session stays fresh for exactly one refresh interval, then expires so the
     /// periodic loop refetches on schedule. A snapshot loaded from a *previous* session (off disk) is never
@@ -39,8 +37,8 @@ struct ProviderSnapshotCache {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    init(
-        userDefaults: UserDefaults = .standard,
+    package init(
+        userDefaults: any SettingsStore,
         storageKey: String = "openusage-light.providerSnapshots.v1",
         ttl: TimeInterval = RefreshSetting.interval,
         now: @escaping () -> Date = Date.init
@@ -60,7 +58,7 @@ struct ProviderSnapshotCache {
     /// Every stored snapshot for the given providers, including expired ones. Display uses this
     /// (stale-while-revalidate: last-known values keep showing while a refresh runs); refresh gating
     /// still goes through the TTL-checked `snapshot(providerID:)`.
-    func loadSnapshots(providerIDs: [String]) -> [String: ProviderSnapshot] {
+    package func loadSnapshots(providerIDs: [String]) -> [String: ProviderSnapshot] {
         let providerIDSet = Set(providerIDs)
         let loaded = loadPayload().snapshots.filter { providerID, _ in
             providerIDSet.contains(providerID)
@@ -69,7 +67,7 @@ struct ProviderSnapshotCache {
         return loaded
     }
 
-    func snapshot(providerID: String) -> ProviderSnapshot? {
+    package func snapshot(providerID: String) -> ProviderSnapshot? {
         let snapshot = loadPayload().snapshots[providerID]
         guard let snapshot else { return nil }
         // Freshness has two requirements, and disk age alone is not enough: the snapshot must have been
@@ -87,7 +85,7 @@ struct ProviderSnapshotCache {
 
     /// `producedByIdentityKey` is the account identity that produced this snapshot (the card's identity
     /// at write time); `nil` for providers without account identity, or when the identity is unresolved.
-    func store(_ snapshot: ProviderSnapshot, producedByIdentityKey: String? = nil, persist: Bool = true) {
+    package func store(_ snapshot: ProviderSnapshot, producedByIdentityKey: String? = nil, persist: Bool = true) {
         guard !snapshot.lines.contains(where: \.isError) else {
             AppLog.debug(.cache, "skip write \(snapshot.providerID) (error snapshot)")
             return
@@ -111,7 +109,7 @@ struct ProviderSnapshotCache {
         }
     }
 
-    func persistPending() {
+    package func persistPending() {
         guard hasDeferredWrites.withLock({ pending in
             defer { pending = false }
             return pending
@@ -122,7 +120,7 @@ struct ProviderSnapshotCache {
     /// The account identity stamped when this provider's entry was stored, or `nil` when the entry is
     /// absent or was written without one. Launch filtering compares this against the card's current
     /// identity before showing a cached snapshot for an account-aware card (see `WidgetDataStore.init`).
-    func producedByIdentityKey(providerID: String) -> String? {
+    package func producedByIdentityKey(providerID: String) -> String? {
         loadPayload().producedByIdentityKeys[providerID]
     }
 
@@ -132,7 +130,7 @@ struct ProviderSnapshotCache {
     /// (`WidgetDataStore.init`) and the refresh cache-hit gate (`WidgetDataStore.refresh`) — or a
     /// swap at the same card would serve the previous account's data. `false` when the identity is
     /// unresolved (`nil`): an unverifiable entry keeps painting exactly as it did before account stamps existed.
-    func hasStaleAccountStamp(providerID: String, currentIdentityKey: String?) -> Bool {
+    package func hasStaleAccountStamp(providerID: String, currentIdentityKey: String?) -> Bool {
         guard let currentIdentityKey else { return false }
         let payload = loadPayload()
         guard payload.snapshots[providerID] != nil else { return false }

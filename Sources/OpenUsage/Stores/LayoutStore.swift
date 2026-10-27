@@ -7,7 +7,7 @@ import OpenUsageCore
 @MainActor
 @Observable
 final class LayoutStore {
-    static let defaultStorageKey = "openusage.layout.v1"
+    static let defaultStorageKey = SavedDashboardOrder.defaultStorageKey
 
     // Swift's private access is file-scoped. Members shared with `LayoutStore+Customization.swift`
     // stay module-internal below; implementation details used only here remain private.

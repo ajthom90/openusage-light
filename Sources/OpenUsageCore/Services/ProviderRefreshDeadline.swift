@@ -12,6 +12,9 @@ import Foundation
 /// cancellation-aware). What the deadline guarantees is that the *store* stops waiting.
 @MainActor
 package enum ProviderRefreshDeadline {
+    /// How long a provider may take to answer before the store stops waiting for it.
+    package static let defaultTimeout: TimeInterval = 120
+
     /// The refreshed snapshot, or `nil` if `timeout` elapsed first.
     package static func snapshot(
         from provider: ProviderRuntime,

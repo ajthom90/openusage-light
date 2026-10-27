@@ -23,7 +23,13 @@ package enum ProviderParse {
     /// Foundation type check is required to keep `true`/`false` from becoming `1`/`0`.
     package static func number(_ value: Any?) -> Double? {
         if let number = value as? NSNumber {
+            #if canImport(Darwin)
             guard CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+            #else
+            // Without Core Foundation a JSON boolean is the `NSNumber` whose type encoding is a char;
+            // JSON numbers arrive as integers or doubles.
+            guard String(cString: number.objCType) != "c" else { return nil }
+            #endif
             let doubleValue = number.doubleValue
             return doubleValue.isFinite ? doubleValue : nil
         }

@@ -1,23 +1,22 @@
 import Foundation
 import Observation
-import OpenUsageCore
 
 @MainActor
 @Observable
-final class AccountStore {
-    static let storageKey = "accounts.v1"
+package final class AccountStore {
+    package static let storageKey = "accounts.v1"
 
-    private(set) var accounts: [Account]
-    private(set) var lastError: String?
-    private let defaults: UserDefaults
-    let credentialVault: any CredentialVault
+    package private(set) var accounts: [Account]
+    package private(set) var lastError: String?
+    private let defaults: any SettingsStore
+    package let credentialVault: any CredentialVault
 
     /// A sign-in names an API-key account after its provider, and a provider's name can change: an
     /// account still carrying the old default takes the new one, so its header never reads
     /// "OpenCode — OpenCode Go".
     private static let retiredDefaultLabels: [ProviderKind: String] = [.opencodeGo: "OpenCode Go"]
 
-    init(defaults: UserDefaults = .standard, vault: any CredentialVault = KeychainCredentialVault()) {
+    package init(defaults: any SettingsStore, vault: any CredentialVault) {
         self.defaults = defaults
         credentialVault = vault
         guard let data = defaults.data(forKey: Self.storageKey),
@@ -33,7 +32,7 @@ final class AccountStore {
     }
 
     @discardableResult
-    func add(kind: ProviderKind, label: String, credential: AccountCredential) -> Account {
+    package func add(kind: ProviderKind, label: String, credential: AccountCredential) -> Account {
         let account = Account(kind: kind, label: label)
         do {
             try credentialVault.save(credential, for: account.id)
@@ -53,7 +52,7 @@ final class AccountStore {
         return account
     }
 
-    func rename(_ id: UUID, to label: String) {
+    package func rename(_ id: UUID, to label: String) {
         guard let index = accounts.firstIndex(where: { $0.id == id }) else { return }
         let previous = accounts[index].label
         accounts[index].label = label
@@ -61,7 +60,7 @@ final class AccountStore {
         accounts[index].label = previous
     }
 
-    func remove(_ id: UUID) {
+    package func remove(_ id: UUID) {
         guard let accountIndex = accounts.firstIndex(where: { $0.id == id }) else { return }
         do {
             let credential = try credentialVault.load(id)
@@ -82,12 +81,12 @@ final class AccountStore {
         }
     }
 
-    func credential(for id: UUID) throws -> AccountCredential? {
+    package func credential(for id: UUID) throws -> AccountCredential? {
         try credentialVault.load(id)
     }
 
     /// The account behind a dashboard card, by its `Account.cardID` (the card's `Provider.id`).
-    func account(cardID: String) -> Account? {
+    package func account(cardID: String) -> Account? {
         accounts.first { $0.cardID == cardID }
     }
 

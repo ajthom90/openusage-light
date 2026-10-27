@@ -33,10 +33,3 @@ enum AppPreferences {
         return suite
     }
 }
-
-extension LayoutPersistence {
-    /// The dashboard's saved account-card order, or empty when the user has never reordered.
-    static func savedProviderOrder(defaults: UserDefaults) -> [String] {
-        LayoutPersistence(defaults: defaults, storageKey: LayoutStore.defaultStorageKey).loadProviderOrder() ?? []
-    }
-}

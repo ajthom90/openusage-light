@@ -1,4 +1,4 @@
 import Foundation
 import OpenUsage
 
-exit(await LimitsCommand.main(arguments: Array(CommandLine.arguments.dropFirst())))
+exit(await OpenUsageCommandLine.main(arguments: Array(CommandLine.arguments.dropFirst())))

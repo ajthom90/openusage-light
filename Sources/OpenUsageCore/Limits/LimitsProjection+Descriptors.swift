@@ -1,8 +1,7 @@
-import OpenUsageCore
 
-extension LimitsProjection.Entry {
+package extension LimitsProjection.Entry {
     /// An account's entry, with the snapshot lines named by the account's dashboard rows.
-    init(account: Account, snapshot: ProviderSnapshot?, descriptors: [WidgetDescriptor]) {
+    package init(account: Account, snapshot: ProviderSnapshot?, descriptors: [WidgetDescriptor]) {
         let prefix = account.cardID.count + 1
         self.init(
             account: account,

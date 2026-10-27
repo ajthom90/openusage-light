@@ -1,5 +1,4 @@
 import Foundation
-import OpenUsageCore
 
 /// The refresh-and-report engine behind the `openusage` command: the app's own account store, provider
 /// runtimes, and snapshot cache, run once and read out as a `LimitsEnvelope`.
@@ -8,33 +7,33 @@ import OpenUsageCore
 /// `force` bypasses that, exactly like the dashboard's manual refresh. A refresh that fails keeps the
 /// last good snapshot in the output and reports the failure in `errors`.
 @MainActor
-struct LimitsService {
-    struct Outcome {
-        let envelope: LimitsEnvelope
+package struct LimitsService {
+    package struct Outcome {
+        package let envelope: LimitsEnvelope
         /// `true` when at least one account's refresh failed.
-        var hadFailures: Bool { !envelope.errors.isEmpty }
+        package var hadFailures: Bool { !envelope.errors.isEmpty }
     }
 
-    enum Failure: Error, Equatable {
+    package enum Failure: Error, Equatable {
         /// The name matches neither a provider nor an account.
         case unknownProvider(String)
     }
 
-    let accounts: [Account]
-    let vault: any CredentialVault
-    let cache: ProviderSnapshotCache
+    package let accounts: [Account]
+    package let vault: any CredentialVault
+    package let cache: ProviderSnapshotCache
     /// The user's saved dashboard order of account cards; accounts it doesn't name follow in the order
     /// they were added.
-    let savedOrder: [String]
-    var http: any HTTPClient = URLSessionHTTPClient()
-    var now: () -> Date = Date.init
-    var refreshTimeout: TimeInterval = WidgetDataStore.defaultProviderRefreshTimeout
-    var freshFor: TimeInterval = RefreshSetting.interval
+    package let savedOrder: [String]
+    package var http: any HTTPClient = URLSessionHTTPClient()
+    package var now: () -> Date = Date.init
+    package var refreshTimeout: TimeInterval = ProviderRefreshDeadline.defaultTimeout
+    package var freshFor: TimeInterval = RefreshSetting.interval
 
     /// The accounts a name selects, in dashboard order. A provider id (`claude`) selects every account
     /// of that provider and an account id (`claude@1a2b3c4d`) selects that one; matching is plain
     /// string comparison, so the same name always selects the same accounts.
-    func accounts(matching name: String?) throws -> [Account] {
+    package func accounts(matching name: String?) throws -> [Account] {
         let ordered = Self.ordered(accounts, by: savedOrder)
         guard let name else { return ordered }
         let matched = ordered.filter { $0.kind.rawValue == name || $0.cardID == name }
@@ -42,7 +41,7 @@ struct LimitsService {
         return matched
     }
 
-    func run(provider name: String?, force: Bool) async throws -> Outcome {
+    package func run(provider name: String?, force: Bool) async throws -> Outcome {
         let selected = try accounts(matching: name)
         let runtimes = selected.map { AccountProviderRuntime(account: $0, vault: vault, http: http, now: now) }
         // Every account refreshes at once; they all run on the main actor and interleave at their awaits.
@@ -71,8 +70,8 @@ struct LimitsService {
     // MARK: - One account
 
     private struct Fetched: Sendable {
-        let snapshot: ProviderSnapshot?
-        let failure: LimitsEnvelope.Failure?
+        package let snapshot: ProviderSnapshot?
+        package let failure: LimitsEnvelope.Failure?
     }
 
     private func fetch(_ runtime: AccountProviderRuntime, force: Bool) async -> Fetched {

@@ -1,5 +1,4 @@
 import XCTest
-@testable import OpenUsage
 @testable import OpenUsageCore
 
 final class ProviderParseTests: XCTestCase {

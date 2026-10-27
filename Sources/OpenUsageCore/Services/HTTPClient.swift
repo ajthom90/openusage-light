@@ -1,4 +1,10 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Security)
+import Security
+#endif
 
 package struct HTTPRequest: Sendable {
 
@@ -67,11 +73,17 @@ package struct URLSessionHTTPClient: HTTPClient {
 
     private static let session = URLSession(configuration: .default)
 
+    #if canImport(Security)
     /// Loopback-only session: ephemeral (no shared cookie/cache state), no proxy (localhost), and a
     /// delegate that trusts a self-signed cert exclusively for `127.0.0.1`. Built once.
     private static let loopbackSession: URLSession = {
         URLSession(configuration: .ephemeral, delegate: LoopbackTLSDelegate(), delegateQueue: nil)
     }()
+    #else
+    /// Trusting a self-signed loopback cert needs Apple's Security framework; elsewhere the loopback
+    /// request uses the normal session and fails TLS validation like any other untrusted cert.
+    private static let loopbackSession = session
+    #endif
 
     package func send(_ request: HTTPRequest) async throws -> HTTPResponse {
         var urlRequest = URLRequest(url: request.url, timeoutInterval: request.timeout)
@@ -110,6 +122,7 @@ package enum HTTPClientError: Error, LocalizedError {
     }
 }
 
+#if canImport(Security)
 /// Accepts a self-signed server cert ONLY for loopback (`127.0.0.1`). Every other host — and every
 /// non-server-trust challenge — falls through to default validation, so this never weakens trust for a
 /// real remote endpoint. Holds no mutable state, so it is safe to share across the loopback session.
@@ -129,3 +142,4 @@ private final class LoopbackTLSDelegate: NSObject, URLSessionDelegate, @unchecke
         completionHandler(.useCredential, URLCredential(trust: trust))
     }
 }
+#endif
