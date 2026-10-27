@@ -42,12 +42,17 @@ Could the phone share logins with the Mac over iCloud Keychain? **Technically ye
 
 **Optional later:** API-key accounts could also sync their keys over iCloud Keychain so the phone can refresh them itself, since a static key has no rotation problem.
 
-## Open questions for the owner
+## Owner's answers (2026-10-27)
 
-- Is "updates only while a Mac is awake" acceptable, or does the phone need to refresh on its own?
-- Is a paid Apple developer account available for entitlements, App Groups, and distribution?
-- Phone only, or iPad too (the layout would differ)?
-- Which widget sizes matter (Lock Screen, small, medium)?
+- **"Updates only while a Mac is awake": acceptable.** The recommended shape stands as written.
+- **Paid Apple developer account: available.** Entitlements, App Groups, and TestFlight/App Store distribution are open to us.
+- **Devices: iPhone and iPad are required, and so is "iPhone Duo".** *I do not know what "iPhone Duo" means; Apple has no device by that name. Clarify before any layout work: a dual-screen or foldable device, a split-screen mode, or something else?*
+- **Widgets: varying sizes wanted.** Plan on the small, medium, and large Home Screen families and the Lock Screen families, each drawing from the shared row model. Exact sizes per device to be settled at design time.
+
+## Still open
+
+- What "iPhone Duo" refers to (above).
+- Whether API-key accounts should also sync their keys so the phone can refresh them itself, or the phone should stay display-only for every account.
 
 ## Not decided here
 
