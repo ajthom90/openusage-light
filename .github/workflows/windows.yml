@@ -10,6 +10,7 @@ on:
       - ".github/workflows/windows.yml"
       - "Package.swift"
       - "script/package_windows.cmd"
+      - "script/installer.iss"
       - "Sources/OpenUsageCore/**"
       - "Sources/OpenUsageWindows*/**"
       - "Tests/OpenUsageCoreTests/**"
@@ -114,3 +115,99 @@ jobs:
           $p = Start-Process "$dir\openusage.exe" -ArgumentList "--version" -Wait -PassThru -NoNewWindow
           "without swiftCore.dll -> exit $($p.ExitCode)"
           if ($p.ExitCode -eq 0) { throw "the program ran without a bundled library, so this check proves nothing" }
+
+  installer:
+    name: Build the installer
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: OpenUsageLight-windows-*
+          path: zips
+          merge-multiple: true
+
+      - name: Unpack both builds
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          foreach ($arch in "x64", "arm64") { tar -xf "zips/OpenUsageLight-windows-$arch.zip" -C dist }
+          $version = & "dist\OpenUsageLight-windows-x64\openusage.exe" --version
+          "version=$version" >> $env:GITHUB_ENV
+
+      - name: Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:version" script\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          Get-Item dist\OpenUsageLight-Setup.exe | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenUsageLight-Setup
+          path: dist/OpenUsageLight-Setup.exe
+          if-no-files-found: error
+
+  verify-installer:
+    name: Install, run, and uninstall (${{ matrix.arch }})
+    needs: installer
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: windows-latest }
+          - { arch: arm64, runner: windows-11-arm }
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: OpenUsageLight-Setup
+
+      - name: Install silently
+        shell: pwsh
+        run: |
+          $p = Start-Process .\OpenUsageLight-Setup.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/TASKS=addtopath","/LOG=$PWD\setup.log" -Wait -PassThru
+          "setup exit code $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { Get-Content setup.log -Tail 40; throw "setup failed" }
+          $dir = "$env:LOCALAPPDATA\Programs\OpenUsage Light"
+          Get-ChildItem $dir -Filter *.exe | Select-Object Name, Length
+          "libraries: " + (Get-ChildItem $dir -Filter *.dll).Count
+          # The architecture Setup picked must be this machine's own.
+          $machine = if ("${{ matrix.arch }}" -eq "arm64") { 0xAA64 } else { 0x8664 }
+          $bytes = [IO.File]::ReadAllBytes("$dir\OpenUsageLight.exe")
+          $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+          $type = [BitConverter]::ToUInt16($bytes, $pe + 4)
+          "installed exe machine type 0x{0:X}" -f $type
+          if ($type -ne $machine) { throw "installed the wrong architecture" }
+
+      - name: Run the installed programs
+        shell: pwsh
+        run: |
+          $dir = "$env:LOCALAPPDATA\Programs\OpenUsage Light"
+          # The PATH entry written by Setup is in the user's registry value; a new process would see it.
+          $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+          if ($userPath -notlike "*$dir*") { throw "the openusage folder was not added to PATH" }
+          $env:PATH = "C:\Windows\System32;C:\Windows;$dir"
+          $version = openusage --version
+          "openusage --version -> $version (exit $LASTEXITCODE)"
+          if ($LASTEXITCODE -ne 0) { throw "openusage did not run from PATH" }
+          $p = Start-Process "$dir\OpenUsageLight.exe" -ArgumentList "--demo","--light","--snapshot","$PWD\popover.bmp" -Wait -PassThru
+          "tray app --snapshot -> exit $($p.ExitCode), $((Get-Item popover.bmp).Length) bytes"
+          if ($p.ExitCode -ne 0) { throw "the tray app did not render" }
+
+      - name: Uninstall
+        shell: pwsh
+        run: |
+          $dir = "$env:LOCALAPPDATA\Programs\OpenUsage Light"
+          $p = Start-Process "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          "uninstall exit code $($p.ExitCode)"
+          Start-Sleep 3
+          if (Test-Path "$dir\OpenUsageLight.exe") { throw "program files remain after uninstall" }
+          if ([Environment]::GetEnvironmentVariable("Path", "User") -like "*OpenUsage Light*") { throw "PATH entry remains" }
+          "removed"
