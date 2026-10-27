@@ -10,6 +10,8 @@ package final class InMemoryCredentialVault: CredentialVault, @unchecked Sendabl
     private let lock = NSLock()
     private var credentials: [UUID: AccountCredential] = [:]
 
+    package init() {}
+
     package func load(_ id: UUID) throws -> AccountCredential? {
         lock.lock()
         defer { lock.unlock() }

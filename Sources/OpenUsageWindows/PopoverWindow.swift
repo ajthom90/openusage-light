@@ -5,6 +5,25 @@ import WinSDK
 
 /// The tray icon and the popover window it opens. Painting is `PopoverRenderer`'s; this owns the window,
 /// the tray icon, scrolling, and clicks.
+/// Appends one line to `OpenUsageLight-ui.log` in the user's temp folder, for `--show` runs only: the
+/// geometry the window computed, so a screenshot that looks wrong can be explained.
+enum UIDebugLog {
+    nonisolated(unsafe) static var enabled = false
+
+    static func write(_ line: @autoclosure () -> String) {
+        guard enabled else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("OpenUsageLight-ui.log")
+        let text = line() + "\n"
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(Data(text.utf8))
+            try? handle.close()
+        } else {
+            try? text.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+}
+
 @MainActor
 final class PopoverWindow {
     static var shared: PopoverWindow?
@@ -12,6 +31,9 @@ final class PopoverWindow {
     private static let trayMessage = UINT(WM_APP + 1)
     private static let className = "OpenUsageLightPopover"
     private enum MenuCommand: UInt { case refresh = 1, quit = 2 }
+
+    /// Whether losing focus closes the popover. Off for `--show`, which keeps it up for screenshots.
+    var hidesWhenDeactivated = true
 
     var onRefresh: () -> Void = {}
     var onQuit: () -> Void = {}
@@ -84,7 +106,7 @@ final class PopoverWindow {
     // MARK: - Showing
 
     func toggle() {
-        if isVisible { hide(); return }
+        if isVisible { hide("toggle"); return }
         // A click on the tray icon first deactivates (and so hides) the popover; don't reopen it at once.
         guard GetTickCount64() - hiddenAt > 250 else { return }
         show()
@@ -95,12 +117,16 @@ final class PopoverWindow {
         scroll = 0
         resize()
         ShowWindow(window, SW_SHOW)
-        SetForegroundWindow(window)
+        let foreground = SetForegroundWindow(window)
+        var rect = RECT()
+        GetWindowRect(window, &rect)
+        UIDebugLog.write("show visible=\(isVisible) foreground=\(foreground) rect=\(rect.left),\(rect.top),\(rect.right),\(rect.bottom)")
         invalidate()
     }
 
-    func hide() {
+    func hide(_ reason: String = "unspecified") {
         guard let window, isVisible else { return }
+        UIDebugLog.write("hide reason=\(reason)")
         ShowWindow(window, SW_HIDE)
         hiddenAt = GetTickCount64()
     }
@@ -136,8 +162,9 @@ final class PopoverWindow {
         let height = min(renderer.contentHeight() + renderer.footerPixels, maxHeight)
         let maxScroll = max(renderer.contentHeight() + renderer.footerPixels - height, 0)
         scroll = min(max(scroll, 0), maxScroll)
+        UIDebugLog.write("resize dpi=\(dpi) work=\(work.left),\(work.top),\(work.right),\(work.bottom) size=\(width)x\(height) content=\(renderer.contentHeight()) footer=\(renderer.footerPixels) sections=\(model.sections.count)")
         SetWindowPos(
-            window, HWND_TOPMOST, work.right - width - margin, work.bottom - height - margin, width, height,
+            window, UnsafeMutablePointer<HWND__>(bitPattern: -1), work.right - width - margin, work.bottom - height - margin, width, height,
             UINT(SWP_NOACTIVATE)
         )
     }
@@ -152,10 +179,10 @@ final class PopoverWindow {
         case UINT(WM_ERASEBKGND):
             return 1
         case UINT(WM_ACTIVATE):
-            if (wParam & 0xFFFF) == UInt(WA_INACTIVE) { hide() }
+            if (wParam & 0xFFFF) == UInt(WA_INACTIVE), hidesWhenDeactivated { hide("deactivated") }
             return 0
         case UINT(WM_KEYDOWN):
-            if wParam == UInt(VK_ESCAPE) { hide() }
+            if wParam == UInt(VK_ESCAPE) { hide("escape") }
             return 0
         case UINT(WM_MOUSEWHEEL):
             let delta = Int32(Int16(truncatingIfNeeded: wParam >> 16))
@@ -195,8 +222,8 @@ final class PopoverWindow {
 
     private func showMenu(_ hwnd: HWND?) {
         guard let menu = CreatePopupMenu() else { return }
-        AppendMenuW(menu, UINT(MF_STRING), MenuCommand.refresh.rawValue, Win32.wide("Refresh"))
-        AppendMenuW(menu, UINT(MF_STRING), MenuCommand.quit.rawValue, Win32.wide("Quit OpenUsage Light"))
+        AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(MenuCommand.refresh.rawValue), Win32.wide("Refresh"))
+        AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(MenuCommand.quit.rawValue), Win32.wide("Quit OpenUsage Light"))
         var cursor = POINT()
         GetCursorPos(&cursor)
         // Without this the menu stays up after a click elsewhere.
@@ -212,6 +239,7 @@ final class PopoverWindow {
         var client = RECT()
         GetClientRect(hwnd, &client)
         let size = SIZE(cx: client.right, cy: client.bottom)
+        UIDebugLog.write("paint client=\(client.right)x\(client.bottom)")
         guard let memory = CreateCompatibleDC(hdc), let bitmap = CreateCompatibleBitmap(hdc, size.cx, size.cy) else { return }
         let previous = SelectObject(memory, bitmap)
         hits = renderer().draw(on: memory, size: size, scroll: scroll)
@@ -222,9 +250,17 @@ final class PopoverWindow {
     }
 }
 
+/// A window handle carried into main-actor code. The window procedure always runs on the thread that
+/// created the window, which is the main thread, so the handle never crosses threads.
+private struct WindowHandle: @unchecked Sendable {
+    let value: HWND?
+}
+
 private let popoverWindowProc: @convention(c) (HWND?, UINT, WPARAM, LPARAM) -> LRESULT = { hwnd, message, wParam, lParam in
-    MainActor.assumeIsolated {
-        PopoverWindow.shared?.handle(hwnd, message, wParam, lParam) ?? DefWindowProcW(hwnd, message, wParam, lParam)
+    let handle = WindowHandle(value: hwnd)
+    return MainActor.assumeIsolated {
+        PopoverWindow.shared?.handle(handle.value, message, wParam, lParam)
+            ?? DefWindowProcW(handle.value, message, wParam, lParam)
     }
 }
 #endif

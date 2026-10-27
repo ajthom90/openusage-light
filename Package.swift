@@ -57,7 +57,8 @@ targets += [
 // The Windows command line: the same core, with Windows' own encrypted credential store and data folder.
 #if os(Windows)
 products += [
-    .executable(name: "openusage", targets: ["OpenUsageWindowsCLI"])
+    .executable(name: "openusage", targets: ["OpenUsageWindowsCLI"]),
+    .executable(name: "OpenUsageLight", targets: ["OpenUsageWindowsApp"])
 ]
 targets += [
     .target(
@@ -65,7 +66,15 @@ targets += [
         dependencies: ["OpenUsageCore"],
         path: "Sources/OpenUsageWindows",
         swiftSettings: swift6,
-        linkerSettings: [.linkedLibrary("Crypt32")]
+        linkerSettings: [.linkedLibrary("Crypt32"), .linkedLibrary("Dwmapi"), .linkedLibrary("Shell32")]
+    ),
+    // The tray app: a GUI-subsystem program, so no console window opens beside it.
+    .executableTarget(
+        name: "OpenUsageWindowsApp",
+        dependencies: ["OpenUsageWindows"],
+        path: "Sources/OpenUsageWindowsApp",
+        swiftSettings: swift6,
+        linkerSettings: [.unsafeFlags(["-Xlinker", "/SUBSYSTEM:WINDOWS", "-Xlinker", "/ENTRY:mainCRTStartup"])]
     ),
     .executableTarget(name: "OpenUsageWindowsCLI", dependencies: ["OpenUsageWindows"], path: "Sources/OpenUsageWindowsCLI", swiftSettings: swift6),
     .testTarget(

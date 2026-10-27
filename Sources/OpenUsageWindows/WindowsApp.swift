@@ -21,6 +21,13 @@ package enum WindowsApp {
         defer { if let mutex { CloseHandle(mutex) } }
 
         let model = demo ? DemoData.makeModel() : makeModel(environment: environment)
+
+        // `--snapshot <file.bmp>`: draw the popover off-screen to a picture and exit.
+        if let flag = arguments.firstIndex(of: "--snapshot"), arguments.indices.contains(flag + 1) {
+            let palette: PopoverPalette = arguments.contains("--dark") ? .dark : arguments.contains("--light") ? .light : .current()
+            let renderer = PopoverRenderer(sections: model.sections, palette: palette, dpi: Int(GetDpiForSystem()), status: "Updated just now")
+            return SnapshotWriter.write(renderer: renderer, to: URL(fileURLWithPath: arguments[flag + 1])) ? 0 : 1
+        }
         let popover = PopoverWindow(model: model)
         PopoverWindow.shared = popover
         guard popover.create() else { return 1 }
@@ -31,6 +38,8 @@ package enum WindowsApp {
         popover.onQuit = { quit = true }
         popover.onRefresh = { Task { await model.refresh(force: true) } }
 
+        popover.hidesWhenDeactivated = !showAtStart
+        UIDebugLog.enabled = showAtStart
         if showAtStart { popover.show() }
         var nextRefresh = Date()
         while !quit {
