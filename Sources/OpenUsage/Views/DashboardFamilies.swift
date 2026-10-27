@@ -13,17 +13,12 @@ struct DashboardFamily: Identifiable {
     /// The card's account when it has exactly one. Its header then names the account.
     var soleAccount: DashboardAccount? { accounts.count == 1 ? accounts[0] : nil }
 
-    /// The sole account when it has a name of its own: the header reads "Provider — name". An account
-    /// named like its provider, or one of several, leaves the header to the provider alone.
+    /// The sole account when it has a name of its own, which the header reads as "Provider — name"
+    /// when that fits its line (`DashboardProviderSection`). An account named like its provider, or
+    /// one of several, leaves the header to the provider alone.
     var namedSoleAccount: DashboardAccount? {
         guard let account = soleAccount, account.name != provider.displayName else { return nil }
         return account
-    }
-
-    /// The header's text: "Codex — Sunstory", or "Claude" for several accounts.
-    var headerTitle: String {
-        guard let account = namedSoleAccount else { return provider.displayName }
-        return "\(provider.displayName) — \(account.name)"
     }
 
     /// The same family with every email address left out of its account names, for an image that

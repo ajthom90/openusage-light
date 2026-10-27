@@ -7,6 +7,8 @@ import CoreGraphics
 /// columns are fixed — 86 pt of label, the bar, 52 of value, 56 of reset, 8 between — so every bar in
 /// the panel starts and ends at the same x.
 enum DashboardGrid {
+    /// The card on the dashboard: the panel minus its margin on each side.
+    static let cardWidth = PanelMetrics.width - 2 * PanelMetrics.margin
     /// Inside the card, around its rows.
     static let cardPadding = Theme.Spacing.m
     /// Inside a row, caption or header, around its text; with `cardPadding` the text starts 12 pt in.

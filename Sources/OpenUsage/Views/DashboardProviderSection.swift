@@ -1,28 +1,33 @@
 import SwiftUI
 
 /// One provider on the dashboard: its header above its card. The header names the provider — and its
-/// account, when it has one with a name of its own — in Title 3, with the plan right-aligned before the
-/// 16 pt logo at the end of the line, which ends where the rows' reset column does. The card holds the
-/// provider's accounts, separated by space alone: each a caption (when there are several) over one row
-/// per metric. Static: the dashboard adds hover, menus and drags around it, and the share image draws it
-/// as it is.
+/// account, when it has one with a name of its own that fits the line — in Title 3, with the plan
+/// right-aligned before the 16 pt logo at the end of the line, which ends where the rows' reset column
+/// does. The card holds the provider's accounts, separated by space alone: each a caption over one row
+/// per metric, the caption left out when the header names the account. Nothing on the line is ever
+/// cut or shrunk: a sole account whose "Provider — name" and plan don't fit beside the logo reads as a
+/// card of several accounts would, the provider alone above, the name and plan on the caption. Static:
+/// the dashboard adds hover, menus and drags around it, and the share image draws it as it is.
 struct DashboardProviderSection<Trailing: View, Account: View>: View {
     let family: DashboardFamily
     /// The plan of an account, by its id.
     var plans: [String: String] = [:]
-    /// The sole account's status glyph, shown in the header after its name.
+    /// The sole account's status glyph, shown in the header after its name while the header names it.
     var status: AccountStatus = AccountStatus()
+    /// The line's width, which decides whether the header can name the account.
+    var width: CGFloat = DashboardGrid.cardWidth
     /// Wraps the header, so the dashboard can attach the provider's drag gesture to it.
     var handle: (AnyView) -> AnyView = { $0 }
     /// What ends the header line: the provider's logo, or the copy button in its place.
     @ViewBuilder var trailing: () -> Trailing
-    @ViewBuilder var account: (DashboardAccount) -> Account
+    /// An account's block in the card: with its caption when `captioned`, or its rows alone.
+    @ViewBuilder var account: (DashboardAccount, _ captioned: Bool) -> Account
 
     var body: some View {
         VStack(alignment: .leading, spacing: DashboardGrid.headerGap) {
             handle(AnyView(header))
             VStack(alignment: .leading, spacing: DashboardGrid.accountSpacing) {
-                ForEach(family.accounts) { account($0) }
+                ForEach(family.accounts) { account($0, namedAccount == nil) }
             }
             .padding(DashboardGrid.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -32,33 +37,67 @@ struct DashboardProviderSection<Trailing: View, Account: View>: View {
 
     var header: some View {
         DashboardProviderHeader(
-            family: family,
-            plan: family.soleAccount.flatMap { plans[$0.id] },
-            status: status,
+            provider: family.provider,
+            account: namedAccount,
+            plan: namedAccount.flatMap { plans[$0.id] },
+            status: namedAccount == nil ? AccountStatus() : status,
             trailing: trailing
         )
     }
+
+    /// The account the header names: the sole one with a name of its own, when the line has room for it.
+    var namedAccount: DashboardAccount? {
+        guard let account = family.namedSoleAccount,
+              DashboardHeaderLine.fits(provider: family.provider, name: account.name, plan: plans[account.id], width: width)
+        else { return nil }
+        return account
+    }
 }
 
-/// The line above a provider's card. The title truncates at its end and stops at least 8 pt before the
-/// plan, which is never cut; the plan sits 8 pt before the logo, both centred on the line.
+/// What fits on the header line, measured with the line's own fonts.
+enum DashboardHeaderLine {
+    /// The header's type: Title 3 Semibold.
+    static let titleFont: Font = .title3.weight(.semibold)
+
+    /// Whether "Provider — name" fits the line at `width` beside the plan and the logo. Room is kept for
+    /// the status glyph, so a refresh spinner never flips the header, and for the point or two SwiftUI's
+    /// text can run past AppKit's measure.
+    static func fits(provider: Provider, name: String, plan: String?, width: CGFloat) -> Bool {
+        let titleFont = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold)
+        let planFont = NSFont.preferredFont(forTextStyle: .subheadline)
+        func measure(_ text: String, _ font: NSFont) -> CGFloat {
+            (text as NSString).size(withAttributes: [.font: font]).width.rounded(.up)
+        }
+        let insets = 2 * (DashboardGrid.cardPadding + DashboardGrid.inset)
+        let glyph = Theme.Spacing.s + 12
+        let logo = DashboardGrid.columnGap + DashboardGrid.iconSize
+        let planRoom = plan.map { measure($0, planFont) + DashboardGrid.columnGap } ?? 0
+        let slack: CGFloat = 2
+        return measure("\(provider.displayName) — \(name)", titleFont) <= width - insets - glyph - logo - planRoom - slack
+    }
+}
+
+/// The line above a provider's card: the provider, or "Provider — account" when the account's name fits
+/// (`DashboardHeaderLine.fits`), the plan 8 pt before the logo, both centred on the line, nothing cut.
 struct DashboardProviderHeader<Trailing: View>: View {
-    let family: DashboardFamily
+    let provider: Provider
+    /// The account named after the provider, or `nil` for the provider alone.
+    var account: DashboardAccount?
     var plan: String?
     var status = AccountStatus()
     @ViewBuilder var trailing: () -> Trailing
 
-    private static var titleFont: Font { .title3.weight(.semibold) }
+    private static var titleFont: Font { DashboardHeaderLine.titleFont }
 
     var body: some View {
         HStack(spacing: 0) {
-            if let account = family.namedSoleAccount {
-                Text("\(family.provider.displayName) — ")
+            if let account {
+                Text("\(provider.displayName) — ")
                     .font(Self.titleFont)
                     .fixedSize()
                 AccountName(account: account, font: Self.titleFont)
             } else {
-                Text(family.provider.displayName)
+                Text(provider.displayName)
                     .font(Self.titleFont)
                     .lineLimit(1)
             }
@@ -161,16 +200,16 @@ struct AccountStatus {
     }
 }
 
-/// An account's caption (in a card with several accounts) over its rows, at rest: what the share image
-/// and the drag previews draw.
+/// An account's caption over its rows, at rest, or its rows alone when the header names it: what the
+/// share image and the drag previews draw.
 struct DashboardAccountRows: View {
     let account: DashboardAccount
     var plan: String?
-    var showsCaption = true
+    var captioned = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if showsCaption {
+            if captioned {
                 DashboardAccountCaption(account: account, plan: plan)
             }
             ForEach(account.lines) { line in

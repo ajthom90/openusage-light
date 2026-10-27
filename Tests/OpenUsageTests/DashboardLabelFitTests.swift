@@ -6,7 +6,7 @@ import XCTest
 /// Every metric title, plan and name a provider can produce renders at full size in the panel: every
 /// title fits the 86 pt label column, no plan truncates, and Robin's own accounts fit their headers and
 /// captions whole. Plans are the providers' official names, never shortened to fit; a long account name
-/// truncates instead.
+/// moves to its caption instead.
 @MainActor
 final class DashboardLabelFitTests: XCTestCase {
     /// A provider's card: the panel minus its margin on each side.
@@ -45,16 +45,28 @@ final class DashboardLabelFitTests: XCTestCase {
     }
 
     /// Robin's accounts, names and plans, as the dashboard draws them: a one-account provider in its
-    /// header, a provider with several accounts on each account's caption.
+    /// header when that fits — `DashboardHeaderLine.fits`, checked against what the header really asks
+    /// for when it names the account — on its caption otherwise, and a provider with several accounts
+    /// on each account's caption. "Grok — Grok Account  SuperGrok Heavy" asks for 301 of the 316 pt
+    /// and still moves: the 15 pt left is less than the refresh spinner's room, and the name must
+    /// never be cut while the spinner shows.
     func testRobinsAccountsFitWithoutTruncating() {
-        let soleAccounts: [(ProviderKind, String, String)] = [
-            (.codex, "Sunstory", "Pro 200"), (.openrouter, "OpenRouter", "Pay-as-you-go"),
-            (.opencodeGo, "OpenCode Go", "Go"), (.opencodeGo, "Go Basic", "Go"),
-            (.grok, "Grok Account", "SuperGrok Heavy"), (.ollama, "Ollama", "Free"),
-            (.cursor, "rob@sunstory.com", "Ultra"), (.copilot, "robinebers", "Individual"),
+        let soleAccounts: [(ProviderKind, String, String, inHeader: Bool)] = [
+            (.codex, "Sunstory", "Pro 200", true), (.opencodeGo, "Go Basic", "Go", true),
+            (.grok, "Grok Account", "SuperGrok Heavy", false), (.grok, "rob@sunstory.com", "SuperGrok Heavy", false),
+            (.cursor, "rob@sunstory.com", "Ultra", true), (.copilot, "robinebers", "Individual", true),
+            (.codex, "sam@hey.com", "Plus", true),
         ]
-        for (kind, name, plan) in soleAccounts {
-            XCTAssertLessThanOrEqual(idealWidth(header(kind: kind, name: name, plan: plan)), cardWidth, name)
+        for (kind, name, plan, inHeader) in soleAccounts {
+            let provider = account(kind, name).provider
+            let fits = DashboardHeaderLine.fits(provider: provider, name: name, plan: plan, width: cardWidth)
+            XCTAssertEqual(fits, inHeader, "\(kind.displayName) — \(name)  \(plan)")
+            let asked = idealWidth(header(kind: kind, name: name, plan: plan, naming: true))
+            if fits {
+                XCTAssertLessThanOrEqual(asked, cardWidth, "\(name) is named in the header and truncates there")
+            } else {
+                XCTAssertGreaterThan(asked, cardWidth - 40, "\(name) moves to the caption with room to spare in the header")
+            }
         }
         let captions: [(ProviderKind, String, String)] = [
             (.claude, "Personal", "Max 20x"), (.claude, "Attention Machine 1", "Team 5x"),
@@ -119,11 +131,11 @@ final class DashboardLabelFitTests: XCTestCase {
                                             icon: kind.iconSource, accountLabel: name), lines: [])
     }
 
-    private func header(kind: ProviderKind, name: String, plan: String) -> some View {
+    /// The header, naming the account when `naming` whether or not that fits.
+    private func header(kind: ProviderKind, name: String, plan: String, naming: Bool = false) -> some View {
         let account = account(kind, name)
-        let family = DashboardFamily(id: kind.rawValue, provider: account.provider, accounts: [account])
-        return DashboardProviderHeader(family: family, plan: plan) {
-            ProviderIcon(source: family.provider.icon, inset: 0.04)
+        return DashboardProviderHeader(provider: account.provider, account: naming ? account : nil, plan: plan) {
+            ProviderIcon(source: account.provider.icon, inset: 0.04)
         }
     }
 

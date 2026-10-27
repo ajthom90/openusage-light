@@ -37,7 +37,7 @@ final class OpenCodeProviderTests: XCTestCase {
 
         let provider = Provider(id: store.accounts[0].cardID, displayName: "OpenCode", icon: .providerMark("opencode"), accountLabel: store.accounts[0].label)
         let family = DashboardFamily(id: "opencode", provider: provider, accounts: [DashboardAccount(provider: provider, lines: [])])
-        XCTAssertEqual(family.headerTitle, "OpenCode")
+        XCTAssertNil(family.namedSoleAccount, "the header would read \"OpenCode — \(provider.accountLabel ?? "")\"")
     }
 
     func testRefreshTagsTheAccountWithTheGoPlan() async throws {

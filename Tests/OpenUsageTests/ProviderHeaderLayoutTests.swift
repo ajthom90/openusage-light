@@ -2,9 +2,10 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// The provider's header and card, as drawn: the plan sits 8 pt before the logo and is never cut, a long
-/// name is; the header's text, every caption and every label start 12 pt in, and the logo ends where
-/// the reset column does; the heights are literal points; a row's columns sit at their fixed x.
+/// The provider's header and card, as drawn: the plan sits 8 pt before the logo and nothing on the line
+/// is ever cut — a name that doesn't fit moves to the account's caption; the header's text, every
+/// caption and every label start 12 pt in, and the logo ends where the reset column does; the heights
+/// are literal points; a row's columns sit at their fixed x.
 @MainActor
 final class ProviderHeaderLayoutTests: XCTestCase {
     /// The card: the panel minus its margin on each side.
@@ -21,16 +22,14 @@ final class ProviderHeaderLayoutTests: XCTestCase {
 
     private func header(_ accounts: [Provider], plan: String? = nil) -> some View {
         let family = family(accounts)
-        return DashboardProviderHeader(family: family, plan: plan) {
-            ProviderIcon(source: family.provider.icon, inset: 0.04)
-        }
+        return section(family, plans: Dictionary(uniqueKeysWithValues: accounts.compactMap { account in plan.map { (account.id, $0) } })).header
     }
 
-    private func section(_ family: DashboardFamily, plans: [String: String] = [:]) -> some View {
+    private func section(_ family: DashboardFamily, plans: [String: String] = [:]) -> DashboardProviderSection<ProviderIcon, DashboardAccountRows> {
         DashboardProviderSection(family: family, plans: plans) {
             ProviderIcon(source: family.provider.icon, inset: 0.04)
-        } account: { account in
-            DashboardAccountRows(account: account, plan: plans[account.id], showsCaption: family.soleAccount == nil)
+        } account: { account, captioned in
+            DashboardAccountRows(account: account, plan: plans[account.id], captioned: captioned)
         }
     }
 
@@ -45,12 +44,12 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         return data
     }
 
-    /// Robin: "right align the plan name left-next to the icon". A name that can't fit loses its end
-    /// and stops 8 pt before the plan; the plan is whole, ends 8 pt before the logo and is centred on
-    /// it; the logo ends 12 pt before the card's edge.
-    func testTheHeaderCutsTheNameAndKeepsThePlanBeforeTheLogo() throws {
+    /// Robin: "right align the plan name left-next to the icon". The plan is whole, ends 8 pt before the
+    /// logo and is centred on it; the logo ends 12 pt before the card's edge; the name stops at least
+    /// 8 pt before the plan.
+    func testTheHeaderKeepsThePlanBeforeTheLogo() throws {
         let plan = "Pro 200"
-        let bitmap = try Bitmap(header([claude("Sunstory Engineering Department of Everything")], plan: plan), width: boxWidth, scale: 2)
+        let bitmap = try Bitmap(header([claude("Sunstory")], plan: plan), width: boxWidth, scale: 2)
         XCTAssertEqual(CGFloat(bitmap.height) / bitmap.scale, DashboardGrid.headerHeight)
         let logoEnd = boxWidth - inset
         let logoStart = logoEnd - DashboardGrid.iconSize
@@ -68,12 +67,48 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         let title = try XCTUnwrap(bitmap.inkSpan(from: 0, to: planStart - 1), "no title drawn")
         XCTAssertEqual(title.first, inset, accuracy: 1.5, "the title starts 12 pt in")
         XCTAssertLessThanOrEqual(title.last, planStart - DashboardGrid.columnGap + 1, "the name runs into the plan")
-        XCTAssertGreaterThan(title.last, planStart - 40, "the name is cut far shorter than the room it has")
+        XCTAssertGreaterThan(title.last, inset + 100, "the name is missing")
 
         let planRows = try XCTUnwrap(bitmap.inkRows(from: planStart, to: planEnd))
         let logoRows = try XCTUnwrap(bitmap.inkRows(from: logoStart, to: logoEnd))
         XCTAssertEqual((planRows.first + planRows.last) / 2, (logoRows.first + logoRows.last) / 2, accuracy: 2, "the plan isn't centred on the logo")
         XCTAssertEqual((planRows.first + planRows.last) / 2, DashboardGrid.headerHeight / 2, accuracy: 2, "the plan isn't centred on the line")
+    }
+
+    /// Robin's panel read "Grok — rob@s…ry.com  SuperGrok Heavy": nothing is ever truncated or shrunk
+    /// at the 340 pt panel. When "Provider — account", the plan and the logo don't fit the line, the
+    /// card takes the several-accounts form: the header reads the provider alone with the logo, and the
+    /// caption inside the card carries the name and the plan, as it does in a card of several accounts.
+    /// Decided by measuring, not by counting characters: "Codex — sam@hey.com  Plus" fits and keeps the
+    /// one-account form.
+    func testANameThatDoesNotFitTheHeaderMovesToTheCaptionWithItsPlan() throws {
+        let grok = Provider(id: "grok@1", displayName: "Grok", icon: .providerMark("grok"), accountLabel: "rob@sunstory.com")
+        let codex = Provider(id: "codex@1", displayName: "Codex", icon: .providerMark("codex"), accountLabel: "sam@hey.com")
+        let weekly = line(percent("Weekly", used: 10, resetsIn: 3 * 86_400))
+        func family(_ provider: Provider) -> DashboardFamily {
+            DashboardFamily(id: provider.id, provider: provider, accounts: [DashboardAccount(provider: provider, lines: [weekly])])
+        }
+        XCTAssertFalse(DashboardHeaderLine.fits(provider: grok, name: "rob@sunstory.com", plan: "SuperGrok Heavy", width: DashboardGrid.cardWidth))
+        XCTAssertTrue(DashboardHeaderLine.fits(provider: codex, name: "sam@hey.com", plan: "Plus", width: DashboardGrid.cardWidth))
+
+        let fallback = try Bitmap(section(family(grok), plans: ["grok@1": "SuperGrok Heavy"]), width: boxWidth, scale: 2)
+        let fallbackBands = fallback.inkBands()
+        XCTAssertEqual(fallbackBands.count, 3, "the header, the caption, the row")
+        XCTAssertEqual(CGFloat(fallback.height) / 2, DashboardGrid.headerHeight + DashboardGrid.headerGap + 2 * DashboardGrid.cardPadding + DashboardGrid.captionHeight + DashboardGrid.rowHeight)
+        let titleEnd = boxWidth - inset - DashboardGrid.iconSize - 4
+        let grokAlone = try XCTUnwrap(Bitmap(header([Provider(id: "grok@1", displayName: "Grok", icon: .providerMark("grok"))]), width: boxWidth, scale: 2).inkSpan(from: 0, to: titleEnd))
+        let fallbackHeader = try XCTUnwrap(Bitmap(header([grok], plan: "SuperGrok Heavy"), width: boxWidth, scale: 2).inkSpan(from: 0, to: titleEnd))
+        XCTAssertEqual(fallbackHeader.last, grokAlone.last, accuracy: 0.5, "the header reads more than the provider, or carries the plan")
+        XCTAssertEqual(fallbackBands[0].last, boxWidth - inset, accuracy: 1.5, "the logo ends 12 pt before the edge")
+        let caption = try Bitmap(DashboardAccountCaption(account: family(grok).accounts[0], plan: "SuperGrok Heavy").padding(.horizontal, DashboardGrid.cardPadding), width: boxWidth, scale: 2).inkBands()
+        XCTAssertEqual(fallbackBands[1].first, caption[0].first, accuracy: 0.5, "the caption isn't the several-accounts caption")
+        XCTAssertEqual(fallbackBands[1].last, caption[0].last, accuracy: 0.5, "the caption's plan doesn't end where a several-accounts caption's does")
+
+        let fits = try Bitmap(section(family(codex), plans: ["codex@1": "Plus"]), width: boxWidth, scale: 2)
+        XCTAssertEqual(fits.inkBands().count, 2, "the header and the row, no caption")
+        XCTAssertEqual(CGFloat(fits.height) / 2, DashboardGrid.headerHeight + DashboardGrid.headerGap + 2 * DashboardGrid.cardPadding + DashboardGrid.rowHeight)
+        let fitsHeader = try XCTUnwrap(Bitmap(header([codex], plan: "Plus"), width: boxWidth, scale: 2).inkSpan(from: 0, to: titleEnd))
+        XCTAssertGreaterThan(fitsHeader.last, grokAlone.last + 100, "the header doesn't name the account")
     }
 
     /// One account's header names it, "Claude — Attention Machine"; several accounts leave the header

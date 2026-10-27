@@ -79,8 +79,8 @@ struct WidgetGroupedListView: View {
             DashboardCopyButton(provider: family.provider, active: hoveredFamilyID == family.id) {
                 copyImage(of: family, plans: plans)
             }
-        } account: { account in
-            accountSection(account, in: family)
+        } account: { account, captioned in
+            accountSection(account, in: family, captioned: captioned)
         }
         .contentShape(Rectangle())
         .onHover { inside in
@@ -92,12 +92,18 @@ struct WidgetGroupedListView: View {
         }
     }
 
-    /// An account with its menu and drag. In a one-account card it is only its rows: the header and the
-    /// provider's menu stand in for its caption and menu, and there is no other account to reorder.
+    /// An account with its menu and drag. In a one-account card the provider's menu stands in for its
+    /// menu and there is no other account to reorder; its caption shows only when the header can't name
+    /// it.
     @ViewBuilder
-    private func accountSection(_ account: DashboardAccount, in family: DashboardFamily) -> some View {
+    private func accountSection(_ account: DashboardAccount, in family: DashboardFamily, captioned: Bool) -> some View {
         if family.soleAccount != nil {
-            rows(of: account)
+            VStack(alignment: .leading, spacing: 0) {
+                if captioned {
+                    DashboardAccountCaption(account: account, plan: dataStore.plan(for: account.id), status: status(for: account.id))
+                }
+                rows(of: account)
+            }
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 DashboardAccountCaption(account: account, plan: dataStore.plan(for: account.id), status: status(for: account.id))
@@ -270,8 +276,8 @@ struct WidgetGroupedListView: View {
                 let plans = plans(for: family)
                 let preview = DashboardProviderSection(family: family, plans: plans) {
                     ProviderIcon(source: family.provider.icon, inset: 0.04)
-                } account: { account in
-                    DashboardAccountRows(account: account, plan: plans[account.id], showsCaption: family.soleAccount == nil)
+                } account: { account, captioned in
+                    DashboardAccountRows(account: account, plan: plans[account.id], captioned: captioned)
                 }
                 return ReorderLift.make(id: frameID, payload: .view(AnyView(preview)), value: value, frames: frameStore.frames)
             },

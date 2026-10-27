@@ -70,7 +70,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         let family = DashboardFamily(id: "claude", provider: personal.provider, accounts: [personal, account(work)])
         let section = DashboardProviderSection(family: family, plans: ["claude@1": "Max 5x"], status: AccountStatus(notice: "Refresh failed")) {
             ProviderIcon(source: family.provider.icon, inset: 0.04)
-        } account: { account in
+        } account: { account, _ in
             DashboardAccountRows(account: account, plan: "Max 5x")
         }
         var credits = WidgetData(title: "Extra Usage", icon: .providerMark("codex"), kind: .count, used: 452, limit: nil)
@@ -117,7 +117,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
     func testAPlanIsNeverABadge() {
         let personal = account(Provider(id: "claude@1", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "Personal"))
         let family = DashboardFamily(id: "claude", provider: personal.provider, accounts: [personal])
-        let header = DashboardProviderHeader(family: family, plan: "Max 20x") { EmptyView() }
+        let header = DashboardProviderHeader(provider: family.provider, account: personal, plan: "Max 20x") { EmptyView() }
         for (name, body) in [("header", String(reflecting: type(of: header.body))),
                              ("caption", String(reflecting: type(of: DashboardAccountCaption(account: personal, plan: "Max 20x").body)))] {
             for badge in ["Capsule", "Background", "RoundedRectangle"] {
@@ -204,8 +204,8 @@ final class DashboardSectionTests: QuietWindowTestCase {
             handle: { AnyView($0.highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.headerDrags += 1 })) }
         ) {
             ProviderIcon(source: provider.icon, inset: 0.04)
-        } account: { account in
-            DashboardAccountRows(account: account, showsCaption: false)
+        } account: { account, captioned in
+            DashboardAccountRows(account: account, captioned: captioned)
         }
         let (window, host) = hostView(section, renaming: renaming)
 
@@ -291,7 +291,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         let family = DashboardFamily(id: "claude", provider: provider, accounts: [account(provider), account(work)])
         let view = DashboardProviderSection(family: family) {
             ProviderIcon(source: provider.icon, inset: 0.04)
-        } account: { account in
+        } account: { account, _ in
             VStack(alignment: .leading, spacing: 0) {
                 DashboardAccountCaption(account: account, plan: "Max 5x")
                     .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })

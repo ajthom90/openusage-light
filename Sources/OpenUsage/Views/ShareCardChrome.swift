@@ -14,7 +14,7 @@ struct ShareCardChrome<Content: View>: View {
             content
             watermarkFooter
         }
-        .padding(16)
+        .padding(ShareCardView.inset)
         .frame(width: ShareCardView.width, alignment: .topLeading)
         .background(Theme.traySurface)
         .environment(\.colorScheme, appearance)
