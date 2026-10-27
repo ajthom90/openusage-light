@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// A hover tooltip that behaves like the native `.help()` tooltip but appears after a delay we control
 /// (the native one waits ~1.5-2s on the first hover, with no public API to shorten) and is anchored

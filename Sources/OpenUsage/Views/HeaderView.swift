@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// The dashboard footer's trailing control: a single **Options ⌄** menu button in Liquid Glass. The
 /// earlier split button (a screen button + separate chevron) confused people — two tap targets in one

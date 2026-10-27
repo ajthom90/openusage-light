@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Puts the `openusage` command on the user's `PATH` by linking `/usr/local/bin/openusage` to the
 /// helper inside the app, so an in-place app update updates the command too.

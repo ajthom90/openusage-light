@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// The popover panel's backdrop: two full-frame layers built once and switched by visibility.
 ///

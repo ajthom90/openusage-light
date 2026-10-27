@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The scroll container shared by the popover's three full-height screens (dashboard, Customize,
 /// Settings). Each one fills the region the pinned footer leaves and keeps the native scroll edge

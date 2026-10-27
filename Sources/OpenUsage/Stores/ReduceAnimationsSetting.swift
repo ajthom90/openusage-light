@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OpenUsageCore
 
 /// App-specific motion preference. It supplements macOS Reduce Motion so either choice can request
 /// the same reduced-animation behavior throughout the SwiftUI tree and the AppKit panel bridge.

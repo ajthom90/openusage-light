@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The persisted log level that gates the file log. A `String`-raw `UserDefaultsBacked` enum so it
 /// reads its stored choice through the same idiom as every other persisted setting.

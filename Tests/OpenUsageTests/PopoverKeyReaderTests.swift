@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// `PopoverKeyReader.keyTargetsPopover` decides whether a bare Esc/Return keyDown should drive the
 /// menu-bar popover: only when the event's key window IS the panel. The panel (a non-activating key

@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// One donut sector, styled like Swift Charts' `SectorMark` (hairline angular gaps, rounded sector
 /// corners) but with the start/end ring fractions as `animatableData` — the piece SectorMark is

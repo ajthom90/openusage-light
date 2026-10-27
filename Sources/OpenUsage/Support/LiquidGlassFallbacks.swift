@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// Availability-gated wrappers for the handful of macOS 26 (Tahoe) Liquid Glass APIs the popover
 /// uses, so the rest of the UI can call them declaratively and the app still builds and runs on

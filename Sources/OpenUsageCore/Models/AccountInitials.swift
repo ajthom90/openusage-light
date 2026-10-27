@@ -10,10 +10,10 @@ import Foundation
 ///    position, the way editor tabs show the part of a path that differs ("Work", "Web" → "WO", "WE").
 /// 4. Anything still shared, such as the same name twice, gets a numbered tag in account order
 ///    ("W1", "W2").
-enum AccountInitials {
+package enum AccountInitials {
     private static let budget = 2
 
-    static func tags(for names: [String]) -> [String] {
+    package static func tags(for names: [String]) -> [String] {
         let letters = names.map(alphanumerics)
         var tags = names.map { fitted(acronym($0)) }
 

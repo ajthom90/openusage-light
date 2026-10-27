@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 extension UserDefaults {
     /// Read a `RawRepresentable` (String-backed) enum from defaults, falling back to `fallback` when

@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import OpenUsageCore
 
 /// Handles the popover's two bare navigation keys via a local key monitor. SwiftUI
 /// `.keyboardShortcut` is unreliable here — a hidden/zero-size shortcut button never registers, and

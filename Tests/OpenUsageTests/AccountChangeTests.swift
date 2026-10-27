@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 @MainActor
 final class AccountChangeTests: XCTestCase {

@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// Hover detail for a Rate Limit Resets row (Codex reset credits, Claude reset grants): a vertical
 /// timeline of each still-available reset, one node per credit, ordered soonest-expiry first. Each

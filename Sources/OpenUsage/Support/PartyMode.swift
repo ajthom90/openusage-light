@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// True inside the readable "party" easter-egg mode, so leaf views (meter bars, provider marks) can
 /// join the party while staying legible. Default `false` everywhere — the windowless ShareCard export

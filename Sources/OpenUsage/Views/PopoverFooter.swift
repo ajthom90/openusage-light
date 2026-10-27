@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// A screen's footer chrome: app identity, refresh status, dashboard actions, and copy confirmation.
 /// It uses the screen it belongs to, so during a slide each mounted page draws its own footer.

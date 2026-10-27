@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The in-popover screen mode (dashboard / Accounts / Settings) and its `isEditing` bridge,
 /// which older call sites still drive Accounts through.

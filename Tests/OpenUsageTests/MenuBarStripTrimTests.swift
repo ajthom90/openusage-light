@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the Text strip's transparent-margin trim: `visibleBounds(of:)` finds the opaque pixel box in
 /// `CGImage.cropping(to:)`'s coordinate space (top-left origin — an off-center mark pins the

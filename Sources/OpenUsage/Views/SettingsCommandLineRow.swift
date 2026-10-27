@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// Settings → Command Line: installs or removes the `openusage` command on the user's `PATH`.
 struct SettingsCommandLineRow: View {

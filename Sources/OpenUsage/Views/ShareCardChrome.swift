@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// Shared chrome for the branded, off-screen share-card PNG:
 /// the authored width, opaque tray background (an `ImageRenderer` has no window backdrop), forced

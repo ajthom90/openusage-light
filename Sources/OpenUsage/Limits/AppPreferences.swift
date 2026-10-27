@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Finds the preferences of the OpenUsage Light app the `openusage` command belongs to.
 ///

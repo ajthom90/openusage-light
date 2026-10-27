@@ -1,6 +1,7 @@
 import AppKit
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Tests host real windows in the xctest process, on a Mac whose owner is typing somewhere else. The
 /// suite takes nothing from them: the process may not be activated, every hosted window is

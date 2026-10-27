@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The outcome of a rate-limit reset claim, as the resets popover renders it. Each provider collapses
 /// its own protocol answers into these.

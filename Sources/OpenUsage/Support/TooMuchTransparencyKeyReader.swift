@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import OpenUsageCore
 
 /// Detects the secret transparency code (↑ ↑ ↓ ↓ ← → ← → B A) while the popover panel is the key window
 /// and calls `onMatched` (which toggles the "too much transparency" easter egg). A deliberate sibling of

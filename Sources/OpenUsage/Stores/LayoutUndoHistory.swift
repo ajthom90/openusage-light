@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// An immutable capture of every piece of layout state a user action can change — the unit the undo
 /// stack stores. Rather than record a bespoke inverse per action type (remove vs. reorder vs. pin),

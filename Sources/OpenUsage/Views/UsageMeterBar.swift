@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The 5 pt capacity bar on a dashboard row, filled with what is left (or what is used, under the Used
 /// setting) in its state's colour (`WidgetData.meterState`): blue on course, orange when projected to

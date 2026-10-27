@@ -2,6 +2,7 @@ import Observation
 import os
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 @MainActor
 final class LaunchAtLoginSettingTests: XCTestCase {

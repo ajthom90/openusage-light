@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Calls Ollama's account endpoints using the key the user entered in the app.
 ///

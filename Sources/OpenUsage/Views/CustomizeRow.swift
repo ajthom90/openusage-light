@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The Accounts detail's metric row shape, shared by the live row in `AccountDetailView` and the
 /// lifted drag preview in `ReorderLiftPreview`. The layout is **grip · label · star · toggle** — the

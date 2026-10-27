@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// Owns the menu-bar panel's placement and content-driven height changes. The status-item controller
 /// still owns panel creation and show/hide; this type owns only the height boundary between SwiftUI and

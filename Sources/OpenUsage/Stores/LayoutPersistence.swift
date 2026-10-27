@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The saved half of `LayoutStore`. It owns the key names, encoding, and UserDefaults access so the
 /// live store can focus on layout rules and user actions.

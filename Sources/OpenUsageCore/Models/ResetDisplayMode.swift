@@ -5,18 +5,18 @@ import Foundation
 /// original OpenUsage's `resetTimerDisplayMode` setting; chosen in Settings, or flipped by a click on
 /// any row's reset time.
 /// The labels avoid relative/absolute jargon: they're what each mode looks like.
-enum ResetDisplayMode: String, Hashable, Sendable, CaseIterable {
+package enum ResetDisplayMode: String, Hashable, Sendable, CaseIterable {
     case relative
     case absolute
 
-    var label: String {
+    package var label: String {
         switch self {
         case .relative: return "Countdown"
         case .absolute: return "Exact Time"
         }
     }
 
-    mutating func toggle() {
+    package mutating func toggle() {
         self = self == .relative ? .absolute : .relative
     }
 }

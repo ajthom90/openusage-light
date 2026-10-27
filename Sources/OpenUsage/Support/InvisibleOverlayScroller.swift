@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import OpenUsageCore
 
 extension View {
     /// Hides the scrollbar on the enclosing `NSScrollView` without losing the native scroll edge

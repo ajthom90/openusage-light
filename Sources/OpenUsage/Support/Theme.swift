@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import OpenUsageCore
 
 /// Central palette + surface styles. Surfaces stay adaptive (light/dark).
 ///

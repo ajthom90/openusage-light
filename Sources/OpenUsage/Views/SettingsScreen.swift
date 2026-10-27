@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 struct SettingsScreen: View {
     @Environment(AppContainer.self) private var container
@@ -31,6 +32,7 @@ struct SettingsScreen: View {
                     }
                     row("Time Format") {
                         picker($timeFormat, options: TimeFormatSetting.allCases, label: \.label)
+                            .onChange(of: timeFormat) { TimeFormatSetting.loadCurrent() }
                     }
                 }
                 usageDisplaySection

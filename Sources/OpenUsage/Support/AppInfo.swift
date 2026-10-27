@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Single source of truth for the app's version, shown in the dashboard footer and the About settings
 /// tab. `CFBundleShortVersionString` carries the full version including any pre-release suffix

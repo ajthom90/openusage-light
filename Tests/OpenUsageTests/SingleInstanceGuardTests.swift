@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the single-instance guard's decision logic (issue #635): given our PID and the PIDs of
 /// running apps sharing our bundle id, decide which instance we should yield to (lowest-PID-wins), or

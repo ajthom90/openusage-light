@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 enum ProviderAuthRetry {
     static func isAuthFailure(_ response: HTTPResponse) -> Bool {

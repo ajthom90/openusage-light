@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OpenUsageCore
 
 /// Kernel-backed single-instance lock, closing the startup race `SingleInstanceGuard` (#635/#637)
 /// can't: the guard decides from an `NSRunningApplication` snapshot, and when two copies launch

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct LoginHTTPResponse: Sendable {
     let data: Data

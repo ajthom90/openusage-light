@@ -2,6 +2,7 @@ import Foundation
 import os
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class ProviderLoginTests: XCTestCase {
     func testClaudeLoginExchangesCodeAndMapsProfile() async throws {

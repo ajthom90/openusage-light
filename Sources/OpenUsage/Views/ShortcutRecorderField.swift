@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import KeyboardShortcuts
 import SwiftUI
+import OpenUsageCore
 
 /// A click-to-record shortcut field backed by the KeyboardShortcuts store.
 ///

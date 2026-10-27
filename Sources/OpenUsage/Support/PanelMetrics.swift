@@ -1,4 +1,5 @@
 import CoreGraphics
+import OpenUsageCore
 
 /// The popover's one set of spaces, shared by every screen. There are no density levels: text uses the
 /// system text styles (on macOS, body is 13 pt and subheadline 11 pt), and these are the gaps around it,

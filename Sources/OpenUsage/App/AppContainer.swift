@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OpenUsageCore
 
 /// Owns the app's long-lived stores. Accounts are the source of truth: when they change, the container
 /// updates the runtimes, layout, and data store in place, so the status item, panel, and every other

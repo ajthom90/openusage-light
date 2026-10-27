@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import OpenUsageCore
 
 /// Rejects a second copy of OpenUsage at launch (issue #635). macOS can fire two independent launch
 /// triggers on reboot — session restoration ("Reopen windows when logging back in") and the

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The meter's colour, read off `WidgetData.meterState(now:).severity`. With a reset window the colour
 /// is the pace verdict (`PaceTests`): blue on course, orange cutting it close, red running out. Without

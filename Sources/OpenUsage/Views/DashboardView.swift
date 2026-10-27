@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The popover content: the provider/metric list (or the Accounts / Settings screen) as a scroll
 /// view between fixed chrome — a top back/title bar on Accounts/Settings and bottom identity/action

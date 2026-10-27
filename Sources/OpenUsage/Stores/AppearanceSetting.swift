@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// Explicit appearance override for the whole app; `.system` follows macOS. Applied as
 /// `NSApp.appearance` — the panel hosting ignores SwiftUI's `preferredColorScheme`, so the override

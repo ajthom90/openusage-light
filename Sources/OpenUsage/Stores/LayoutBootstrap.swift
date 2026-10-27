@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The owner-approved defaults and the legacy baseline used when an existing user has no seed marker.
 struct LayoutDefaultSet {

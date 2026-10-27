@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// Presents the standard macOS About panel for the footer menu's "About OpenUsage" item.
 ///

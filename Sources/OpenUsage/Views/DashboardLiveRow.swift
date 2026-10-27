@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// A metric row on the live dashboard. Rows with a clock re-render every 30 s so their reset stays live;
 /// a click on the value flips every row between used and left (`onToggleMeterStyle`, on a Used/Left

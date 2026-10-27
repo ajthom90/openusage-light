@@ -11,12 +11,12 @@ import Foundation
 /// The regexes reproduce the exact Rust patterns (including the `{12,}` quantifier *after* the
 /// prefix, the optional-quote api-key variant in `redactBody` versus the no-quote variant in
 /// `redactLogMessage`, and the unique `account=` pass). They are compiled once as static `let`s.
-enum LogRedaction {
+package enum LogRedaction {
     // MARK: - Value masking
 
     /// Redact a sensitive value to `first4...last4`, or `[REDACTED]` when it is too short to mask
     /// safely. Character-based (not byte-based) to match Rust's `char` semantics.
-    static func redactValue(_ value: String) -> String {
+    package static func redactValue(_ value: String) -> String {
         let chars = Array(value)
         if chars.count <= 12 {
             return "[REDACTED]"
@@ -39,7 +39,7 @@ enum LogRedaction {
 
     /// Redact sensitive query parameters in a URL. Only the query string is touched; the path is
     /// left intact (paths are handled by `redactBody`/`redactLogMessage`).
-    static func redactURL(_ url: String) -> String {
+    package static func redactURL(_ url: String) -> String {
         guard let queryStart = url.firstIndex(of: "?") else { return url }
         let base = String(url[..<url.index(after: queryStart)]) // includes the '?'
         let query = String(url[url.index(after: queryStart)...])
@@ -73,7 +73,7 @@ enum LogRedaction {
     /// Redact sensitive patterns in a response body for logging. Four ordered passes: JWT, quoted
     /// API key, sensitive JSON keys, then filesystem
     /// paths. Redact BEFORE any truncation so a secret straddling the cut is still caught intact.
-    static func redactBody(_ body: String) -> String {
+    package static func redactBody(_ body: String) -> String {
         var result = body
         result = replaceAll(jwtRegex, in: result) { redactValue($0) }
         result = replaceAll(apiKeyQuotedRegex, in: result) { match in
@@ -96,7 +96,7 @@ enum LogRedaction {
     /// Redact a body, then truncate to a Character-safe preview with a byte-count suffix. Mirrors the
     /// Tauri host_api preview (`{}... ({} bytes total)`), measured on the *original* body's UTF-8
     /// byte length. Any provider that ever needs to log a body MUST route it through here.
-    static func bodyPreview(_ body: String, limit: Int = 500) -> String {
+    package static func bodyPreview(_ body: String, limit: Int = 500) -> String {
         let redacted = redactBody(body)
         guard redacted.utf8.count > limit else { return redacted }
         // UTF-8 safe truncation: include a character while its STARTING byte offset is < limit,
@@ -114,7 +114,7 @@ enum LogRedaction {
     // MARK: - Log message
 
     /// Lightweight redaction for free-form log messages: JWT, API keys, account values, then paths.
-    static func redactLogMessage(_ message: String) -> String {
+    package static func redactLogMessage(_ message: String) -> String {
         var result = message
         result = replaceAll(jwtRegex, in: result) { redactValue($0) }
         result = replaceAll(apiKeyBareRegex, in: result) { redactValue($0) }

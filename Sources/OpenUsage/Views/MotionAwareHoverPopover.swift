@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 extension View {
     /// SwiftUI does not expose the backing `NSPopover.animates` flag, so reduced motion crosses the

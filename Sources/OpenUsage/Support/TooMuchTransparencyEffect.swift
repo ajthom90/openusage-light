@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 extension View {
     /// The "too much transparency" easter-egg treatment, applied as one stable modifier so enabling and

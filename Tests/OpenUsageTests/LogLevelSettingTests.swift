@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the level setting's release default reconciliation (the issue says Info, not the Tauri
 /// runtime's Error), raw-value parsing, the fallback for unrecognized/dropped values (`off`/`trace`),

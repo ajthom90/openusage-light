@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import UserNotifications
+import OpenUsageCore
 
 /// The single entry point for posting macOS user notifications. Quota alerts go through `post`;
 /// authorization is requested when the user first enables a trigger (all default off), while `post`

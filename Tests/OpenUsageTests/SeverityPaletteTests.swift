@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// One severity palette: blue, orange, red. Each severity maps to its system colour, and the meter
 /// bar, the row's value, the row's flame, the resets timeline's dot and the claim banner all paint that

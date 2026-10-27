@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Single source of truth for the background refresh cadence.
 ///

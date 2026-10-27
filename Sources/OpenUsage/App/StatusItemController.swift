@@ -1,6 +1,7 @@
 import AppKit
 import KeyboardShortcuts
 import SwiftUI
+import OpenUsageCore
 
 /// The dashboard's host window: a borderless, **non-activating** panel that can still become key.
 ///

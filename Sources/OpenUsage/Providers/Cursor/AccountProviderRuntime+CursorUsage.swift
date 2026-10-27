@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 extension AccountProviderRuntime {
     /// Maps a `GetCurrentPeriodUsage` body to Cursor's metrics, routed the way the original OpenUsage

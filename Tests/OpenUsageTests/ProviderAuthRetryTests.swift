@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers `ProviderAuthRetry.requireSuccess`, the shared non-2xx triage the Claude/Codex/Grok mappers
 /// usage clients route through: 401/403 → the provider's auth-expired error, any other non-2xx →

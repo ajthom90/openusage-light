@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 extension Bundle {
     /// The bundle carrying OpenUsage's copied provider icons.

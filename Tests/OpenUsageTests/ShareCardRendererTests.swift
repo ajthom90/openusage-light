@@ -1,6 +1,7 @@
 import XCTest
 import SwiftUI
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the Share card export pipeline: `image(for:)` rasterizes the flexible-height card, and
 /// `pngData(from:)` round-trips to a valid PNG. `ImageRenderer` is MainActor-only, so the whole case

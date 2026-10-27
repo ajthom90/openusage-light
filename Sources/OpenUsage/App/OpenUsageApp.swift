@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -9,6 +10,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         AppLog.bootstrap()
+        TimeFormatSetting.loadCurrent()
         if let bundleID = Bundle.main.bundleIdentifier {
             switch SingleInstanceLock.acquire(bundleIdentifier: bundleID) {
             case .acquired(let token):

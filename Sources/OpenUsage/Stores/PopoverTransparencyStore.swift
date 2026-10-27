@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import OpenUsageCore
 
 /// Single source of truth for the popover's transparency: the persisted "Increase Transparency"
 /// preference, the ephemeral secret-code easter-egg state, and the live macOS accessibility flags that

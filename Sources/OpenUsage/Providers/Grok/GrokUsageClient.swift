@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct GrokRefreshResponse: Decodable, Hashable, Sendable {
     var accessToken: String

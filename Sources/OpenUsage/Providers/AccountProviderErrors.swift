@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct ClaudeOAuthConfig: Hashable, Sendable {
     var usageURL: URL

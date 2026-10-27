@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// Where things sit on the dashboard, on the 4/8/12/16 scale: a provider's header sits 4 pt above its
 /// card and 16 pt below the card before it; the card pads its rows by 8 and each row, caption and the

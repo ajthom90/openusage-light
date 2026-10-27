@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// A small, auto-dismissing confirmation/notice capsule — the "Copied to clipboard" share pill and the
 /// Customize action notice. `trigger` is a monotonic counter the caller bumps to re-pop the pill (its

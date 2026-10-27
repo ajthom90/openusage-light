@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// Shared motion vocabulary so every transition feels consistent and "Apple-native".
 enum Motion {

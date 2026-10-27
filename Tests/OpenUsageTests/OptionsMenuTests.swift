@@ -1,6 +1,7 @@
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The footer's Options menu: Share Screenshot lives on the dashboard's right-click alone.
 @MainActor

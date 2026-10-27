@@ -1,5 +1,6 @@
 import SwiftUI
 import os
+import OpenUsageCore
 
 /// Drives the host panel's height on SwiftUI's animation clock. This is the "single clock" that fixes
 /// the old stutter and the diagonal jank: instead of AppKit running its own `setFrame` animation

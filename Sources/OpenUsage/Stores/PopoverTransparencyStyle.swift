@@ -1,4 +1,5 @@
 import CoreGraphics
+import OpenUsageCore
 
 /// The popover's resolved transparency level. Deliberately discrete (not a continuous slider) so the
 /// precedence rules, the accessibility clamp, and the visual-regression tests stay tractable; a future

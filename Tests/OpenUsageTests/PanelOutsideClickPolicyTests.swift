@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class PanelOutsideClickPolicyTests: XCTestCase {
     func testNormalOutsideClickDismisses() {

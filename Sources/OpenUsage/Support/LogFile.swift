@@ -1,5 +1,6 @@
 import Foundation
 import os
+import OpenUsageCore
 
 /// Resolves the log file URL and owns a serial, lock-guarded `FileHandle` appender with single-archive
 /// rotation. `@unchecked Sendable` because all mutable state is guarded by an internal `NSLock`, so it

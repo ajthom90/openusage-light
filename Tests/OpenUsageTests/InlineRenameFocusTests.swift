@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Every inline rename takes the keyboard at once, in the dashboard's own panel: the panel is key, the
 /// field editor is first responder with the whole name selected after SwiftUI's focus has settled, and

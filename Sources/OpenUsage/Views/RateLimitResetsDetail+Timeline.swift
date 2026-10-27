@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The resets popover's timeline model: which state the body renders and one display-ready entry per
 /// reset. Pure and static, so the phrasing and ordering are unit-testable without a view.

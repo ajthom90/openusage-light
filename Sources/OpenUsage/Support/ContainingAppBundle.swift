@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Finds the `.app` containing an executable, including helpers invoked through a symlink on `PATH`.
 public enum ContainingAppBundle {

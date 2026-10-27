@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OpenUsageCore
 
 /// User preferences for quota pace notifications: the three per-milestone triggers (no master switch —
 /// turn all three off to silence). All default OFF; the app requests notification authorization the

@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import OpenUsageCore
 
 final class LoopbackCallbackServer: @unchecked Sendable {
     private let listener: NWListener

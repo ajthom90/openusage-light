@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The transparency precedence rules: Reduce Transparency / Increase Contrast clamp everything to opaque
 /// first (an accessibility need, not a preference), so both the proper "Increase Transparency" toggle and

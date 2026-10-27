@@ -1,5 +1,6 @@
 import Observation
 import ServiceManagement
+import OpenUsageCore
 
 /// Keeps the Launch at Login switch aligned with macOS without treating a failed rollback as a
 /// second user action.

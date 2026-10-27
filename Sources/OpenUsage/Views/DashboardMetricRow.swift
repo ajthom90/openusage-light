@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// One metric on one row inside an account: label, bar, value and reset in fixed columns, so every bar
 /// in the panel starts and ends at the same x. The label is secondary, the value medium in the bar's

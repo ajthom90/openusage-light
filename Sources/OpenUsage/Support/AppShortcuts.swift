@@ -1,4 +1,5 @@
 import KeyboardShortcuts
+import OpenUsageCore
 
 extension KeyboardShortcuts.Name {
     /// Toggles the menu-bar popover from anywhere. No default combo — the user records one on the

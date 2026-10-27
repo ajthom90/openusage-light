@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class SecretCodeMatcherTests: XCTestCase {
     private let code = SecretCodeMatcher.sequence

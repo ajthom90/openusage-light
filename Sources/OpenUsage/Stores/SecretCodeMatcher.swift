@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// One recognized key in the secret transparency code. A pure token so the matcher carries no AppKit
 /// dependency and stays unit-testable by feeding tokens directly (the `NSEvent` → token mapping lives in

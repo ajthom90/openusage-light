@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import OpenUsageCore
 
 /// Owns the menu-bar strip's render loop, split out of `StatusItemController`: render the pinned-metrics
 /// strip and re-render whenever anything it reads changes (pins, live data, meter style, menu-bar style).

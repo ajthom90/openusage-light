@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// The dashboard display: one provider after another (`DashboardFamily`), each a header above a card
 /// of its accounts, every account one row per metric that has data, fed by the same `WidgetDataStore`

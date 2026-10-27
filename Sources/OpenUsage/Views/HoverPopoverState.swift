@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Drives a hover-revealed popover (the Limit Resets row's resets timeline): opens after a short dwell
 /// while the row's count is hovered, and closes once the cursor has left BOTH the count and the popover

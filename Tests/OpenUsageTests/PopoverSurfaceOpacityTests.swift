@@ -1,6 +1,7 @@
 import XCTest
 import AppKit
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Guards the popover's core invariant: the backdrop and card surfaces are fully opaque, so the data
 /// region never shows the desktop through it. This is the regression from `a234aeb` ("restore

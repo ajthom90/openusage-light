@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the resolved path suffix (mirrors the Tauri `builds_log_file_path_from_log_dir` test) and
 /// the 10 MB single-archive rotation / launch-time trim. All file I/O is confined to a per-test temp

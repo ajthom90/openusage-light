@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Pins the timer semantics all three popover pills now share (pin-denial, share confirmation,
 /// Customize notice): present bumps the replay trigger and re-arms the auto-clear; a re-present

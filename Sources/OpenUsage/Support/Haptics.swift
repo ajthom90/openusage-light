@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// Trackpad haptics via the Force Touch Taptic Engine (`NSHapticFeedbackManager`). Silent no-op on
 /// hardware without one (regular mice, older trackpads). Per the HIG these fire only in direct

@@ -6,8 +6,8 @@ import Foundation
 /// This drives the notifications and the row's flame; never the bar's colour.
 ///
 /// Pure logic (no SwiftUI) so it stays unit-testable; `WidgetData` turns it into the meter state.
-enum Pace {
-    enum Status {
+package enum Pace {
+    package enum Status {
         case ahead     // projected to finish with ≥10% of the quota to spare → calm blue
         case onTrack   // projected to land inside the last 10% — cutting it close → orange
         case behind    // projected to blow past the limit before reset → red
@@ -15,21 +15,21 @@ enum Pace {
 
     /// Classification plus the projected end-of-period usage (same unit as `used`/`limit`), mirroring the
     /// original's `PaceResult`. `projectedUsage` decides how much cushion an on-track meter keeps.
-    struct Result {
-        let status: Status
-        let projectedUsage: Double
+    package struct Result {
+        package let status: Status
+        package let projectedUsage: Double
     }
 
     /// Minimum time into the reset window before burn-rate projection is meaningful — avoids
     /// dividing by a few seconds of elapsed time on a coarse whole-percent meter.
-    static func minimumElapsed(periodDuration: TimeInterval) -> TimeInterval {
+    package static func minimumElapsed(periodDuration: TimeInterval) -> TimeInterval {
         max(60, periodDuration * 0.01)
     }
 
     /// Full pace evaluation, or `nil` when there's no signal (window not started yet, already reset,
     /// too early in the window for a stable projection, or nothing spent yet). Mirrors
     /// `calculatePaceStatus`, minus its zero-usage "ahead": zero usage carries no burn rate to project.
-    static func evaluate(used: Double, limit: Double, resetsAt: Date, periodDuration: TimeInterval,
+    package static func evaluate(used: Double, limit: Double, resetsAt: Date, periodDuration: TimeInterval,
                          now: Date = Date()) -> Result? {
         guard limit > 0, periodDuration > 0, used > 0 else { return nil }
         let elapsed = now.timeIntervalSince(resetsAt.addingTimeInterval(-periodDuration))

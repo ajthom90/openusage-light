@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The dashboard-only scrolling content. Screen switching, panel sizing, fixed bars, keyboard handling,
 /// and close/reset behavior stay with `DashboardView`.

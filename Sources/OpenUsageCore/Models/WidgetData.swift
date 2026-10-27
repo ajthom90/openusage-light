@@ -1,62 +1,107 @@
 import Foundation
-import OpenUsageCore
 
 /// Everything a tile needs to render one metric.
 ///
 /// A metric with a `limit` has a beginning and an end, so it renders as a capsule meter row.
 /// Without a `limit` it's an unbounded amount → a single right-aligned text line.
-struct WidgetData: Hashable {
+package struct WidgetData: Hashable {
     /// Headline shown on a placed tile with no real backing metric (em dash, U+2014).
-    static let noDataHeadline = "—"
+    package static let noDataHeadline = "—"
     /// Subtitle shown on a placed tile with no real backing metric. Copy is intentionally exact.
-    static let noDataSubtitle = "No data"
+    package static let noDataSubtitle = "No data"
 
-    let title: String          // "Claude 5h", "Cursor credits"
-    let icon: IconSource
-    let kind: MetricKind
-    let used: Double
-    var limit: Double?         // nil => unbounded (number tile); cleared when a .values line resolves
-    var countSuffix: String?   // e.g. "credits", "requests"
-    var valuePrefix: String?   // e.g. "~" for forecasts
-    var displayMode: WidgetDisplayMode = .used
+    package let title: String          // "Claude 5h", "Cursor credits"
+    package let icon: IconSource
+    package let kind: MetricKind
+    package let used: Double
+    package var limit: Double?         // nil => unbounded (number tile); cleared when a .values line resolves
+    package var countSuffix: String?   // e.g. "credits", "requests"
+    package var valuePrefix: String?   // e.g. "~" for forecasts
+    package var displayMode: WidgetDisplayMode = .used
     /// Global relative/absolute reset display, stamped by `WidgetDataStore` (like `displayMode`).
-    var resetDisplayMode: ResetDisplayMode = .relative
-    var resetsAt: Date?
+    package var resetDisplayMode: ResetDisplayMode = .relative
+    package var resetsAt: Date?
     /// Zero or more future expiry instants listed in the resets row's popover (Claude and Codex
     /// rate-limit resets — one entry per still-available credit). Empty for every other row. Kept as raw
     /// `Date`s so the popover formats live and follows the global relative/absolute mode.
-    var expiriesAt: [Date] = []
+    package var expiriesAt: [Date] = []
     /// Descriptor opt-in marking this as the Claude or Codex rate-limit-resets row. When set, the row's
     /// hover popover is the resets timeline (each credit's expiry, where one is claimed) instead of the
     /// account's resets. Off for every other row.
-    var showsResetExpiries: Bool = false
-    var periodDurationMs: Int?
-    var valueTextOverride: String?
-    var subtitleOverride: String?
+    package var showsResetExpiries: Bool = false
+    package var periodDurationMs: Int?
+    package var valueTextOverride: String?
+    package var subtitleOverride: String?
     /// Fixed trailing word for an unbounded row, e.g. "left" for an extra balance.
-    var unboundedValueWord: String?
+    package var unboundedValueWord: String?
     /// False when no real provider metric backs this tile. The view then shows a "No data" state
     /// instead of the descriptor's placeholder template numbers. True for real data and direct fixtures.
-    var hasData: Bool = true
+    package var hasData: Bool = true
     /// Raw numbers for an unbounded `.values` row (empty for meters). The view
     /// formats these at render time instead of reading a baked string — see `unboundedDetail`.
-    var values: [MetricValue] = []
+    package var values: [MetricValue] = []
     /// Which of `values` this widget renders — cost-only, tokens-only, or the combined `.all`. Set by
     /// the descriptor factory, so one provider row can back several tiles and the mapper stays oblivious.
-    var selection: ValueSelection = .all
+    package var selection: ValueSelection = .all
     /// A tray-only unit word appended after this tile's menu-bar value for an unbounded count (e.g. Codex
     /// Rate Limit Resets → "2 resets"). Set by the descriptor, so renaming the tile can't silently drop
     /// the suffix — replaces matching on the tile's title. `nil` for tiles that show the bare value.
-    var traySuffix: String?
+    package var traySuffix: String?
     /// Session-window meters (Claude/OpenCode rolling 5-hour pools, Antigravity's pools) that read
     /// "Not started" while the window hasn't begun — the value names the signal that detects that state,
     /// because the providers report fresh windows differently (see `SessionStartSignal`). Set by those
     /// descriptors and carried through `WidgetDataStore.resolve`, so the treatment is a descriptor
     /// opt-in rather than a hardcoded widget-ID list in the model. `nil` for every other row.
-    var sessionStartSignal: SessionStartSignal?
+    package var sessionStartSignal: SessionStartSignal?
+
+    package init(
+        title: String,
+        icon: IconSource,
+        kind: MetricKind,
+        used: Double,
+        limit: Double? = nil,
+        countSuffix: String? = nil,
+        valuePrefix: String? = nil,
+        displayMode: WidgetDisplayMode = .used,
+        resetDisplayMode: ResetDisplayMode = .relative,
+        resetsAt: Date? = nil,
+        expiriesAt: [Date] = [],
+        showsResetExpiries: Bool = false,
+        periodDurationMs: Int? = nil,
+        valueTextOverride: String? = nil,
+        subtitleOverride: String? = nil,
+        unboundedValueWord: String? = nil,
+        hasData: Bool = true,
+        values: [MetricValue] = [],
+        selection: ValueSelection = .all,
+        traySuffix: String? = nil,
+        sessionStartSignal: SessionStartSignal? = nil
+    ) {
+        self.title = title
+        self.icon = icon
+        self.kind = kind
+        self.used = used
+        self.limit = limit
+        self.countSuffix = countSuffix
+        self.valuePrefix = valuePrefix
+        self.displayMode = displayMode
+        self.resetDisplayMode = resetDisplayMode
+        self.resetsAt = resetsAt
+        self.expiriesAt = expiriesAt
+        self.showsResetExpiries = showsResetExpiries
+        self.periodDurationMs = periodDurationMs
+        self.valueTextOverride = valueTextOverride
+        self.subtitleOverride = subtitleOverride
+        self.unboundedValueWord = unboundedValueWord
+        self.hasData = hasData
+        self.values = values
+        self.selection = selection
+        self.traySuffix = traySuffix
+        self.sessionStartSignal = sessionStartSignal
+    }
 
     /// How a session-window meter tells a not-yet-started window from an in-flight one.
-    enum SessionStartSignal: Hashable {
+    package enum SessionStartSignal: Hashable {
         /// Zero usage is the fresh signal. Antigravity reports a reset instant even for an untouched
         /// window and its mapper rounds the fresh pool's fraction-derived percent to 0, so `used == 0`
         /// is what marks the window as fresh.
@@ -69,18 +114,18 @@ struct WidgetData: Hashable {
         /// 0 (#1160) — the reset date is what tells the two apart.
         case missingResetDate
     }
-    var isBounded: Bool { limit != nil }
+    package var isBounded: Bool { limit != nil }
 
     /// Whether the row's value is a Used/Left reading a click can flip: a bounded reading with data, not
     /// a badge's text. As in the original OpenUsage.
-    var hasMeterStyleToggle: Bool {
+    package var hasMeterStyleToggle: Bool {
         hasData && isBounded && valueTextOverride == nil
     }
 
     /// `values` projected through `selection` — exactly what this tile shows.
-    var selectedValues: [MetricValue] { selection.apply(to: values) }
+    package var selectedValues: [MetricValue] { selection.apply(to: values) }
 
-    var displayedValue: Double {
+    package var displayedValue: Double {
         guard displayMode == .remaining, let limit else { return used }
         return max(0, limit - used)
     }
@@ -90,7 +135,7 @@ struct WidgetData: Hashable {
     /// Display-mode-dependent: `remaining/limit` when the meter shows "remaining", `used/limit` when
     /// it shows "used". Use `remainingFraction` when the value must mean "remaining" regardless of
     /// display mode (e.g. quota notifications' under-10% check).
-    var fraction: Double {
+    package var fraction: Double {
         guard let limit, limit > 0 else { return 0 }
         return min(max(roundedDisplayValue / limit, 0), 1)
     }
@@ -98,20 +143,20 @@ struct WidgetData: Hashable {
     /// Remaining share of the limit, 0...1, independent of the used/remaining display mode. Quota
     /// notifications use this for the "under 10% remaining" rule so the alert always reflects actual
     /// remaining, whether the row shows used or remaining.
-    var remainingFraction: Double {
+    package var remainingFraction: Double {
         guard let limit, limit > 0 else { return 0 }
         return min(max((limit - used) / limit, 0), 1)
     }
 
     /// Severity bands for the meter fill color (see `MeterState.severity`).
-    enum MeterSeverity: Hashable {
+    package enum MeterSeverity: Hashable {
         case normal, warning, critical
     }
 
     /// The meter's state (`meterState(now:)`): one reading for the bar's colour, the value's colour,
     /// the flame and the notifications, so none can contradict another. Precedence, highest first:
     /// no data → spent → the live pace verdict → the level bands.
-    enum MeterState: Hashable {
+    package enum MeterState: Hashable {
         /// No real metric backs the row — gray, empty track.
         case noData
         /// Spent to nothing the user can see: a real zero, or a remainder so small it rounds to
@@ -132,7 +177,7 @@ struct WidgetData: Hashable {
         case level(MeterSeverity)
 
         /// Bar fill severity, or `nil` for `noData` (the track stays gray).
-        var severity: MeterSeverity? {
+        package var severity: MeterSeverity? {
             switch self {
             case .noData: return nil
             case .spent, .runningOut: return .critical
@@ -162,7 +207,7 @@ struct WidgetData: Hashable {
     /// Primary value string for the menu bar and unbounded rows. Returns the no-data
     /// marker when no real metric backs the tile, so no surface can print the descriptor's placeholder
     /// sample numbers as if they were measured usage.
-    var valueText: String {
+    package var valueText: String {
         guard hasData else { return Self.noDataHeadline }
         if let valueTextOverride { return valueTextOverride }
         // A `.values` row's primary reading is its first selected value; meters fall through to the
@@ -178,7 +223,7 @@ struct WidgetData: Hashable {
     /// mode through `displayedValue`. Unbounded rows show their selected value compacted through the same
     /// formatter the popover uses. A status badge with no number (e.g. Grok "Disabled") shows its text
     /// rather than a misleading "0".
-    var menuBarValue: String {
+    package var menuBarValue: String {
         guard hasData else { return valueText }
         if let limit, limit > 0 {
             if kind == .percent {
@@ -204,7 +249,7 @@ struct WidgetData: Hashable {
     /// Right-aligned descriptive line for an unbounded row (no bar): just "<value> <word>". The word is
     /// `unboundedValueWord` when set (extras always read "1,503 left", spend rows "$12.34 spent");
     /// otherwise it falls back to the global left/used mode word.
-    var unboundedDetail: String {
+    package var unboundedDetail: String {
         guard hasData else { return Self.noDataSubtitle }
         if let valueTextOverride { return valueTextOverride }
         let selected = selectedValues
@@ -231,12 +276,12 @@ struct WidgetData: Hashable {
 
     /// Color bands for reset-credit expiries: blue normally, orange under a week, red under 48 hours.
     /// A past-due expiry remains critical until the next refresh drops it from the available list.
-    static let expiryWarningWindow: TimeInterval = 7 * 24 * 60 * 60
-    static let expiryCriticalWindow: TimeInterval = 48 * 60 * 60
+    package static let expiryWarningWindow: TimeInterval = 7 * 24 * 60 * 60
+    package static let expiryCriticalWindow: TimeInterval = 48 * 60 * 60
 
     /// Severity band for a single expiry `timeRemaining` seconds out: red under 48h, orange under a
     /// week, blue beyond, for the resets popover's per-credit dots.
-    static func expirySeverity(secondsRemaining: TimeInterval) -> MeterSeverity {
+    package static func expirySeverity(secondsRemaining: TimeInterval) -> MeterSeverity {
         if secondsRemaining <= expiryCriticalWindow { return .critical }
         if secondsRemaining <= expiryWarningWindow { return .warning }
         return .normal
@@ -246,7 +291,7 @@ struct WidgetData: Hashable {
     /// Lets the popover tell "no credits" (empty state) from "credits whose per-credit expiries we
     /// couldn't fetch" — the usage-body fallback carries the count but no expiry list, so `expiriesAt`
     /// is empty while the row still reads e.g. "3 available".
-    var resetCreditCount: Int {
+    package var resetCreditCount: Int {
         Int((selectedValues.first?.number ?? 0).rounded(.down))
     }
 
@@ -260,7 +305,7 @@ struct WidgetData: Hashable {
 
 // MARK: - Meter state
 
-extension WidgetData {
+package extension WidgetData {
     /// The inputs pacing needs, present only for a bounded metric with a known reset window. `nil`
     /// short-circuits the live pace verdict (e.g. unbounded rows, no-data rows, rows whose
     /// reset/period cadence is unknown).
@@ -286,7 +331,7 @@ extension WidgetData {
     ///
     /// Every band keys off the share *used*, never the displayed fraction, so the colour doesn't flip
     /// with the Used/Left toggle.
-    func meterState(now: Date = Date()) -> MeterState {
+    package func meterState(now: Date = Date()) -> MeterState {
         guard hasData, let limit, limit > 0 else { return hasData ? .level(.normal) : .noData }
         if roundedAtDisplayPrecision(limit - used) <= 0 { return .spent }
         // A "Not started" session has nothing to pace yet.
@@ -329,7 +374,7 @@ extension WidgetData {
     /// which split the value from its note ("100% left" while the note fell back to "resets in 5h").
     /// `.zeroUsage` is additionally gated on `now < resetsAt`: once the reset has passed the snapshot
     /// is stale, so we drop the "not started" claim and let the row fall back to the normal countdown.
-    func isFreshSessionWindow(now: Date = Date()) -> Bool {
+    package func isFreshSessionWindow(now: Date = Date()) -> Bool {
         guard let signal = sessionStartSignal, hasData, limit != nil, used <= 0 else { return false }
         switch signal {
         case .zeroUsage:

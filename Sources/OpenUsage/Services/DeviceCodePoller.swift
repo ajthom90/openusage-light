@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 enum DeviceCodePollResult<Value: Sendable>: Sendable {
     case pending

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct HTTPRequest: Sendable {
     var method: String

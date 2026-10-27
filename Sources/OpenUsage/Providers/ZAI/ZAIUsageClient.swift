@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct ZAIUsageClient: Sendable {
     static let subscriptionURL = URL(string: "https://api.z.ai/api/biz/subscription/list")!

@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// Owns the local and global mouse monitors that dismiss the menu-bar panel.
 @MainActor

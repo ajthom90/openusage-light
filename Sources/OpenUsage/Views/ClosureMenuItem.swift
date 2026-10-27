@@ -1,4 +1,5 @@
 import AppKit
+import OpenUsageCore
 
 /// An `NSMenuItem` that runs a closure when selected, so menus can be built inline without a separate
 /// target/action object. `keyEquivalent` defaults to none; when set it uses the ⌘ modifier (the

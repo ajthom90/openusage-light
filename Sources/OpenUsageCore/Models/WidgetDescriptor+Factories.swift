@@ -1,15 +1,14 @@
 import Foundation
-import OpenUsageCore
 
 /// Shared descriptor factories — the one place that knows how a descriptor's template `WidgetData`
 /// is assembled, so providers declare flat metric lists instead of re-implementing the same private
 /// builders. Template numbers are structural only (a row without real data renders the no-data marker,
 /// never the template), so every factory seeds `used: 0`.
-extension WidgetDescriptor {
+package extension WidgetDescriptor {
     /// Bounded 0–100% meter (session/weekly-style quotas). `sessionStartSignal` opts the tile into the
     /// "Not started" fresh-window treatment (rolling 5-hour session pools) and names how that state is
     /// detected for this provider — see `WidgetData.SessionStartSignal`.
-    static func percent(
+    package static func percent(
         id: String,
         provider: Provider,
         title: String,
@@ -24,7 +23,7 @@ extension WidgetDescriptor {
     /// Bounded dollar meter. `valueWord` is the trailing word for the *uncapped* fallback: a tile like Claude's Extra Usage is a
     /// meter when the provider reports a monthly cap (`.progress`) but an unbounded "$1.2K spent" row
     /// (`.values`) when it doesn't, and that row needs a word. It's inert for the bounded rendering.
-    static func boundedDollars(
+    package static func boundedDollars(
         id: String,
         provider: Provider,
         title: String,
@@ -39,7 +38,7 @@ extension WidgetDescriptor {
 
     /// Bounded count meter (e.g. requests per billing cycle). `periodDurationMs` is the cycle the pace
     /// verdict projects against.
-    static func boundedCount(
+    package static func boundedCount(
         id: String,
         provider: Provider,
         title: String,
@@ -55,7 +54,7 @@ extension WidgetDescriptor {
     }
 
     /// Unbounded numeric row backed by a provider `.values` line.
-    static func values(
+    package static func values(
         id: String,
         provider: Provider,
         title: String,
@@ -77,7 +76,7 @@ extension WidgetDescriptor {
     }
 
     /// Combined tile showing every value in a `.values` row.
-    static func combined(
+    package static func combined(
         id: String,
         provider: Provider,
         title: String,
@@ -87,7 +86,7 @@ extension WidgetDescriptor {
     }
 
     /// Unbounded dollar balance with a custom trailing word (e.g. "$1,503.00 left").
-    static func dollarBalance(
+    package static func dollarBalance(
         id: String,
         provider: Provider,
         title: String,
@@ -101,7 +100,7 @@ extension WidgetDescriptor {
 
     /// Unbounded count resolved from a provider `.badge` line via `valueTextOverride`
     /// (e.g. Grok pay-as-you-go).
-    static func badge(
+    package static func badge(
         id: String,
         provider: Provider,
         title: String,

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Calls OpenCode's official Go usage endpoint with the local `opencode-go` API key.
 struct OpenCodeUsageClient: Sendable {

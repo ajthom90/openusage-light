@@ -1,5 +1,6 @@
 import CoreGraphics
 import Observation
+import OpenUsageCore
 
 /// The popover's auto-fit height *computation*, split out of `DashboardView`: per-screen measured
 /// pieces summed into each screen's ideal window height (the morph target), clamped to the panel's

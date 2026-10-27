@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// Renders the OpenUsage brand mark (the "liquid U") into a template `NSImage` for the menu bar.
 /// Reuses the same SVG→`ProviderIconShape` pipeline as the provider tiles, so there is no

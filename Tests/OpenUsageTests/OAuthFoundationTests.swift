@@ -2,6 +2,7 @@ import Foundation
 import Network
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class OAuthFoundationTests: XCTestCase {
     func testPKCEAppendixBChallenge() {

@@ -1,6 +1,7 @@
 import XCTest
 import SwiftUI
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 @MainActor
 final class ReduceAnimationsSettingTests: XCTestCase {

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 private extension PaceNotificationToggles {
     static let allOn = PaceNotificationToggles(

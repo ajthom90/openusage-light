@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Quota-call failures for an Antigravity account. Token-refresh failures stay `LoginError`.
 enum AntigravityError: Error, LocalizedError, Equatable {

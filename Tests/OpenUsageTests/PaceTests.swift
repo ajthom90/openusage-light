@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Locks the burn-rate pacing: the three-state thresholds (ahead / cutting-it-close / behind) and the
 /// meter state they resolve to, which the bar's colour, the flame and the notifications all read. All

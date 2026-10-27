@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import OpenUsageCore
 
 struct PKCEPair: Sendable, Equatable {
     let verifier: String

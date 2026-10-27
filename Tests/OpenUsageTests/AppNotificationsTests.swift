@@ -1,6 +1,7 @@
 import XCTest
 import UserNotifications
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// `AppNotifications` wraps `UNUserNotificationCenter`, which can't be instantiated or subclassed in a
 /// unit test. The behavior we can pin without a live center is the test short-circuit: under XCTest,

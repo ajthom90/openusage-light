@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct CursorSession: Equatable, Sendable {
     var userID: String

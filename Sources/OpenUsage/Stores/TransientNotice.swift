@@ -1,4 +1,5 @@
 import Observation
+import OpenUsageCore
 
 /// A small auto-clearing UI notice — the "shown for a couple of seconds, then it clears itself" pill.
 /// One reusable box for what used to be three copy-pasted machines in `LayoutStore` (the pin-denial

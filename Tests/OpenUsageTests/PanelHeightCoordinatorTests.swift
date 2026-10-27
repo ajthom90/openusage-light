@@ -2,6 +2,7 @@ import Observation
 import os
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The popover auto-fit height computation, now unit-testable after being split out of DashboardView:
 /// each screen's ideal = (top bar unless dashboard) + footer + scroll content, and `target` clamps it.

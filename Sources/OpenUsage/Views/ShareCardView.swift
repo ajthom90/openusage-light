@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The image "Share Screenshot" puts on the clipboard: one provider's header and card, with all its
 /// accounts or one of them, as the dashboard draws them at rest — no popover, the logo leading — on the

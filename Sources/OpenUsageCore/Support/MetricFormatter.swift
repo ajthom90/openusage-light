@@ -1,5 +1,4 @@
 import Foundation
-import OpenUsageCore
 
 /// The single place a number becomes display text. Every surface — popover rows, the menu-bar strip,
 /// and hover details — formats through here, so a value can never read one way in the tray and another
@@ -7,12 +6,12 @@ import OpenUsageCore
 ///
 /// This replaces the scattered number→string logic that used to live in `WidgetData.format`, the
 /// menu bar's `compactValue`, and the providers' own `formatTokens` / credit-label builders.
-enum MetricFormatter {
+package enum MetricFormatter {
     /// Two surfaces, two needs:
     /// - `.tray` — the menu-bar strip: shortest. Whole dollars under $1,000, abbreviated above; counts abbreviated.
     /// - `.row` — the popover row: abbreviated like the tray, and money keeps its cents unless it's whole
     ///   dollars ("$2.1K", "$40.76", "$500").
-    enum Style {
+    package enum Style {
         case tray
         case row
     }
@@ -22,7 +21,7 @@ enum MetricFormatter {
     private static let locale = Locale(identifier: "en_US")
 
     /// A bare number in the given kind and style (no unit label).
-    static func number(_ value: Double, kind: MetricKind, style: Style) -> String {
+    package static func number(_ value: Double, kind: MetricKind, style: Style) -> String {
         switch kind {
         case .percent:
             // Percent is a bounded 0...100 domain, so clamp defensively: a bad sample (a provider
@@ -56,7 +55,7 @@ enum MetricFormatter {
 
     /// A value with its unit label appended, e.g. "772 credits". Token, dollar, and percent values
     /// carry no label and render bare ("56.9M", "$4.08", "95%") — those rows show no unit, by design.
-    static func string(for value: MetricValue, style: Style) -> String {
+    package static func string(for value: MetricValue, style: Style) -> String {
         let text = number(value.number, kind: value.kind, style: style)
         guard let label = value.label, !label.isEmpty else { return text }
         return "\(text) \(label)"

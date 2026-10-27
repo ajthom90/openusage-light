@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the strip renderer's single-entry memo (#18): equal content return the
 /// previously rendered `NSImage` instance — so the hundreds of observation-loop re-renders between

@@ -1,3 +1,5 @@
+import OpenUsageCore
+
 enum ProviderUsageErrorText {
     static let connectionFailed = "Connection failed. Check your internet connection and try again."
     static let invalidResponse = "The provider returned an invalid response."
