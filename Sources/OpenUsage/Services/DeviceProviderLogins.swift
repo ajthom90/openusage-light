@@ -151,6 +151,7 @@ enum ProviderLoginCatalog {
         case .antigravity: AntigravityLogin()
         case .copilot: CopilotLogin()
         case .grok: GrokLogin()
+        case .musecode: MuseCodeLogin()
         case .ollama, .opencodeGo, .openrouter, .zai: APIKeyLogin(kind: kind)
         }
     }

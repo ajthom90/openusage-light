@@ -99,6 +99,11 @@ package final class AccountProviderRuntime: ProviderRuntime {
                 .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly", metricLabel: "Weekly limit"),
                 .badge(id: "\(prefix).payAsYouGo", provider: provider, title: "Extra Usage", metricLabel: "Pay as you go")
             ]
+        case .musecode:
+            [
+                .percent(id: "\(prefix).session", provider: provider, title: "Session", metricLabel: MuseCodeUsageMapper.sessionLabel),
+                .percent(id: "\(prefix).weekly", provider: provider, title: "Weekly", metricLabel: MuseCodeUsageMapper.weeklyLabel)
+            ]
         case .ollama:
             [
                 .percent(id: "\(prefix).session", provider: provider, title: "Session"),
@@ -161,7 +166,7 @@ package final class AccountProviderRuntime: ProviderRuntime {
                 },
                 refreshAccount: refreshAccount
             )
-        case .cursor, .antigravity, .copilot, .grok, .ollama, .opencodeGo, .openrouter, .zai:
+        case .cursor, .antigravity, .copilot, .grok, .musecode, .ollama, .opencodeGo, .openrouter, .zai:
             return nil
         }
     }
@@ -191,6 +196,7 @@ package final class AccountProviderRuntime: ProviderRuntime {
         case .antigravity: try await refreshAntigravity(credential)
         case .copilot: try await refreshCopilot(credential)
         case .grok: try await refreshGrok(credential)
+        case .musecode: try await refreshMuseCode(credential)
         case .ollama: try await refreshOllama(credential)
         case .opencodeGo: try await refreshOpenCode(credential)
         case .openrouter: try await refreshOpenRouter(credential)
@@ -295,6 +301,23 @@ package final class AccountProviderRuntime: ProviderRuntime {
         let mapped = try GrokUsageMapper.mapCreditsConfig(usage)
         let settings = try? await client.fetchSettings(accessToken: tokens.accessToken)
         return (settings.flatMap(GrokUsageMapper.planName(from:)), mapped.lines)
+    }
+
+    private func refreshMuseCode(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {
+        guard case .oauth(let tokens) = credential else { throw LoginError.invalidResponse }
+        let response: HTTPResponse
+        do {
+            response = try await MuseCodeUsageClient(http: http).fetchSubscription(token: tokens.accessToken)
+        } catch {
+            throw MuseCodeUsageError.connectionFailed
+        }
+        try ProviderAuthRetry.requireSuccess(
+            response,
+            authExpired: MuseCodeAuthError.signInExpired,
+            requestFailed: { MuseCodeUsageError.requestFailed($0) }
+        )
+        let mapped = try MuseCodeUsageMapper.map(response.body)
+        return (mapped.plan, mapped.lines)
     }
 
     private func refreshCursor(_ credential: AccountCredential) async throws -> (String?, [MetricLine]) {

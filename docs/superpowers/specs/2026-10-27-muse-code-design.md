@@ -1,6 +1,6 @@
 # Muse Code usage tracking: findings and open questions
 
-Status: **the usage request is confirmed against a real account and is safe to poll. Implementation under way.** Findings are from Meta's public pages read on 2026-10-27.
+Status: **implemented (2026-10-27)** as `ProviderKind.musecode`: `MuseCodeLogin` (device flow), `MuseCodeUsageClient`/`MuseCodeUsageMapper` (Session and Weekly meters), resource keys `session` and `weekly`. 14 tests pass; not yet exercised end to end in the running app. No bundled logo (an SF Symbol stands in); the quick-links menu has no entries. Findings are from Meta's public pages read on 2026-10-27.
 
 ## What Muse Code is
 

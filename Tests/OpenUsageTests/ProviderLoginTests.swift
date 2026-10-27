@@ -130,6 +130,54 @@ final class ProviderLoginTests: XCTestCase {
         XCTAssertEqual(Self.formBody(token)["device_code"], "device")
     }
 
+    func testMuseCodeDeviceLoginUsesMetasFlowAndNamesTheAccountByEmail() async throws {
+        let http = RoutingHTTPClient { request in
+            switch request.url.absoluteString {
+            case "https://auth.meta.com/oidc/device/authorization/":
+                Self.response(#"{"device_code":"dev","user_code":"ABCD-EFGH","verification_uri":"https://auth.meta.com/oauth/device/","verification_uri_complete":"https://auth.meta.com/oauth/device/?code=ABCD-EFGH","expires_in":600,"interval":1}"#)
+            case "https://auth.meta.com/oidc/device/token/":
+                Self.response(#"{"access_token":"signin-token","token_type":"bearer"}"#)
+            case "https://api.meta.ai/muse-code/key":
+                Self.response(#"{"api_key":"MINTED","user_email":"muse@example.com","subs_tier_name":"Muse Code"}"#)
+            default:
+                Self.response("{}", status: 404)
+            }
+        }
+        let prompt = PromptCapture()
+
+        let result = try await MuseCodeLogin(http: http).login(prompt: { prompt.store($0) }, pastedCode: emptyInput())
+
+        XCTAssertEqual(result.label, "muse@example.com")
+        XCTAssertEqual(prompt.value?.deviceCode?.userCode, "ABCD-EFGH")
+        XCTAssertEqual(prompt.value?.deviceCode?.verificationURL.absoluteString, "https://auth.meta.com/oauth/device/?code=ABCD-EFGH")
+        guard case .oauth(let tokens) = result.credential else { return XCTFail("expected a sign-in token") }
+        XCTAssertEqual(tokens.accessToken, "signin-token")
+        XCTAssertNil(tokens.refreshToken)
+        XCTAssertNil(tokens.expiresAt, "Meta sends no expiry, so none is invented")
+        let start = try XCTUnwrap(http.requests.first { $0.url.absoluteString == "https://auth.meta.com/oidc/device/authorization/" })
+        XCTAssertEqual(Self.formBody(start), ["client_id": MuseCodeLogin.clientID])
+        let poll = try XCTUnwrap(http.requests.first { $0.url.absoluteString == "https://auth.meta.com/oidc/device/token/" })
+        XCTAssertEqual(Self.formBody(poll)["grant_type"], "urn:ietf:params:oauth:grant-type:device_code")
+        XCTAssertEqual(Self.formBody(poll)["device_code"], "dev")
+        let mint = try XCTUnwrap(http.requests.first { $0.url.absoluteString == "https://api.meta.ai/muse-code/key" })
+        XCTAssertEqual(mint.headers["Authorization"], "Bearer signin-token")
+    }
+
+    func testMuseCodeLoginFallsBackToTheProductNameWithoutAnEmail() async throws {
+        let http = RoutingHTTPClient { request in
+            switch request.url.absoluteString {
+            case "https://auth.meta.com/oidc/device/authorization/":
+                Self.response(#"{"device_code":"dev","user_code":"AAAA-BBBB","verification_uri":"https://auth.meta.com/oauth/device/","expires_in":600,"interval":1}"#)
+            case "https://auth.meta.com/oidc/device/token/":
+                Self.response(#"{"access_token":"t","token_type":"bearer"}"#)
+            default:
+                Self.response("{}", status: 500)
+            }
+        }
+        let result = try await MuseCodeLogin(http: http).login(prompt: { _ in }, pastedCode: emptyInput())
+        XCTAssertEqual(result.label, "Muse Code")
+    }
+
     func testCursorLoginPollsForTokens() async throws {
         let http = RoutingHTTPClient { _ in
             Self.response(#"{"accessToken":"cursor-access","refreshToken":"cursor-refresh","userID":"cursor-user","expiresIn":3600}"#)

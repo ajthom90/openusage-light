@@ -29,7 +29,7 @@ The output is the `openusage.limits.v1` document: `order` lists the account ids 
 
 ## Providers
 
-The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Ollama, OpenCode, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode, OpenRouter, and Z.ai, which use API keys: none of them offers a sign-in that the app can use to read usage. Each API-key step links to the page where you create the key. OpenRouter's balance needs a Management key.
+The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Muse Code, Ollama, OpenCode, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode, OpenRouter, and Z.ai, which use API keys: none of them offers a sign-in that the app can use to read usage. Each API-key step links to the page where you create the key. OpenRouter's balance needs a Management key. Muse Code (Meta) signs in with a code you approve in the browser and shows its 5-hour and weekly allowance as Session and Weekly; Meta documents no usage endpoint for it, so this relies on the same request Muse Code's own sign-in makes and may change without notice.
 
 The dashboard reports provider API usage limits, balances, and dollar values only when the provider reports them. No local model pricing or log-derived usage is used.
 

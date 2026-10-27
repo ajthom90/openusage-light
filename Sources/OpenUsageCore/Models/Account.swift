@@ -13,6 +13,7 @@ package enum ProviderKind: String, Codable, CaseIterable, Sendable {
     case antigravity
     case copilot
     case grok
+    case musecode
     case ollama
     case opencodeGo = "opencode"
     case openrouter
@@ -26,6 +27,7 @@ package enum ProviderKind: String, Codable, CaseIterable, Sendable {
         case .antigravity: "Antigravity"
         case .copilot: "Copilot"
         case .grok: "Grok"
+        case .musecode: "Muse Code"
         case .ollama: "Ollama"
         case .opencodeGo: "OpenCode"
         case .openrouter: "OpenRouter"
@@ -49,6 +51,7 @@ package enum ProviderKind: String, Codable, CaseIterable, Sendable {
         case .copilot: [.init(label: "Status Page", url: "https://www.githubstatus.com/"),
                         .init(label: "Usage Dashboard", url: "https://github.com/settings/billing")]
         case .grok: [.init(label: "Usage Dashboard", url: "https://grok.com/?_s=usage")]
+        case .musecode: []
         case .ollama: [.init(label: "Usage Dashboard", url: "https://ollama.com/settings")]
         case .opencodeGo: [.init(label: "Status Page", url: "https://status.opencode.ai/"),
                            .init(label: "Usage Dashboard", url: "https://opencode.ai/console")]
@@ -60,7 +63,7 @@ package enum ProviderKind: String, Codable, CaseIterable, Sendable {
 
     package var authMethod: ProviderAuthMethod {
         switch self {
-        case .claude, .codex, .cursor, .antigravity, .copilot, .grok: .oauth
+        case .claude, .codex, .cursor, .antigravity, .copilot, .grok, .musecode: .oauth
         case .ollama: .apiKey(keyPage: URL(string: "https://ollama.com/settings/keys")!)
         case .opencodeGo: .apiKey(keyPage: URL(string: "https://opencode.ai/console")!)
         case .openrouter: .apiKey(keyPage: URL(string: "https://openrouter.ai/settings/management-keys")!)

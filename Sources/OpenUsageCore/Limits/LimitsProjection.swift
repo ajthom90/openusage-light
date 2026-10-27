@@ -170,6 +170,10 @@ package enum LimitsProjection {
         .grok: [
             Spec(suffix: "weekly", key: "weekly")
         ],
+        .musecode: [
+            Spec(suffix: "session", key: "session"),
+            Spec(suffix: "weekly", key: "weekly")
+        ],
         .ollama: [
             Spec(suffix: "session", key: "session"),
             Spec(suffix: "weekly", key: "weekly"),
