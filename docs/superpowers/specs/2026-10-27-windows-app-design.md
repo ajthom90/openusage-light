@@ -63,6 +63,17 @@ The provider code imports only Foundation, but it calls helpers that live in the
 
 ## Progress
 
-- **Stage 1, arm64: done (2026-10-27).** Swift 6.4.1 (`aarch64-unknown-windows-msvc`) and the Visual Studio 2022 Build Tools (x64 and ARM64 C++ tools, Windows 11 SDK) are installed in the Parallels "Windows 11" VM. `OpenUsageCore` builds there and all of `OpenUsageCoreTests` pass (16 XCTest, 3 Swift Testing). The manifest declares only the core and its tests off macOS.
-- **Stage 1, x64: not started.** Waiting on SSH access to the owner's x64 machine. The arm64 toolchain can't build an x64 binary without an x64 Swift SDK, so this needs the real machine.
-- **Working notes.** Source reaches the VM as a base64 archive through `prlctl exec` (arguments over ~3 KB fail; the host's folders are not shared). Pack with `COPYFILE_DISABLE=1`, or macOS `tar` adds `._*` metadata files that break the UTF-8 import test. Builds run through `vcvarsall.bat arm64` first.
+- **Stage 1: done (2026-10-27), on both architectures.** Swift 6.4.1 and the Visual Studio 2022 Build Tools are installed on the Parallels "Windows 11" ARM64 VM and on the owner's Windows 11 x64 machine (reached over SSH). `OpenUsageCore` builds and its tests pass on both.
+- **Stage 2: done (2026-10-27).** `OpenUsageCore` now holds the data and display models, formatters, the provider clients/mappers/runtimes, the HTTP client, the credential-vault protocol, the account store, the snapshot cache, and the whole `openusage` command, behind `SettingsStore` and an injected environment. 27 XCTest and 3 Swift Testing cases pass on Windows arm64 and Windows x64, including the full command run end to end against stubbed HTTP. The Mac app and its 561 app tests are unchanged and green. Still app-only: the sign-in flows (`ProviderLogin`, PKCE, the loopback listener), the Keychain vault, and all views.
+- **Stage 3: next.** A Windows `openusage.exe`: Credential Manager vault, a file-backed `SettingsStore` location under `%APPDATA%`, and the entry point. Sign-in comes after; the first real Windows run is against an account added on the Mac only if its credentials can be re-entered (API-key providers), since Windows has no Keychain to share.
+
+## Findings that shaped the code
+
+- `URLSession` is in `FoundationNetworking` off Apple platforms, and `UserDefaults` is not `Sendable` there, so the `UserDefaults` store conformance is Apple-only.
+- JSON booleans bridge differently without Core Foundation; a test in the portable target caught that `1` was being read as a boolean.
+- The loopback self-signed-cert trust (`SecTrust`) has no Windows equivalent here, so on Windows the Antigravity local-server call would fail TLS. Revisit when Antigravity is ported.
+
+## Working notes
+
+- Source reaches the ARM VM as a base64 archive through `prlctl exec` (arguments over ~3 KB fail; the host's folders are not shared). Pack with `COPYFILE_DISABLE=1`, or macOS `tar` adds `._*` metadata files that break the UTF-8 import test. Builds run through `vcvarsall.bat` first (`arm64` or `x64`).
+- The x64 machine takes the archive with `scp` and builds over `ssh`. Run a GUI installer there with `start /wait`, or `cmd` returns before it finishes.

@@ -9,9 +9,11 @@ package protocol SettingsStore: AnyObject, Sendable {
     func set(_ value: Any?, forKey key: String)
 }
 
-/// `UserDefaults` already has exactly these two methods, so the Mac app (and any platform whose Foundation
-/// provides `UserDefaults`) can pass it wherever a store is wanted.
+#if canImport(Darwin)
+/// `UserDefaults` already has exactly these two methods, so the Mac app can pass it wherever a store is
+/// wanted. (Other platforms' Foundation doesn't make it `Sendable`; they use `FileSettingsStore`.)
 extension UserDefaults: SettingsStore {}
+#endif
 
 /// A `SettingsStore` that keeps each value in its own file under a directory, written atomically so a
 /// reader in another process (the `openusage` command beside the app) never sees half a value.
