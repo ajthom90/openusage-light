@@ -28,7 +28,7 @@ Right-click for actions:
 
 On a provider with one account, the menu combines the two: the warning reason if there is one, Refresh, Rename, Edit Account…, Manage Accounts…, Share Screenshot, Show Hidden Metrics, and the provider's links.
 
-Share Screenshot copies a picture to the clipboard: from a provider's header, its whole card with every account; from an account, that account alone. The picture uses the account's name when you have set one and leaves an email out.
+Share Screenshot copies a picture to the clipboard: from a provider's header, its whole card with every account; from an account, that account alone. The picture uses the account's name when you have set one and leaves an email out. Share Screenshot is on these right-click menus only: the footer's Options menu holds Accounts, Settings, Report an Issue…, About OpenUsage, and Quit OpenUsage.
 
 Drag a provider by its header, an account by its name, or a metric by its row to reorder them. A new provider goes to the bottom of the dashboard and the Accounts list, and a new account goes to the bottom of its provider's accounts.
 

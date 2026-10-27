@@ -3,9 +3,9 @@ import SwiftUI
 
 /// The dashboard footer's trailing control: a single **Options ⌄** menu button in Liquid Glass. The
 /// earlier split button (a screen button + separate chevron) confused people — two tap targets in one
-/// capsule read as one — so everything now lives in one obvious menu: Accounts / Settings / Share
-/// Screenshot / Report an Issue / About / Quit. Accounts leads because it's the screen users reach for
-/// most; Settings stays one click away (and always via ⌘,).
+/// capsule read as one — so everything now lives in one obvious menu: Accounts / Settings / Report an
+/// Issue / About / Quit. Share Screenshot is on the dashboard's right-click alone. Accounts leads
+/// because it's the screen users reach for most; Settings stays one click away (and always via ⌘,).
 ///
 /// The capsule is a `.buttonStyle(.plain)` `Menu` with one `interactiveGlass(in: Capsule())` treatment
 /// behind it — the system `.buttonStyle(.glass)` renders flat on a `Menu` (its own button chrome wins),
@@ -24,9 +24,7 @@ import SwiftUI
 /// unowned elsewhere, so it rides its menu item directly.
 struct HeaderView: View {
     @Environment(LayoutStore.self) private var layout
-    @Environment(WidgetDataStore.self) private var dataStore
     @Environment(PopoverTransparencyStore.self) private var transparency
-    @Environment(\.colorScheme) private var colorScheme
     /// The screen this footer belongs to — each page carries its own — so the control shows on the
     /// dashboard and slides away with it.
     let screen: PopoverScreen
@@ -83,7 +81,7 @@ struct HeaderView: View {
     /// handles (and consumes) them first, so the equivalents can't double-fire. Same split as the Quit
     /// ⌘Q item below.
     @ViewBuilder
-    private var menuItems: some View {
+    var menuItems: some View {
         Button { toggle(.accounts) } label: {
             Label("Accounts", systemImage: "person.crop.circle")
         }
@@ -96,8 +94,6 @@ struct HeaderView: View {
 
         Divider()
 
-        shareScreenshotMenu
-
         Link(destination: URL(string: "https://github.com/robinebers/openusage/issues/new/choose")!) {
             Label("Report an Issue…", systemImage: "ladybug")
         }
@@ -109,45 +105,6 @@ struct HeaderView: View {
             Label("Quit OpenUsage", systemImage: "power")
         }
         .keyboardShortcut("q") // ⌘Q — unowned elsewhere, so safe to register on the item.
-    }
-
-    /// The footer's "Share Screenshot" submenu: one entry per provider currently showing on the
-    /// dashboard (`displayGroups` — enabled providers with at least one visible metric), so a screenshot
-    /// is reachable without right-clicking a card. Each entry runs the same render path as the per-provider
-    /// right-click "Share Screenshot": a branded PNG of that provider's card copied to the clipboard. The
-    /// menu renders in its own `NSMenu`-backed window, so firing an item doesn't close the popover the way
-    /// a navigation toggle would — the share card reads the same live stores the dashboard does.
-    @ViewBuilder
-    private var shareScreenshotMenu: some View {
-        let groups = layout.displayGroups
-        Menu {
-            if groups.isEmpty {
-                // No provider is showing anything to screenshot — grey the item out instead of offering
-                // an empty submenu.
-                Button("No Enabled Providers") {}
-                    .disabled(true)
-            } else {
-                ForEach(groups) { group in
-                    Button(group.provider.fullName) { shareCard(group) }
-                }
-            }
-        } label: {
-            Label("Share Screenshot", systemImage: "square.and.arrow.up")
-        }
-    }
-
-    /// Renders the provider's branded share card and copies the PNG to the clipboard — the same action as
-    /// the dashboard's per-provider right-click "Share Screenshot". The appearance comes from the
-    /// popover's own `colorScheme`: the footer lives in the popover panel, whose appearance is
-    /// `AppearanceSetting.current` (explicit for Light/Dark, the menu bar for System), so the export
-    /// matches the card on screen instead of guessing from `NSApp.effectiveAppearance`.
-    private func shareCard(_ group: ProviderGroup) {
-        ShareCardRenderer.share(
-            groups: [group],
-            dataStore: dataStore,
-            layout: layout,
-            appearance: colorScheme
-        )
     }
 
     private func toggle(_ screen: PopoverScreen) {

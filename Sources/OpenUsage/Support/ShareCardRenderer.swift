@@ -53,9 +53,9 @@ enum ShareCardRenderer {
     }
 
     /// The one "Share Screenshot": a picture of these accounts' card — a provider's accounts from its
-    /// header's right-click, one account from its caption's or the footer's — drawn as the dashboard
-    /// draws them, copied to the clipboard. On a successful copy it asks the layout store to surface the
-    /// transient "Copied to clipboard" pill; a failure beeps and logs instead.
+    /// header's right-click, one account from its caption's — drawn as the dashboard draws them, copied
+    /// to the clipboard. On a successful copy it asks the layout store to surface the transient "Copied
+    /// to clipboard" pill; a failure beeps and logs instead.
     @discardableResult
     static func share(
         groups: [ProviderGroup],
