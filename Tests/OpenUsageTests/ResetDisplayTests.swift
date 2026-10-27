@@ -45,7 +45,7 @@ final class ResetDisplayTests: XCTestCase {
 
         XCTAssertTrue(data.isFreshSessionWindow(now: now))
         XCTAssertEqual(data.dashboardRow(now: now).mark, .bar(fill: 0, severity: .normal, value: "0%", reset: nil))
-        XCTAssertEqual(data.meterState(now: now), .level(.normal))
+        XCTAssertEqual(data.paceState(now: now), .unpaced)
 
         // Once the reset has passed the snapshot is stale: no "not started" claim, the normal countdown.
         XCTAssertFalse(data.isFreshSessionWindow(now: data.resetsAt!.addingTimeInterval(1)))

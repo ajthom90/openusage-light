@@ -25,7 +25,7 @@ extension WidgetData {
             label: title,
             mark: .bar(
                 fill: fraction,
-                severity: meterState(now: now).severity ?? .normal,
+                severity: meterState.severity ?? .normal,
                 value: valueText,
                 reset: compactResetText(now: now)
             )
@@ -46,7 +46,7 @@ extension WidgetData {
 
     /// When the quota is projected to run out before it resets, that instant.
     func runsOutAt(now: Date = Date()) -> Date? {
-        guard case .runningOut = meterState(now: now),
+        guard case .runningOut = paceState(now: now),
               let limit, let resetsAt, let periodDurationMs, periodDurationMs > 0,
               let seconds = Pace.secondsToRunOut(
                 used: used, limit: limit, resetsAt: resetsAt,

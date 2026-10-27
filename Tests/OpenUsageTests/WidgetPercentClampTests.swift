@@ -26,7 +26,7 @@ final class WidgetPercentClampTests: XCTestCase {
             }
 
             if clamped == 100 {
-                XCTAssertEqual(store.data(for: descriptor).meterState(), .spent)
+                XCTAssertEqual(store.data(for: descriptor).meterState, .spent)
             }
         }
     }

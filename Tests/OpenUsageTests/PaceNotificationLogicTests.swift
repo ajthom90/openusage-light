@@ -16,13 +16,13 @@ private extension PaceNotificationToggles {
 final class PaceNotificationLogicTests: XCTestCase {
     private let reset = Date(timeIntervalSince1970: 1_700_000_000)
 
-    private let healthy = WidgetData.MeterState.healthy
-    private let close = WidgetData.MeterState.closeToLimit
-    private let running = WidgetData.MeterState.runningOut
+    private let healthy = WidgetData.PaceState.healthy
+    private let close = WidgetData.PaceState.closeToLimit
+    private let running = WidgetData.PaceState.runningOut
 
     /// Run one evaluation from a prior state with all toggles on.
     private func step(
-        _ state: WidgetData.MeterState,
+        _ state: WidgetData.PaceState,
         fraction: Double = 0.5,
         resetsAt: Date? = nil,
         from previous: NotificationState = NotificationState(),
@@ -74,8 +74,8 @@ final class PaceNotificationLogicTests: XCTestCase {
         // shouldn't spam alerts the moment the app opens.
         let first = step(running, fraction: 0.02)
         XCTAssertTrue(first.fire.isEmpty, "cold start primes, it doesn't fire")
-        XCTAssertTrue(step(.level(.critical), fraction: 0.01).fire.isEmpty)
-        XCTAssertTrue(step(.level(.normal), fraction: 0.99).fire.isEmpty)
+        XCTAssertTrue(step(.unpaced, fraction: 0.01).fire.isEmpty)
+        XCTAssertTrue(step(.unpaced, fraction: 0.99).fire.isEmpty)
         // A later worsening (after recovery) still fires normally.
         let recovered = step(healthy, fraction: 0.50, from: first.newState).newState
         let red = step(running, fraction: 0.02, from: recovered)
@@ -141,8 +141,8 @@ final class PaceNotificationLogicTests: XCTestCase {
     func testLevelFiresAlmostOutUnderTenPercent() {
         // `.level` metrics still fire "Almost Out" on the under-10% edge — it's a remaining-based
         // trigger, not a pace one. No pace milestone fires for `.level`.
-        let primed = step(.level(.critical), fraction: 0.20).newState
-        let first = step(.level(.critical), fraction: 0.08, from: primed)
+        let primed = step(.unpaced, fraction: 0.20).newState
+        let first = step(.unpaced, fraction: 0.08, from: primed)
         XCTAssertTrue(first.fire.contains(.underTenPercent))
         XCTAssertFalse(first.fire.contains(.healthyToClose))
         XCTAssertFalse(first.fire.contains(.closeToRunningOut))

@@ -1,11 +1,11 @@
 import XCTest
 @testable import OpenUsage
 
-/// Covers the meter fill's severity color, read off `MeterState.severity`. With a live reset window
-/// the color is a pace verdict (blue ahead / orange cutting-it-close / red projected to run out);
-/// without one it falls back to the absolute level bands (orange at 80% used, red at 10% left);
-/// and a balance that rounds to empty is `spent` (red) ahead of either. It keys off the share
-/// *used*, regardless of the Used/Left display mode.
+/// The meter fill's colour, read off `WidgetData.meterState.severity`, follows the bar's level alone:
+/// blue, orange once 80% of the limit is used, red once 90% is (rounded to the whole percent the value
+/// shows), and red when the balance rounds to empty (`spent`). A reset window, how much of it has
+/// gone, and the pace projection change nothing: a colour that doesn't track the bar makes no sense.
+/// It keys off the share *used*, regardless of the Used/Left display mode.
 final class MeterSeverityTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private let week: TimeInterval = 7 * 24 * 60 * 60
@@ -25,51 +25,10 @@ final class MeterSeverityTests: XCTestCase {
     }
 
     private func severity(_ data: WidgetData) -> WidgetData.MeterSeverity? {
-        data.meterState(now: now).severity
+        data.meterState.severity
     }
 
-    // MARK: Pace-driven (a live reset window)
-
-    func testPaceVerdictOverridesAbsoluteUsageBands() {
-        let cases: [(used: Double, elapsed: Double, severity: WidgetData.MeterSeverity)] = [
-            (66, 0.363, .critical),
-            (85, 0.96, .normal),
-            (88, 0.9, .warning)
-        ]
-
-        for testCase in cases {
-            XCTAssertEqual(severity(pacedData(used: testCase.used, elapsed: testCase.elapsed)), testCase.severity)
-        }
-    }
-
-    func testLimitReachedIsSpentRegardlessOfElapsed() {
-        XCTAssertEqual(pacedData(used: 100, elapsed: 0.5).meterState(now: now), .spent)
-        XCTAssertEqual(pacedData(used: 130, elapsed: 0.02).meterState(now: now), .spent)
-    }
-
-    func testRemainderRoundingToZeroIsSpentOverACalmerPace() {
-        // 99.6% used with 99.7% of the window gone projects to ~99.9% → "Close to limit"/orange by
-        // pace. But the 0.4% remaining rounds to "0% left", so the balance reads empty — spent
-        // outranks the pace verdict, so the bar is red, not orange.
-        XCTAssertEqual(pacedData(used: 99.6, elapsed: 0.997).meterState(now: now), .spent)
-    }
-
-    func testRemainderRoundingToZeroIsSpentWithoutAResetWindow() {
-        // No reset/period → no pace signal, but a dollar metric one rounding-step from empty
-        // ($0.004 of $100 left → "$0.00") still reads as spent.
-        let dollars = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars,
-                                 used: 99.996, limit: 100)
-        XCTAssertEqual(dollars.meterState(now: now), .spent)
-    }
-
-    func testEarlyInWindowUsesPaceVerdictNotAbsoluteBands() {
-        // Early in the window still projects pace — heavy usage at 2% elapsed is already behind.
-        XCTAssertEqual(severity(pacedData(used: 85, elapsed: 0.02)), .critical)
-    }
-
-    // MARK: Absolute fallback (no reset window to project against)
-
-    func testAbsoluteSeverityThresholdsUseRoundedPercentages() {
+    func testTheBandsUseRoundedPercentages() {
         let cases: [(used: Double, severity: WidgetData.MeterSeverity)] = [
             (0, .normal), (79, .normal), (79.6, .warning), (80, .warning),
             (89.4, .warning), (89.6, .critical), (90, .critical)
@@ -78,12 +37,58 @@ final class MeterSeverityTests: XCTestCase {
         for testCase in cases {
             XCTAssertEqual(severity(percentData(used: testCase.used)), testCase.severity, "used: \(testCase.used)")
         }
-        XCTAssertEqual(percentData(used: 100).meterState(now: now), .spent)
-        XCTAssertEqual(percentData(used: 130).meterState(now: now), .spent)
+        XCTAssertEqual(percentData(used: 100).meterState, .spent)
+        XCTAssertEqual(percentData(used: 130).meterState, .spent)
+    }
+
+    /// Robin's panel showed Session 93% red above Fable 27% orange, the orange from a pace projection.
+    /// For a fixed share the colour is the same with and without a reset window, however much of the
+    /// window has gone: pace tints nothing.
+    func testAResetWindowAndTheTimeGoneChangeNothing() {
+        for used in stride(from: 0.0, through: 100, by: 1) {
+            let plain = severity(percentData(used: used))
+            for elapsed in [0.02, 0.2, 0.363, 0.5, 0.9, 0.96, 0.997] {
+                XCTAssertEqual(severity(pacedData(used: used, elapsed: elapsed)), plain, "\(used)% used, \(elapsed) of the window gone")
+            }
+        }
+        // The cases the pace verdict used to recolour: 66% burning fast was red, 85% late in the window blue.
+        XCTAssertEqual(severity(pacedData(used: 66, elapsed: 0.363)), .normal)
+        XCTAssertEqual(severity(pacedData(used: 85, elapsed: 0.96)), .warning)
+        XCTAssertEqual(severity(pacedData(used: 27, elapsed: 0.9)), .normal)
+        XCTAssertEqual(severity(pacedData(used: 93, elapsed: 0.1)), .critical)
+    }
+
+    /// As the bar fills the colour only ever gets hotter: blue, then orange, then red.
+    func testTheColourNeverCoolsAsTheShareUsedRises() {
+        func rank(_ severity: WidgetData.MeterSeverity?) -> Int {
+            switch severity {
+            case nil: return -1
+            case .normal: return 0
+            case .warning: return 1
+            case .critical: return 2
+            }
+        }
+        var previous = -1
+        for tenths in 0...1000 {
+            let used = Double(tenths) / 10
+            let current = rank(severity(pacedData(used: used, elapsed: 0.5)))
+            XCTAssertGreaterThanOrEqual(current, previous, "\(used)% used cooled the colour")
+            previous = current
+        }
+        XCTAssertEqual(previous, 2)
+    }
+
+    func testRemainderRoundingToZeroIsSpent() {
+        // 99.6% used: the 0.4% remaining rounds to "0% left", so the balance reads empty.
+        XCTAssertEqual(pacedData(used: 99.6, elapsed: 0.997).meterState, .spent)
+        // A dollar metric one rounding-step from empty ($0.004 of $100 left → "$0.00") reads as spent.
+        let dollars = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars,
+                                 used: 99.996, limit: 100)
+        XCTAssertEqual(dollars.meterState, .spent)
     }
 
     func testSeverityIgnoresTheUsedLeftDisplayMode() {
-        // In Left mode the bar *fill* shows the remaining share, but the color still keys off usage.
+        // In Left mode the bar *fill* shows the remaining share, but the colour still keys off usage.
         XCTAssertEqual(severity(percentData(used: 95, displayMode: .remaining)), .critical)
         XCTAssertEqual(severity(percentData(used: 85, displayMode: .remaining)), .warning)
         XCTAssertEqual(severity(percentData(used: 5, displayMode: .remaining)), .normal)
@@ -107,7 +112,7 @@ final class MeterSeverityTests: XCTestCase {
     func testNoDataHasNoSeverity() {
         var data = percentData(used: 50)
         data.hasData = false
-        XCTAssertEqual(data.meterState(now: now), .noData)
+        XCTAssertEqual(data.meterState, .noData)
         XCTAssertNil(severity(data))
     }
 }

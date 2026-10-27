@@ -34,13 +34,18 @@ final class DashboardRowModelTests: XCTestCase {
         XCTAssertEqual(resets.dashboardRow(now: now).mark, .value("2 available"))
     }
 
-    func testARunningOutRowIsRedAndACloseRowOrange() {
-        let red = paced(used: 60)
-        XCTAssertEqual(red.dashboardRow(now: now).mark, .bar(fill: 0.4, severity: .critical, value: "40%", reset: "3d 12h"))
-        XCTAssertEqual(red.runsOutAt(now: now), now.addingTimeInterval(Pace.secondsToRunOut(used: 60, limit: 100, resetsAt: red.resetsAt!, periodDuration: week, now: now)!))
+    /// Robin: Session 93% red above Fable 27% orange "makes no sense" — the colour follows the bar's
+    /// level alone (orange at 80% used, red at 90%), never the pace. The pace still says when a row
+    /// runs out, for the resets popover.
+    func testTheColourFollowsTheLevelAndTheRunOutFollowsThePace() {
+        let burning = paced(used: 60)
+        XCTAssertEqual(burning.dashboardRow(now: now).mark, .bar(fill: 0.4, severity: .normal, value: "40%", reset: "3d 12h"))
+        XCTAssertEqual(burning.runsOutAt(now: now), now.addingTimeInterval(Pace.secondsToRunOut(used: 60, limit: 100, resetsAt: burning.resetsAt!, periodDuration: week, now: now)!))
 
-        XCTAssertEqual(paced(used: 46).dashboardRow(now: now).mark, .bar(fill: 0.54, severity: .warning, value: "54%", reset: "3d 12h"))
-        XCTAssertNil(paced(used: 30).runsOutAt(now: now), "a blue row has no run-out")
+        XCTAssertEqual(paced(used: 73, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.27, severity: .normal, value: "27%", reset: "16h 48m"))
+        XCTAssertEqual(paced(used: 85, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.15, severity: .warning, value: "15%", reset: "16h 48m"))
+        XCTAssertEqual(paced(used: 93, elapsed: 0.2).dashboardRow(now: now).mark, .bar(fill: 0.07, severity: .critical, value: "7%", reset: "5d 14h"))
+        XCTAssertNil(paced(used: 30).runsOutAt(now: now), "a row on course has no run-out")
     }
 
     func testTheResetFollowsTheClockSettingAndReadsSoonWhenDue() {
