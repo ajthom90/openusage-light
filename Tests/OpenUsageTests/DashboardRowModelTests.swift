@@ -35,7 +35,7 @@ final class DashboardRowModelTests: XCTestCase {
     }
 
     /// Robin: Session 93% red above Fable 27% orange "makes no sense" — the colour follows the bar's
-    /// level alone (orange at 80% used, red at 90%), never the pace. The pace shows as the flame
+    /// level alone (orange at 75% used, red at 90%), never the pace. The pace shows as the flame
     /// instead: red while projected to run out before the reset, orange while projected to land inside
     /// the last 10%, none on course, none once spent (the bar is red already), none without a window.
     func testTheColourFollowsTheLevelAndTheFlameFollowsThePace() {
@@ -43,6 +43,7 @@ final class DashboardRowModelTests: XCTestCase {
         XCTAssertEqual(paced(used: 49).dashboardRow(now: now).mark, .bar(fill: 0.51, severity: .normal, value: "51%", reset: "3d 12h", flame: .warning))
         XCTAssertEqual(paced(used: 30).dashboardRow(now: now).mark, .bar(fill: 0.7, severity: .normal, value: "70%", reset: "3d 12h", flame: nil))
         XCTAssertEqual(paced(used: 73, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.27, severity: .normal, value: "27%", reset: "16h 48m", flame: nil))
+        XCTAssertEqual(paced(used: 76, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.24, severity: .warning, value: "24%", reset: "16h 48m", flame: nil))
         XCTAssertEqual(paced(used: 85, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.15, severity: .warning, value: "15%", reset: "16h 48m", flame: .warning))
         XCTAssertEqual(paced(used: 93, elapsed: 0.2).dashboardRow(now: now).mark, .bar(fill: 0.07, severity: .critical, value: "7%", reset: "5d 14h", flame: .critical))
         XCTAssertEqual(paced(used: 100).dashboardRow(now: now).mark, .bar(fill: 0, severity: .critical, value: "0%", reset: "3d 12h", flame: nil))

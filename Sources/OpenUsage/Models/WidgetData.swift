@@ -109,7 +109,7 @@ struct WidgetData: Hashable {
         /// Spent to nothing the user can see: a real zero, or a remainder so small it rounds to
         /// "0" at the value's precision ("0%", "$0.00", "0 credits"). Red.
         case spent
-        /// Blue, orange once 80% of the limit is used, red once 90% is.
+        /// Blue, orange once 75% of the limit is used (a quarter left), red once 90% is (a tenth left).
         case level(MeterSeverity)
 
         /// Bar fill severity, or `nil` for `noData` (the track stays gray).
@@ -275,8 +275,8 @@ extension WidgetData {
     /// 1. **No data** → gray, empty.
     /// 2. **Spent** → red, whenever the remainder rounds to zero at the value's precision (a visibly
     ///    empty bar always reads spent).
-    /// 3. **Level bands** → orange once 80% of the limit is used, red once 90% is, blue below, rounded
-    ///    to the whole percent the value shows.
+    /// 3. **Level bands** → orange once 75% of the limit is used (a quarter left), red once 90% is (a
+    ///    tenth left), blue below, rounded to the whole percent the value shows.
     ///
     /// Every band keys off the share *used*, never the displayed fraction, so the colour doesn't flip
     /// with the Used/Left toggle.
@@ -323,11 +323,11 @@ extension WidgetData {
         }
     }
 
-    /// The colour band for the share used: orange at 80% used, red at 90%, blue below.
+    /// The colour band for the share used: orange at 75% used, red at 90%, blue below.
     private func levelSeverity(used: Double, limit: Double) -> MeterSeverity {
         let percentUsed = (min(max(used / limit, 0), 1) * 100).rounded()
         if percentUsed >= 90 { return .critical }
-        if percentUsed >= 80 { return .warning }
+        if percentUsed >= 75 { return .warning }
         return .normal
     }
 

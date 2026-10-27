@@ -2,8 +2,8 @@ import XCTest
 @testable import OpenUsage
 
 /// The meter fill's colour, read off `WidgetData.meterState.severity`, follows the bar's level alone:
-/// blue, orange once 80% of the limit is used, red once 90% is (rounded to the whole percent the value
-/// shows), and red when the balance rounds to empty (`spent`). A reset window, how much of it has
+/// blue, orange once 75% of the limit is used (a quarter left), red once 90% is (a tenth left),
+/// rounded to the whole percent the value shows, and red when the balance rounds to empty (`spent`). A reset window, how much of it has
 /// gone, and the pace projection change nothing: a colour that doesn't track the bar makes no sense.
 /// It keys off the share *used*, regardless of the Used/Left display mode.
 final class MeterSeverityTests: XCTestCase {
@@ -28,10 +28,12 @@ final class MeterSeverityTests: XCTestCase {
         data.meterState.severity
     }
 
+    /// Robin read Session 83% and Fable 24% left, both blue, as "no colour coding at all": a quarter
+    /// left is already orange, a tenth left red.
     func testTheBandsUseRoundedPercentages() {
         let cases: [(used: Double, severity: WidgetData.MeterSeverity)] = [
-            (0, .normal), (79, .normal), (79.6, .warning), (80, .warning),
-            (89.4, .warning), (89.6, .critical), (90, .critical)
+            (0, .normal), (74, .normal), (74.4, .normal), (74.6, .warning), (75, .warning), (76, .warning),
+            (80, .warning), (89.4, .warning), (89.6, .critical), (90, .critical)
         ]
 
         for testCase in cases {
@@ -56,6 +58,9 @@ final class MeterSeverityTests: XCTestCase {
         XCTAssertEqual(severity(pacedData(used: 85, elapsed: 0.96)), .warning)
         XCTAssertEqual(severity(pacedData(used: 27, elapsed: 0.9)), .normal)
         XCTAssertEqual(severity(pacedData(used: 93, elapsed: 0.1)), .critical)
+        // Robin's panel: Fable with 24% left is orange, Session with 83% left blue.
+        XCTAssertEqual(severity(pacedData(used: 76, elapsed: 0.74)), .warning)
+        XCTAssertEqual(severity(pacedData(used: 17, elapsed: 0.25)), .normal)
     }
 
     /// As the bar fills the colour only ever gets hotter: blue, then orange, then red.
@@ -90,7 +95,7 @@ final class MeterSeverityTests: XCTestCase {
     func testSeverityIgnoresTheUsedLeftDisplayMode() {
         // In Left mode the bar *fill* shows the remaining share, but the colour still keys off usage.
         XCTAssertEqual(severity(percentData(used: 95, displayMode: .remaining)), .critical)
-        XCTAssertEqual(severity(percentData(used: 85, displayMode: .remaining)), .warning)
+        XCTAssertEqual(severity(percentData(used: 76, displayMode: .remaining)), .warning)
         XCTAssertEqual(severity(percentData(used: 5, displayMode: .remaining)), .normal)
     }
 
@@ -100,8 +105,10 @@ final class MeterSeverityTests: XCTestCase {
         XCTAssertEqual(severity(dollars), .critical) // $5 of $50 left = 10%
 
         let counts = WidgetData(title: "Requests", icon: .providerMark("codex"), kind: .count,
-                                used: 400, limit: 500, countSuffix: "requests")
-        XCTAssertEqual(severity(counts), .warning) // 80% used
+                                used: 375, limit: 500, countSuffix: "requests")
+        XCTAssertEqual(severity(counts), .warning) // 75% used, a quarter left
+        XCTAssertEqual(severity(WidgetData(title: "Requests", icon: .providerMark("codex"), kind: .count,
+                                           used: 370, limit: 500, countSuffix: "requests")), .normal) // 74% used
     }
 
     func testUnboundedAndZeroLimitMetricsStayNormal() {
