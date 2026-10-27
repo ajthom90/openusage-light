@@ -1,16 +1,21 @@
 import Foundation
-import OpenUsageCore
 
-struct ClaudeLogin: ProviderLogin {
-    static let clientID = OAuthClients.claudeClientID
-    static let authorizeURL = URL(string: "https://claude.ai/oauth/authorize")!
-    static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
-    static let scopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
-    var http: any HTTPClient = URLSessionHTTPClient()
+package struct ClaudeLogin: ProviderLogin {
+    package static let clientID = OAuthClients.claudeClientID
+    package static let authorizeURL = URL(string: "https://claude.ai/oauth/authorize")!
+    package static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
+    package static let scopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
+    package var http: any HTTPClient = URLSessionHTTPClient()
+    package var makeServer: OAuthCallbackServerFactory
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package init(http: any HTTPClient = URLSessionHTTPClient(), makeServer: @escaping OAuthCallbackServerFactory) {
+        self.http = http
+        self.makeServer = makeServer
+    }
+
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let pkce = PKCE.generate()
-        let server = try await LoopbackCallbackServer.start(state: pkce.verifier)
+        let server = try await makeServer(pkce.verifier, nil, "/callback")
         var components = URLComponents(url: Self.authorizeURL, resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "code", value: "true"),
@@ -55,18 +60,24 @@ struct ClaudeLogin: ProviderLogin {
     }
 }
 
-struct CodexLogin: ProviderLogin {
-    static let clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
-    static let authorizeURL = URL(string: "https://auth.openai.com/oauth/authorize")!
-    static let tokenURL = URL(string: "https://auth.openai.com/oauth/token")!
-    var http: any HTTPClient = URLSessionHTTPClient()
+package struct CodexLogin: ProviderLogin {
+    package static let clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
+    package static let authorizeURL = URL(string: "https://auth.openai.com/oauth/authorize")!
+    package static let tokenURL = URL(string: "https://auth.openai.com/oauth/token")!
+    package var http: any HTTPClient = URLSessionHTTPClient()
+    package var makeServer: OAuthCallbackServerFactory
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package init(http: any HTTPClient = URLSessionHTTPClient(), makeServer: @escaping OAuthCallbackServerFactory) {
+        self.http = http
+        self.makeServer = makeServer
+    }
+
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let pkce = PKCE.generate()
         let state = UUID().uuidString
-        let server: LoopbackCallbackServer
+        let server: any OAuthCallbackServer
         do {
-            server = try await LoopbackCallbackServer.start(state: state, port: 1455, path: "/auth/callback")
+            server = try await makeServer(state, 1455, "/auth/callback")
         } catch let error as LoopbackCallbackError {
             guard case .listenerFailed = error else { throw error }
             return try await deviceLogin(prompt: prompt)
@@ -77,7 +88,7 @@ struct CodexLogin: ProviderLogin {
     }
 
     private func browserLogin(
-        server: LoopbackCallbackServer,
+        server: any OAuthCallbackServer,
         pkce: PKCEPair,
         state: String,
         prompt: @Sendable (LoginPrompt) async -> Void,
@@ -159,14 +170,20 @@ struct CodexLogin: ProviderLogin {
     }
 }
 
-struct AntigravityLogin: ProviderLogin {
-    static let clientID = OAuthClients.antigravityClientID
-    static let clientSecret = OAuthClients.antigravityClientSecret
-    var http: any HTTPClient = URLSessionHTTPClient()
+package struct AntigravityLogin: ProviderLogin {
+    package static let clientID = OAuthClients.antigravityClientID
+    package static let clientSecret = OAuthClients.antigravityClientSecret
+    package var http: any HTTPClient = URLSessionHTTPClient()
+    package var makeServer: OAuthCallbackServerFactory
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package init(http: any HTTPClient = URLSessionHTTPClient(), makeServer: @escaping OAuthCallbackServerFactory) {
+        self.http = http
+        self.makeServer = makeServer
+    }
+
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let pkce = PKCE.generate()
-        let server = try await LoopbackCallbackServer.start(state: pkce.verifier, port: 51121, path: "/oauth-callback")
+        let server = try await makeServer(pkce.verifier, 51121, "/oauth-callback")
         var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
         components.queryItems = [
             URLQueryItem(name: "client_id", value: Self.clientID),
@@ -209,39 +226,39 @@ struct AntigravityLogin: ProviderLogin {
 }
 
 private struct OAuthTokenResponse: Decodable {
-    let accessToken: String
-    let refreshToken: String?
-    let expiresIn: Double?
-    let idToken: String?
-    enum CodingKeys: String, CodingKey {
+    package let accessToken: String
+    package let refreshToken: String?
+    package let expiresIn: Double?
+    package let idToken: String?
+    package enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
         case idToken = "id_token"
     }
-    var expiry: Date? { expiresIn.map { Date().addingTimeInterval(max(0, $0 - 300)) } }
+    package var expiry: Date? { expiresIn.map { Date().addingTimeInterval(max(0, $0 - 300)) } }
 }
 
 private struct ClaudeProfileResponse: Decodable {
-    struct Account: Decodable { let email: String? }
-    let account: Account?
-    let email: String?
+    package struct Account: Decodable { let email: String? }
+    package let account: Account?
+    package let email: String?
 }
 
 private struct GoogleUserInfo: Decodable { let email: String? }
 
 private struct CodexDeviceStart: Decodable {
-    let deviceAuthID: String
-    let userCode: String
-    let intervalValue: TimeInterval
-    enum CodingKeys: String, CodingKey {
+    package let deviceAuthID: String
+    package let userCode: String
+    package let intervalValue: TimeInterval
+    package enum CodingKeys: String, CodingKey {
         case deviceAuthID = "device_auth_id"
         case userCode = "user_code"
         case intervalValue = "interval"
     }
-    var interval: TimeInterval { intervalValue }
+    package var interval: TimeInterval { intervalValue }
 
-    init(from decoder: Decoder) throws {
+    package init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         deviceAuthID = try values.decode(String.self, forKey: .deviceAuthID)
         userCode = try values.decode(String.self, forKey: .userCode)
@@ -256,28 +273,21 @@ private struct CodexDeviceStart: Decodable {
 }
 
 private struct CodexDeviceToken: Decodable {
-    let authorizationCode: String
-    let codeVerifier: String
-    enum CodingKeys: String, CodingKey {
+    package let authorizationCode: String
+    package let codeVerifier: String
+    package enum CodingKeys: String, CodingKey {
         case authorizationCode = "authorization_code"
         case codeVerifier = "code_verifier"
     }
 }
 
 private struct CodexAccessClaims: Decodable {
-    struct Auth: Decodable {
-        let chatgptAccountID: String?
-        enum CodingKeys: String, CodingKey { case chatgptAccountID = "chatgpt_account_id" }
+    package struct Auth: Decodable {
+        package let chatgptAccountID: String?
+        package enum CodingKeys: String, CodingKey { case chatgptAccountID = "chatgpt_account_id" }
     }
-    let auth: Auth?
-    enum CodingKeys: String, CodingKey { case auth = "https://api.openai.com/auth" }
+    package let auth: Auth?
+    package enum CodingKeys: String, CodingKey { case auth = "https://api.openai.com/auth" }
 }
 
 private struct CodexIDClaims: Decodable { let email: String? }
-
-private extension String {
-    func jwtPayload<T: Decodable>(as type: T.Type) -> T? {
-        guard let data = LoginHTTP.jwtPayload(self) else { return nil }
-        return try? JSONDecoder().decode(type, from: data)
-    }
-}

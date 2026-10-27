@@ -141,17 +141,19 @@ package struct APIKeyLogin: ProviderLogin {
     }
 }
 
-/// The logins that need no local redirect listener: a pasted key, or a code approved in a browser. Each
-/// platform's catalog uses these, and adds the sign-ins it can host itself. `nil` for the others.
+/// Every sign-in, built from code shared by all platforms. The browser sign-ins that wait for a redirect
+/// need a local listener, which each platform supplies; without one they are not offered (`nil`).
 package enum SharedProviderLogins {
-    package static func login(for kind: ProviderKind) -> (any ProviderLogin)? {
+    package static func login(for kind: ProviderKind, callbackServer: OAuthCallbackServerFactory?) -> (any ProviderLogin)? {
         switch kind {
         case .cursor: CursorLogin()
         case .copilot: CopilotLogin()
         case .grok: GrokLogin()
         case .musecode: MuseCodeLogin()
         case .ollama, .opencodeGo, .openrouter, .zai: APIKeyLogin(kind: kind)
-        case .claude, .codex, .antigravity: nil
+        case .claude: callbackServer.map { ClaudeLogin(makeServer: $0) }
+        case .codex: callbackServer.map { CodexLogin(makeServer: $0) }
+        case .antigravity: callbackServer.map { AntigravityLogin(makeServer: $0) }
         }
     }
 }
@@ -216,11 +218,4 @@ private struct CursorTokenResponse: Decodable, Sendable {
 
 private struct GrokIDClaims: Decodable {
     package let email: String?
-}
-
-private extension String {
-    package func jwtPayload<T: Decodable>(as type: T.Type) -> T? {
-        guard let data = LoginHTTP.jwtPayload(self) else { return nil }
-        return try? JSONDecoder().decode(type, from: data)
-    }
 }

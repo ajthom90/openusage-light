@@ -19,7 +19,7 @@ final class ProviderLoginTests: XCTestCase {
         let prompt = PromptCapture()
         let callback = CallbackStatus()
 
-        let result = try await ClaudeLogin(http: http).login(
+        let result = try await ClaudeLogin(http: http, makeServer: LoopbackCallbackServer.factory).login(
             prompt: Self.browserPrompt(prompt, callback: callback),
             pastedCode: emptyInput()
         )
@@ -47,7 +47,7 @@ final class ProviderLoginTests: XCTestCase {
         let prompt = PromptCapture()
         let callback = CallbackStatus()
 
-        let result = try await CodexLogin(http: http).login(
+        let result = try await CodexLogin(http: http, makeServer: LoopbackCallbackServer.factory).login(
             prompt: Self.browserPrompt(prompt, callback: callback),
             pastedCode: emptyInput()
         )
@@ -216,7 +216,7 @@ final class ProviderLoginTests: XCTestCase {
         let prompt = PromptCapture()
         let callback = CallbackStatus()
 
-        let result = try await AntigravityLogin(http: http).login(
+        let result = try await AntigravityLogin(http: http, makeServer: LoopbackCallbackServer.factory).login(
             prompt: Self.browserPrompt(prompt, callback: callback),
             pastedCode: emptyInput()
         )

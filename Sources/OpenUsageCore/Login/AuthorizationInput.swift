@@ -1,13 +1,12 @@
 import Foundation
-import OpenUsageCore
 
-enum AuthorizationInput: Sendable {
+package enum AuthorizationInput: Sendable {
     case callback(String)
     case pasted(String)
 }
 
-func waitForAuthorizationInput(
-    server: LoopbackCallbackServer,
+package func waitForAuthorizationInput(
+    server: any OAuthCallbackServer,
     pastedCode: AsyncStream<String>
 ) async throws -> AuthorizationInput {
     try await withTaskCancellationHandler {
@@ -28,7 +27,7 @@ func waitForAuthorizationInput(
     }
 }
 
-func authorizationCode(
+package func authorizationCode(
     from input: AuthorizationInput,
     expectedState: String,
     requireState: Bool

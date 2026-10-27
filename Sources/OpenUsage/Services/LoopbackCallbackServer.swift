@@ -2,7 +2,12 @@ import Foundation
 import Network
 import OpenUsageCore
 
-final class LoopbackCallbackServer: @unchecked Sendable {
+final class LoopbackCallbackServer: OAuthCallbackServer, @unchecked Sendable {
+    /// The Mac's listener as the sign-in code's factory.
+    static let factory: OAuthCallbackServerFactory = { state, port, path in
+        try await LoopbackCallbackServer.start(state: state, port: port, path: path)
+    }
+
     private let listener: NWListener
     private let queue = DispatchQueue(label: "com.robinebers.openusage-light.oauth-callback")
     private let state: String
@@ -183,24 +188,6 @@ private final class ListenerStartCompletion: @unchecked Sendable {
         switch result {
         case .success(let server): pending.resume(returning: server)
         case .failure(let error): pending.resume(throwing: error)
-        }
-    }
-}
-
-enum LoopbackCallbackError: LocalizedError, Sendable {
-    case listenerFailed(String)
-    case invalidRequest
-    case stateMismatch
-    case cancelled
-    case authorization(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .listenerFailed(let detail): "Could not start the sign-in callback: \(detail)"
-        case .invalidRequest: "The sign-in callback request was invalid."
-        case .stateMismatch: "The sign-in response did not match this request."
-        case .cancelled: "Sign-in was cancelled."
-        case .authorization(let error): "Authorization failed: \(error)"
         }
     }
 }

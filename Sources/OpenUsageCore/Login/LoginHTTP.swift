@@ -85,3 +85,11 @@ package enum LoginHTTP {
 private extension CharacterSet {
     package static let urlQueryValueAllowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
 }
+
+extension String {
+    /// The decoded claims of a JWT, or `nil` if it is not one.
+    package func jwtPayload<T: Decodable>(as type: T.Type) -> T? {
+        guard let data = LoginHTTP.jwtPayload(self) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+}
