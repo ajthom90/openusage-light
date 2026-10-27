@@ -9,6 +9,30 @@ enum PopoverScreen: Equatable {
     case accounts
     case picker
     case entry(ProviderKind)
+    case signIn(ProviderKind)
+}
+
+/// A browser sign-in in progress: the code to enter and the page to open, or why it stopped.
+struct SignInState: Equatable, Sendable {
+    var kind: ProviderKind
+    var userCode: String?
+    var url: URL?
+    var errorMessage: String?
+    var finished = false
+}
+
+/// How a provider signs in on this platform.
+enum SignInMethod: Equatable {
+    case apiKey
+    /// A code (or link) approved in a browser, using the sign-in code shared with the Mac app.
+    case browserApproval
+    case unavailable
+
+    init(_ kind: ProviderKind) {
+        if case .apiKey = kind.authMethod { self = .apiKey }
+        else if SharedProviderLogins.login(for: kind) != nil { self = .browserApproval }
+        else { self = .unavailable }
+    }
 }
 
 /// An account as the accounts page lists it, in the dashboard's order.
@@ -23,10 +47,11 @@ extension PopoverRenderer {
     private var accountRowHeight: Int { 48 }
     private var pickerRowHeight: Int { 42 }
 
-    /// Providers whose sign-in is a pasted key come first; the rest are listed but not yet available.
+    /// Providers that sign in with a pasted key come first, then the browser approvals, then the rest.
     static var pickerKinds: [ProviderKind] {
-        let keyed = ProviderKind.allCases.filter { if case .apiKey = $0.authMethod { true } else { false } }
-        return keyed + ProviderKind.allCases.filter { !keyed.contains($0) }
+        ProviderKind.allCases.filter { SignInMethod($0) == .apiKey }
+            + ProviderKind.allCases.filter { SignInMethod($0) == .browserApproval }
+            + ProviderKind.allCases.filter { SignInMethod($0) == .unavailable }
     }
 
     func screenHeight() -> Int32 {
@@ -35,6 +60,7 @@ extension PopoverRenderer {
         case .accounts: s(titleHeight + max(accounts.count, 1) * accountRowHeight + 64)
         case .picker: s(titleHeight + Self.pickerKinds.count * pickerRowHeight + 24)
         case .entry: s(titleHeight + 172)
+        case .signIn: s(titleHeight + 190)
         }
     }
 
@@ -52,6 +78,7 @@ extension PopoverRenderer {
         case .accounts: drawAccounts(hdc, fonts, size, &hits)
         case .picker: drawPicker(hdc, fonts, size, &hits)
         case .entry(let kind): drawEntry(kind, hdc, fonts, size, &hits)
+        case .signIn(let kind): drawSignIn(kind, hdc, fonts, size, &hits)
         }
         return hits
     }
@@ -91,11 +118,12 @@ extension PopoverRenderer {
         for kind in Self.pickerKinds {
             var rule = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + 1)
             fill(hdc, &rule, palette.divider)
-            let available: Bool = { if case .apiKey = kind.authMethod { true } else { false } }()
+            let method = SignInMethod(kind)
+            let available = method != .unavailable
             var name = RECT(left: pad, top: y, right: size.cx - pad - s(110), bottom: y + s(pickerRowHeight))
             text(hdc, fonts.body, available ? palette.text : palette.secondaryText, kind.displayName, &name, DT_LEFT)
             var detail = RECT(left: size.cx - pad - s(110), top: y, right: size.cx - pad, bottom: y + s(pickerRowHeight))
-            text(hdc, fonts.small, palette.secondaryText, available ? "API Key  \u{203A}" : "Coming Soon", &detail, DT_RIGHT)
+            text(hdc, fonts.small, palette.secondaryText, method == .apiKey ? "API Key  \u{203A}" : (method == .browserApproval ? "Sign In  \u{203A}" : "Coming Soon"), &detail, DT_RIGHT)
             if available {
                 hits.append(Hit(rect: RECT(left: 0, top: y, right: size.cx, bottom: y + s(pickerRowHeight)), button: .choose(kind)))
             }
@@ -128,6 +156,40 @@ extension PopoverRenderer {
         } else {
             var hint = RECT(left: pad, top: below + s(32), right: size.cx - pad, bottom: below + s(70))
             text(hdc, fonts.small, palette.secondaryText, "Kept encrypted on this PC.", &hint, DT_LEFT)
+        }
+    }
+
+    private func drawSignIn(_ kind: ProviderKind, _ hdc: HDC, _ fonts: Fonts, _ size: SIZE, _ hits: inout [Hit]) {
+        let pad = s(padding)
+        header("Sign In to \(kind.displayName)", button: "Cancel", action: .back, hdc, fonts, size, &hits)
+        let state = signIn
+        var y = s(titleHeight + 6)
+        if let message = state?.errorMessage {
+            var rect = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + s(70))
+            text(hdc, fonts.small, palette.notice, message, &rect, DT_LEFT | DT_WORDBREAK)
+            var retry = RECT(left: pad, top: y + s(90), right: size.cx - pad, bottom: y + s(116))
+            text(hdc, fonts.bodyBold, palette.normal, SignInCopy.tryAgain, &retry, DT_LEFT)
+            hits.append(Hit(rect: retry, button: .retrySignIn))
+            return
+        }
+        let instruction = state?.userCode == nil && state?.url != nil
+            ? "Continue in your browser. This closes when you\u{2019}re signed in."
+            : SignInCopy.deviceCodeInstruction
+        var intro = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + s(40))
+        text(hdc, fonts.small, palette.secondaryText, state?.url == nil ? SignInCopy.preparing : instruction, &intro, DT_LEFT | DT_WORDBREAK)
+        y += s(48)
+        if let code = state?.userCode {
+            var box = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + s(52))
+            fill(hdc, &box, palette.track)
+            text(hdc, fonts.code, palette.text, code, &box, DT_CENTER)
+            y += s(64)
+        }
+        var status = RECT(left: pad, top: y, right: size.cx / 2 + s(20), bottom: y + s(24))
+        text(hdc, fonts.small, palette.secondaryText, state?.url == nil ? SignInCopy.preparing : SignInCopy.waitingForBrowser, &status, DT_LEFT)
+        if state?.url != nil {
+            var open = RECT(left: size.cx / 2, top: y, right: size.cx - pad, bottom: y + s(24))
+            text(hdc, fonts.bodyBold, palette.normal, SignInCopy.openBrowser, &open, DT_RIGHT)
+            hits.append(Hit(rect: open, button: .openSignInPage))
         }
     }
 

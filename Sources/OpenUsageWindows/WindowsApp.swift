@@ -31,12 +31,16 @@ package enum WindowsApp {
                 case "accounts": screen = .accounts
                 case "picker": screen = .picker
                 case "entry": screen = .entry(.openrouter)
+                case "signin": screen = .signIn(.musecode)
                 default: break
                 }
             }
             let renderer = PopoverRenderer(
                 sections: model.sections, palette: palette, dpi: Int(GetDpiForSystem()), status: "Updated just now",
-                screen: screen, accounts: summaries(model)
+                screen: screen, accounts: summaries(model),
+                signIn: screen == .signIn(.musecode)
+                    ? SignInState(kind: .musecode, userCode: "ABCD-EFGH", url: URL(string: "https://auth.meta.com/oauth/device/"))
+                    : nil
             )
             return SnapshotWriter.write(renderer: renderer, to: URL(fileURLWithPath: arguments[flag + 1])) ? 0 : 1
         }
@@ -62,6 +66,11 @@ package enum WindowsApp {
                 if !demo { await model.refresh(force: true) }
             }
         }
+        let signIns = SignInCoordinator()
+        popover.onStartSignIn = { kind in
+            Task { @MainActor in signIns.start(kind, model: model, popover: popover, refreshAfter: !demo) }
+        }
+        popover.onCancelSignIn = { Task { @MainActor in signIns.cancel() } }
         popover.onRemoveAccount = { id in
             Task { @MainActor in
                 model.accounts.remove(id)

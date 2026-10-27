@@ -9,6 +9,7 @@ struct PopoverRenderer {
     enum Button: Equatable {
         case accounts, refresh, quit
         case back, addAccount, openKeyPage, submit
+        case openSignInPage, retrySignIn
         case remove(Foundation.UUID)
         case choose(ProviderKind)
     }
@@ -27,6 +28,7 @@ struct PopoverRenderer {
     var accounts: [AccountSummary] = []
     /// A short message on the add-account form ("Paste your API key first.").
     var note: String?
+    var signIn: SignInState?
 
     // Layout, in 96-dpi pixels.
     static let width = 340
@@ -226,6 +228,7 @@ struct PopoverRenderer {
         let body: HFONT?
         let bodyBold: HFONT?
         let small: HFONT?
+        let code: HFONT?
 
         init(dpi: Int) {
             func make(_ pixels: Int, _ weight: Int32) -> HFONT? {
@@ -239,10 +242,11 @@ struct PopoverRenderer {
             body = make(13, Int32(FW_NORMAL))
             bodyBold = make(13, Int32(FW_SEMIBOLD))
             small = make(12, Int32(FW_NORMAL))
+            code = make(24, Int32(FW_SEMIBOLD))
         }
 
         func release() {
-            [title, body, bodyBold, small].forEach { if let font = $0 { DeleteObject(font) } }
+            [title, body, bodyBold, small, code].forEach { if let font = $0 { DeleteObject(font) } }
         }
     }
 }

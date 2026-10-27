@@ -114,7 +114,7 @@ private struct BrowserSignInStep: View {
 
     private var message: String {
         switch flow.prompt {
-        case .deviceCode: "Open the verification page in your browser and enter this code."
+        case .deviceCode: SignInCopy.deviceCodeInstruction
         case .browser, nil: "Continue in your browser. This sheet closes when you’re signed in."
         }
     }
@@ -137,8 +137,8 @@ private struct BrowserSignInStep: View {
     }
 
     private var statusText: String {
-        if flow.prompt == nil { return "Preparing sign-in…" }
-        return flow.isCodeSubmitted ? "Signing in…" : "Waiting for your browser…"
+        if flow.prompt == nil { return SignInCopy.preparing }
+        return flow.isCodeSubmitted ? SignInCopy.signingIn : SignInCopy.waitingForBrowser
     }
 
     private var pastedCodeForm: some View {
@@ -158,12 +158,12 @@ private struct BrowserSignInStep: View {
 
     private var primaryAction: SheetAction {
         if flow.errorMessage != nil {
-            return SheetAction(title: "Try Again") { flow.signIn() }
+            return SheetAction(title: SignInCopy.tryAgain) { flow.signIn() }
         }
         if flow.hasPastedCode {
             return SheetAction(title: "Continue", isDisabled: !flow.canSubmitCode) { flow.submitCode() }
         }
-        return SheetAction(title: "Open Browser", isDisabled: flow.prompt == nil) { open() }
+        return SheetAction(title: SignInCopy.openBrowser, isDisabled: flow.prompt == nil) { open() }
     }
 
     private func open() {

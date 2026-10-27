@@ -50,6 +50,9 @@ final class PopoverWindow: @unchecked Sendable {
     /// Called on the window's thread with a provider and the key the user typed.
     var onAddAccount: @Sendable (ProviderKind, String) -> Void = { _, _ in }
     var onRemoveAccount: @Sendable (Foundation.UUID) -> Void = { _ in }
+    /// Called when the user picks a browser-approval provider, and when they back out of it.
+    var onStartSignIn: @Sendable (ProviderKind) -> Void = { _ in }
+    var onCancelSignIn: @Sendable () -> Void = {}
 
     /// Called on the window's thread.
     var onRefresh: @Sendable () -> Void = {}
@@ -57,6 +60,7 @@ final class PopoverWindow: @unchecked Sendable {
     private let state = Locked<PopoverState>(initialState: PopoverState())
     /// The window handle as an integer, so other threads can post to it without sharing a pointer.
     private let windowBits = Locked<UInt>(initialState: 0)
+    private let signInState = Locked<SignInState?>(initialState: nil)
     private var window: HWND?
     private var scroll: Int32 = 0
     private var hits: [PopoverRenderer.Hit] = []
@@ -84,6 +88,33 @@ final class PopoverWindow: @unchecked Sendable {
     /// Replaces what the popover shows and asks its thread to redraw. Safe from any thread.
     func update(_ newState: PopoverState) {
         state.withLock { $0 = newState }
+        let bits = windowBits.withLock { $0 }
+        guard bits != 0, let handle = HWND(bitPattern: bits) else { return }
+        PostMessageW(handle, Self.stateMessage, 0, 0)
+    }
+
+    /// The sign-in's code and link have arrived. Safe from any thread.
+    func setSignInPrompt(kind: ProviderKind, prompt: LoginPrompt) {
+        var next = SignInState(kind: kind)
+        switch prompt {
+        case .deviceCode(let code, let url): next.userCode = code; next.url = url
+        case .browser(let url, _): next.url = url
+        }
+        signInState.withLock { $0 = next }
+        post()
+    }
+
+    func failSignIn(_ message: String) {
+        signInState.withLock { $0?.errorMessage = message }
+        post()
+    }
+
+    func finishSignIn() {
+        signInState.withLock { $0?.finished = true }
+        post()
+    }
+
+    private func post() {
         let bits = windowBits.withLock { $0 }
         guard bits != 0, let handle = HWND(bitPattern: bits) else { return }
         PostMessageW(handle, Self.stateMessage, 0, 0)
@@ -191,6 +222,10 @@ final class PopoverWindow: @unchecked Sendable {
         guard let window, isVisible else { return }
         UIDebugLog.write("hide reason=\(reason)")
         if screen != .dashboard {
+            if case .signIn = screen {
+                onCancelSignIn()
+                signInState.withLock { $0 = nil }
+            }
             screen = .dashboard
             note = nil
             if let edit {
@@ -214,7 +249,7 @@ final class PopoverWindow: @unchecked Sendable {
         let snapshot = state.withLock { $0 }
         return PopoverRenderer(
             sections: snapshot.sections, palette: .current(), dpi: dpi, status: statusText(snapshot),
-            screen: screen, accounts: snapshot.accounts, note: note
+            screen: screen, accounts: snapshot.accounts, note: note, signIn: signInState.withLock { $0 }
         )
     }
 
@@ -252,6 +287,11 @@ final class PopoverWindow: @unchecked Sendable {
             paint(hwnd)
             return 0
         case Self.stateMessage:
+            if case .signIn = screen, signInState.withLock({ $0?.finished }) == true {
+                signInState.withLock { $0 = nil }
+                go(.dashboard)
+                return 0
+            }
             invalidate()
             return 0
         case UINT(WM_TIMER):
@@ -314,10 +354,12 @@ final class PopoverWindow: @unchecked Sendable {
             case .accounts: go(.accounts)
             case .back: goBack()
             case .addAccount: go(.picker)
-            case .choose(let kind): go(.entry(kind))
+            case .choose(let kind): choose(kind)
             case .remove(let id): onRemoveAccount(id)
             case .openKeyPage: openKeyPage()
             case .submit: submit()
+            case .openSignInPage: openSignInPage()
+            case .retrySignIn: if case .signIn(let kind) = screen { startSignIn(kind) }
             }
             return
         }
@@ -354,6 +396,10 @@ final class PopoverWindow: @unchecked Sendable {
         case .accounts: go(.dashboard)
         case .picker: go(.accounts)
         case .entry: go(.picker)
+        case .signIn:
+            onCancelSignIn()
+            signInState.withLock { $0 = nil }
+            go(.picker)
         }
     }
 
@@ -392,6 +438,25 @@ final class PopoverWindow: @unchecked Sendable {
         }
         onAddAccount(kind, key)
         go(.dashboard)
+    }
+
+    private func choose(_ kind: ProviderKind) {
+        switch SignInMethod(kind) {
+        case .apiKey: go(.entry(kind))
+        case .browserApproval: startSignIn(kind)
+        case .unavailable: break
+        }
+    }
+
+    private func startSignIn(_ kind: ProviderKind) {
+        signInState.withLock { $0 = SignInState(kind: kind) }
+        go(.signIn(kind))
+        onStartSignIn(kind)
+    }
+
+    private func openSignInPage() {
+        guard let url = signInState.withLock({ $0?.url }) else { return }
+        ShellExecuteW(nil, Win32.wide("open"), Win32.wide(url.absoluteString), nil, nil, Int32(SW_SHOWNORMAL))
     }
 
     private func openKeyPage() {
