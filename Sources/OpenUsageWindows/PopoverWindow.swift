@@ -3,25 +3,6 @@ import Foundation
 import OpenUsageCore
 import WinSDK
 
-/// Appends one line to `OpenUsageLight-ui.log` in the user's temp folder, for `--show` runs only: the
-/// geometry the window computed, so a screenshot that looks wrong can be explained.
-enum UIDebugLog {
-    nonisolated(unsafe) static var enabled = false
-
-    static func write(_ line: @autoclosure () -> String) {
-        guard enabled else { return }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("OpenUsageLight-ui.log")
-        let text = line() + "\n"
-        if let handle = try? FileHandle(forWritingTo: url) {
-            handle.seekToEndOfFile()
-            handle.write(Data(text.utf8))
-            try? handle.close()
-        } else {
-            try? text.write(to: url, atomically: true, encoding: .utf8)
-        }
-    }
-}
-
 /// What the popover draws, copied out of the dashboard model so the window's own thread can read it.
 struct PopoverState: Sendable {
     var sections: [DashboardSection] = []
@@ -78,13 +59,6 @@ final class PopoverWindow: @unchecked Sendable {
     init() {}
 
     var isVisible: Bool { window.map { IsWindowVisible($0) } ?? false }
-
-    /// The window's rectangle on screen, in pixels.
-    func screenRect() -> RECT? {
-        guard let window else { return nil }
-        var rect = RECT()
-        return GetWindowRect(window, &rect) ? rect : nil
-    }
 
     // MARK: - From other threads
 
@@ -202,7 +176,7 @@ final class PopoverWindow: @unchecked Sendable {
     // MARK: - Showing
 
     func toggle() {
-        if isVisible { hide("toggle"); return }
+        if isVisible { hide(); return }
         // A click on the tray icon first deactivates (and so hides) the popover; don't reopen it at once.
         guard GetTickCount64() - hiddenAt > 250 else { return }
         show()
@@ -213,19 +187,12 @@ final class PopoverWindow: @unchecked Sendable {
         scroll = 0
         resize()
         ShowWindow(window, SW_SHOW)
-        let foreground = SetForegroundWindow(window)
-        var rect = RECT()
-        GetWindowRect(window, &rect)
-        var cloaked: DWORD = 0
-        DwmGetWindowAttribute(window, DWORD(14), &cloaked, DWORD(MemoryLayout<DWORD>.size))
-        if UIDebugLog.enabled { SetTimer(window, 1, 3000, nil) }
-        UIDebugLog.write("thread=\(GetCurrentThreadId()) show visible=\(isVisible) foreground=\(foreground) cloaked=\(cloaked) iconic=\(IsIconic(window)) rect=\(rect.left),\(rect.top),\(rect.right),\(rect.bottom)")
+        SetForegroundWindow(window)
         invalidate()
     }
 
-    func hide(_ reason: String = "unspecified") {
+    func hide() {
         guard let window, isVisible else { return }
-        UIDebugLog.write("hide reason=\(reason)")
         if screen != .dashboard {
             if case .signIn = screen {
                 onCancelSignIn()
@@ -277,7 +244,6 @@ final class PopoverWindow: @unchecked Sendable {
         let height = min(renderer.contentHeight() + renderer.footerPixels, maxHeight)
         let maxScroll = max(renderer.contentHeight() + renderer.footerPixels - height, 0)
         scroll = min(max(scroll, 0), maxScroll)
-        UIDebugLog.write("resize dpi=\(dpi) work=\(work.left),\(work.top),\(work.right),\(work.bottom) size=\(width)x\(height) content=\(renderer.contentHeight()) footer=\(renderer.footerPixels) sections=\(renderer.sections.count)")
         SetWindowPos(
             window, UnsafeMutablePointer<HWND__>(bitPattern: -1), work.right - width - margin, work.bottom - height - margin, width, height,
             UINT(SWP_NOACTIVATE)
@@ -300,9 +266,6 @@ final class PopoverWindow: @unchecked Sendable {
             if case .signIn = screen { resize(); updateEdit() }
             invalidate()
             return 0
-        case UINT(WM_TIMER):
-            if wParam == 1 { selfGrab(hwnd) }
-            return 0
         case UINT(WM_ERASEBKGND):
             return 1
         case UINT(WM_CTLCOLOREDIT):
@@ -312,12 +275,11 @@ final class PopoverWindow: @unchecked Sendable {
             SetBkColor(dc, palette.track)
             return LRESULT(Int(bitPattern: editBrush))
         case UINT(WM_ACTIVATE):
-            if (wParam & 0xFFFF) == UInt(WA_INACTIVE), hidesWhenDeactivated, screen == .dashboard { hide("deactivated") }
+            if (wParam & 0xFFFF) == UInt(WA_INACTIVE), hidesWhenDeactivated, screen == .dashboard { hide() }
             return 0
         case UINT(WM_KEYDOWN):
-            UIDebugLog.write("key \(wParam)")
             if wParam == UInt(VK_ESCAPE) {
-                if screen == .dashboard { hide("escape") } else { goBack() }
+                if screen == .dashboard { hide() } else { goBack() }
             }
             return 0
         case UINT(WM_MOUSEWHEEL):
@@ -327,11 +289,9 @@ final class PopoverWindow: @unchecked Sendable {
             return 0
         case UINT(WM_LBUTTONUP):
             let x = Int32(Int16(truncatingIfNeeded: lParam)), y = Int32(Int16(truncatingIfNeeded: lParam >> 16))
-            UIDebugLog.write("click x=\(x) y=\(y) buttons=\(hits.map { "\($0.button)@\($0.rect.left),\($0.rect.top),\($0.rect.right),\($0.rect.bottom)" })")
             click(x: x, y: y)
             return 0
         case Self.trayMessage:
-            UIDebugLog.write("tray message \(lParam & 0xFFFF)")
             switch UINT(truncatingIfNeeded: lParam & 0xFFFF) {
             case UINT(WM_LBUTTONUP): toggle()
             case UINT(WM_RBUTTONUP): showMenu(hwnd)
@@ -356,7 +316,6 @@ final class PopoverWindow: @unchecked Sendable {
             switch hit.button {
             case .refresh: onRefresh()
             case .quit:
-                UIDebugLog.write("quit")
                 PostQuitMessage(0)
             case .accounts: go(.accounts)
             case .back: goBack()
@@ -500,14 +459,6 @@ final class PopoverWindow: @unchecked Sendable {
         ShellExecuteW(nil, Win32.wide("open"), Win32.wide(page.absoluteString), nil, nil, Int32(SW_SHOWNORMAL))
     }
 
-    /// For `--show`: three seconds after showing, copy what the screen shows under the window to a file.
-    private func selfGrab(_ hwnd: HWND?) {
-        KillTimer(hwnd, 1)
-        guard let rect = screenRect() else { return }
-        let target = FileManager.default.temporaryDirectory.appendingPathComponent("OpenUsageLight-screen.bmp")
-        UIDebugLog.write("screen grab \(ScreenGrab.write(rect: rect, to: target) ? "written" : "failed")")
-    }
-
     private func showMenu(_ hwnd: HWND?) {
         guard let menu = CreatePopupMenu() else { return }
         AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(MenuCommand.refresh.rawValue), Win32.wide("Refresh"))
@@ -532,7 +483,6 @@ final class PopoverWindow: @unchecked Sendable {
         var client = RECT()
         GetClientRect(hwnd, &client)
         let size = SIZE(cx: client.right, cy: client.bottom)
-        UIDebugLog.write("paint client=\(client.right)x\(client.bottom)")
         guard let memory = CreateCompatibleDC(hdc), let bitmap = CreateCompatibleBitmap(hdc, size.cx, size.cy) else { return }
         let previous = SelectObject(memory, bitmap)
         hits = renderer().draw(on: memory, size: size, scroll: scroll)

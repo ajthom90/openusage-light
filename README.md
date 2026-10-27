@@ -27,6 +27,14 @@ Install it from Settings → Command Line, which links `/usr/local/bin/openusage
 
 The output is the `openusage.limits.v1` document: `order` lists the account ids in your dashboard order, and `providers` maps each id to its plan, `fetchedAt`, `expiresAt`, `stale`, and a `resources` object. A resource is either `consumption` (`used`, plus `limit`, `remaining`, `utilization` and `resetsAt` when the provider reports them) or `balance` (`available`), with an explicit `unit`. Only provider-reported numbers appear; a resource the provider did not report is left out. Credentials never appear.
 
+## Windows
+
+The Windows app lives in the notification area and opens the same dashboard. Add accounts from its Accounts screen, as on the Mac; credentials are stored encrypted for your Windows user (DPAPI) under `%APPDATA%\OpenUsage Light`. It runs on x64 and arm64.
+
+Download `OpenUsageLight-Setup.exe` from the Windows workflow's artifacts and run it. It installs for your user only, with optional "Start with Windows" and "Add the openusage command to my PATH" choices. The installer is unsigned, so SmartScreen will warn. The `openusage` command works as described above and reads the accounts you added in the app.
+
+To build on Windows, install Swift and the Visual Studio build tools, then run `swift build`; `script\package_windows.cmd` makes the zip that `script/installer.iss` wraps.
+
 ## Providers
 
 The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Muse Code, Ollama, OpenCode, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode, OpenRouter, and Z.ai, which use API keys: none of them offers a sign-in that the app can use to read usage. Each API-key step links to the page where you create the key. OpenRouter's balance needs a Management key. Muse Code (Meta) signs in with a code you approve in the browser and shows its 5-hour and weekly allowance as Session and Weekly; Meta documents no usage endpoint for it, so this relies on the same request Muse Code's own sign-in makes and may change without notice.
@@ -65,7 +73,7 @@ The development app is staged as `dist/OpenUsage Light.app` with bundle identifi
 
 ## Architecture
 
-This SwiftPM package has three code targets. `OpenUsageCore` holds the platform-neutral data model and the limits document (Foundation only, so a Windows or Linux app can build on it); `OpenUsage` is the macOS app library; `OpenUsageCLI` is the `openusage` command. A test fails if `OpenUsageCore` imports anything but Foundation. Provider clients and mappers also import only Foundation, but still lean on app-side logging and parsing helpers; they are the next code to move into the core.
+This SwiftPM package has three code targets. `OpenUsageCore` holds the platform-neutral data model and the limits document (Foundation only, so a Windows or Linux app can build on it); `OpenUsage` is the macOS app library; `OpenUsageCLI` is the `openusage` command. On Windows the package adds `OpenUsageWindows` (library), `OpenUsageWindowsApp` (the tray app), and `OpenUsageWindowsCLI`. A test fails if `OpenUsageCore` imports anything but Foundation. Provider clients, mappers, runtimes, and sign-in logic live in the core too, so every platform shares them.
 
 The app uses an AppKit status item and panel with SwiftUI content. `AccountStore` persists account metadata; `CredentialVault` stores each account's credential; `ProviderLogin` implements sign-in; and `AccountProviderRuntime` fetches and maps usage for one account. The dashboard is built from those runtimes and the account-specific metric layout.
 

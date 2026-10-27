@@ -53,8 +53,6 @@ package enum WindowsApp {
         }
         let popover = PopoverWindow()
         popover.hidesWhenDeactivated = !showAtStart
-        UIDebugLog.enabled = showAtStart
-        UIDebugLog.write("session station=\(objectName(GetProcessWindowStation())) desktop=\(objectName(GetThreadDesktop(GetCurrentThreadId())))")
 
         // The window's thread draws from a snapshot of the model; every model change sends a new one.
         let publish: @MainActor () -> Void = {
@@ -109,16 +107,6 @@ package enum WindowsApp {
         model.sections.compactMap { section in
             model.accounts.accounts.first { $0.cardID == section.id }.map { AccountSummary(id: $0.id, kind: $0.kind, label: $0.label) }
         }
-    }
-
-    /// The name of a window station or desktop (a window shown on anything but the user's "WinSta0" is
-    /// never seen by them).
-    private static func objectName(_ handle: HANDLE?) -> String {
-        guard let handle else { return "none" }
-        var buffer = [WCHAR](repeating: 0, count: 256)
-        var needed: DWORD = 0
-        guard GetUserObjectInformationW(handle, Int32(UOI_NAME), &buffer, DWORD(buffer.count * 2), &needed) else { return "unknown" }
-        return String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self)
     }
 
     @MainActor

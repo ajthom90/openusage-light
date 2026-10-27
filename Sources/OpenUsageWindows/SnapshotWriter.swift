@@ -53,29 +53,4 @@ enum BMPFile {
         return file
     }
 }
-
-/// Reads back what the composed desktop shows inside `rect`, from the screen itself.
-enum ScreenGrab {
-    static func write(rect: RECT, to url: URL) -> Bool {
-        let width = rect.right - rect.left, height = rect.bottom - rect.top
-        guard width > 0, height > 0, let screen = GetDC(nil), let memory = CreateCompatibleDC(screen) else { return false }
-        defer { ReleaseDC(nil, screen); DeleteDC(memory) }
-        var info = BITMAPINFO()
-        info.bmiHeader.biSize = DWORD(MemoryLayout<BITMAPINFOHEADER>.size)
-        info.bmiHeader.biWidth = width
-        info.bmiHeader.biHeight = -height
-        info.bmiHeader.biPlanes = 1
-        info.bmiHeader.biBitCount = 32
-        info.bmiHeader.biCompression = DWORD(BI_RGB)
-        var bits: UnsafeMutableRawPointer?
-        guard let bitmap = CreateDIBSection(memory, &info, UINT(DIB_RGB_COLORS), &bits, nil, 0), let bits else { return false }
-        defer { DeleteObject(bitmap) }
-        let previous = SelectObject(memory, bitmap)
-        let copied = BitBlt(memory, 0, 0, width, height, screen, rect.left, rect.top, DWORD(SRCCOPY) | DWORD(CAPTUREBLT))
-        GdiFlush()
-        SelectObject(memory, previous)
-        guard copied else { return false }
-        return (try? BMPFile.data(width: Int(width), height: Int(height), pixels: bits).write(to: url, options: .atomic)) != nil
-    }
-}
 #endif
