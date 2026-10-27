@@ -27,7 +27,7 @@ struct DashboardProviderSection<Trailing: View, Account: View>: View {
         VStack(alignment: .leading, spacing: DashboardGrid.headerGap) {
             handle(AnyView(header))
             VStack(alignment: .leading, spacing: DashboardGrid.accountSpacing) {
-                ForEach(family.accounts) { account($0, namedAccount == nil) }
+                ForEach(family.accounts) { account($0, headerAccount == nil) }
             }
             .padding(DashboardGrid.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -36,21 +36,23 @@ struct DashboardProviderSection<Trailing: View, Account: View>: View {
     }
 
     var header: some View {
-        DashboardProviderHeader(
+        let account = headerAccount
+        return DashboardProviderHeader(
             provider: family.provider,
-            account: namedAccount,
-            plan: namedAccount.flatMap { plans[$0.id] },
-            status: namedAccount == nil ? AccountStatus() : status,
+            account: account?.name == family.provider.displayName ? nil : account,
+            plan: account.flatMap { plans[$0.id] },
+            status: account == nil ? AccountStatus() : status,
             trailing: trailing
         )
     }
 
-    /// The account the header names: the sole one with a name of its own, when the line has room for it.
-    var namedAccount: DashboardAccount? {
-        guard let account = family.namedSoleAccount,
-              DashboardHeaderLine.fits(provider: family.provider, name: account.name, plan: plans[account.id], width: width)
-        else { return nil }
-        return account
+    /// The sole account whose plan and status the header carries, and whose name it reads when the
+    /// account has one of its own that fits the line. An account named like its provider reads as the
+    /// provider alone; one whose name doesn't fit, or one of several, is captioned in the card instead.
+    var headerAccount: DashboardAccount? {
+        guard let account = family.soleAccount else { return nil }
+        if account.name == family.provider.displayName { return account }
+        return DashboardHeaderLine.fits(provider: family.provider, name: account.name, plan: plans[account.id], width: width) ? account : nil
     }
 }
 

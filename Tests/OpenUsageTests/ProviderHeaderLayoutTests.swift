@@ -126,6 +126,23 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertGreaterThan(try titleEnd([claude("sam@hey.com")]), providerAlone + 40, "an account without a name reads its email")
     }
 
+    /// A sole account named like its provider reads as the provider alone, its plan and status on the
+    /// header and no caption repeating the name below it (Robin's OpenCode card); one whose own name
+    /// doesn't fit the line moves its name and plan to the caption, leaving the header the provider.
+    func testAnAccountNamedLikeItsProviderKeepsThePlanOnTheHeaderWithoutACaption() throws {
+        let rows = [line(percent("Session", used: 8)), line(percent("Weekly", used: 81))]
+        let unnamed = section(family([claude("Claude")], lines: rows), plans: ["claude@1": "Max 20x"])
+        XCTAssertEqual(try Bitmap(unnamed, width: boxWidth).inkBands().count, 3, "a header and two rows, no caption")
+        XCTAssertEqual(try Bitmap(unnamed, width: boxWidth).height, 80, "a header and a card of two rows")
+        let unnamedHeader = try Bitmap(unnamed.header, width: boxWidth, scale: 2)
+        XCTAssertNotNil(unnamedHeader.inkSpan(from: boxWidth / 2, to: boxWidth - inset - DashboardGrid.iconSize - 4), "the plan is on the header")
+
+        let overflowing = section(family([claude("rob@sunstory.com")], lines: rows), plans: ["claude@1": "An Especially Wide Plan Name"])
+        XCTAssertEqual(try Bitmap(overflowing, width: boxWidth).inkBands().count, 4, "a header, a caption and two rows")
+        let overflowingHeader = try Bitmap(overflowing.header, width: boxWidth, scale: 2)
+        XCTAssertNil(overflowingHeader.inkSpan(from: boxWidth / 2, to: boxWidth - inset - DashboardGrid.iconSize - 4), "the plan left the header")
+    }
+
     /// The header's text, each caption and each label start 12 pt in from the card's edge; the logo, the
     /// plan on a caption and the reset column all end 12 pt before it.
     func testTextSharesOneLeadingEdgeAndTheLogoEndsWithTheResets() throws {
