@@ -12,7 +12,7 @@ import SwiftUI
 /// whose `canBecomeKey` is `true` becomes key the instant it's ordered front, *without* activating the
 /// app, so keyboard input (Esc/Return navigation, the Settings shortcut recorder) works on the first
 /// try. (The pattern keyboard-first menu-bar apps use; cross-checked via GitHits.)
-final class MenuBarPanel: NSPanel {
+class MenuBarPanel: NSPanel {
     /// Corner radius of the panel surface; tuned to read like a system menu-bar popover.
     static let cornerRadius: CGFloat = 13
 

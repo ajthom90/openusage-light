@@ -11,7 +11,7 @@ import XCTest
 /// pointer is on the provider. Dragging still reorders: the header drags the provider, a caption drags
 /// its account, and a row drags itself.
 @MainActor
-final class DashboardSectionTests: XCTestCase {
+final class DashboardSectionTests: QuietWindowTestCase {
     private final class Log {
         var accountDrags = 0
         var metricDrags = 0
@@ -314,17 +314,14 @@ final class DashboardSectionTests: XCTestCase {
             .environment(\.colorScheme, .light)
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
-        // The dashboard's own key-capable panel, so a rename field edits as it does in the app.
-        let window = MenuBarPanel(contentRect: host.frame)
-        window.isReleasedWhenClosed = false
+        // The dashboard's own panel, so clicks and the rename field behave as in the app, minus the
+        // keyboard: it never becomes key.
+        let window = QuietMenuBarPanel(contentRect: host.frame)
         window.acceptsMouseMovedEvents = true
         window.appearance = NSAppearance(named: .aqua)
         window.contentView = host
-        // Off every screen: the window must be ordered in to take events, never seen.
-        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-        window.makeKeyAndOrderFront(nil)
+        QuietTestProcess.show(window, in: self)
         host.layoutSubtreeIfNeeded()
-        addTeardownBlock { window.close() }
         return (window, host)
     }
 

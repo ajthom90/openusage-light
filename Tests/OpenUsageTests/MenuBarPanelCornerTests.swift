@@ -5,28 +5,23 @@ import XCTest
 /// The panel's rounded corners hold for everything drawn in the window, including the dimming AppKit
 /// adds over the panel while a sheet such as Add Account is attached.
 @MainActor
-final class MenuBarPanelCornerTests: XCTestCase {
+final class MenuBarPanelCornerTests: QuietWindowTestCase {
     func testContentAndSheetDimmingStayInsideTheRoundedCorners() async throws {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
-            let panel = MenuBarPanel(contentRect: NSRect(x: -20_000, y: -20_000, width: 320, height: 400))
-            panel.isReleasedWhenClosed = false
+            let panel = QuietMenuBarPanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 400))
             panel.appearance = NSAppearance(named: appearance)
             let content = NSView()
             content.wantsLayer = true
             content.layer?.backgroundColor = NSColor.white.cgColor
             panel.contentView = content
-            panel.orderFrontRegardless()
-            let sheet = NSWindow(
+            QuietTestProcess.show(panel, in: self)
+            let sheet = QuietWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 280, height: 160),
                 styleMask: [.titled],
                 backing: .buffered,
                 defer: false
             )
             sheet.isReleasedWhenClosed = false
-            addTeardownBlock {
-                panel.attachedSheet.map { panel.endSheet($0) }
-                panel.close()
-            }
 
             try await Task.sleep(for: .milliseconds(200))
             let plain = try snapshot(of: panel)
@@ -37,7 +32,7 @@ final class MenuBarPanelCornerTests: XCTestCase {
             for _ in 0..<100 where panel.attachedSheet == nil {
                 try await Task.sleep(for: .milliseconds(10))
             }
-            panel.setFrame(NSRect(x: -20_000, y: -20_000, width: 320, height: 460), display: true)
+            panel.setFrame(NSRect(origin: panel.frame.origin, size: NSSize(width: 320, height: 460)), display: true)
             try await Task.sleep(for: .milliseconds(600))
 
             let dimmed = try snapshot(of: panel)

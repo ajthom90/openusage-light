@@ -18,9 +18,11 @@ Provider sign-in and usage code lives under `Sources/OpenUsage/Providers/<Name>/
 
 ```sh
 swift build
-swift test
+script/test_quiet.sh [--filter <Suite>]
 ./script/build_and_run.sh verify
 ```
+
+`script/test_quiet.sh` is the only way to run the tests on a Mac someone is using: the suite hosts real windows, and the script runs it niced, keeps it from taking the keyboard or the screen, and fails if it ever did. A test that hosts a window subclasses `QuietWindowTestCase` and shows it through `QuietTestProcess.show`; the few that need a key window skip unless `OPENUSAGE_FOCUS_TESTS=1`.
 
 The app is long-lived; rebuild and restart it when validating app changes. The development bundle identifier is `com.robinebers.openusage-light.dev`.
 

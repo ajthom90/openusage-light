@@ -29,8 +29,11 @@ struct AddAccountSheet: View {
         }
         .frame(width: 300)
         // The popover panel takes keys without activating the app, but this sheet is an ordinary
-        // window: without activation its fields never receive typing.
-        .onAppear { NSApp.activate(ignoringOtherApps: true) }
+        // window: without activation its fields never receive typing. A process that may not be
+        // activated (the test suite) has nothing to gain and would take the keyboard from its owner.
+        .onAppear {
+            if NSApp.activationPolicy() != .prohibited { NSApp.activate(ignoringOtherApps: true) }
+        }
         .onDisappear { flow.cancel() }
         .onChange(of: flow.isFinished) { _, isFinished in
             if isFinished { dismiss() }

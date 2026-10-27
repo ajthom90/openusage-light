@@ -5,7 +5,7 @@ import XCTest
 
 /// The Accounts list's top bar: its trailing + opens the Add Account sheet, the screen's only way in.
 @MainActor
-final class PopoverTopBarTests: XCTestCase {
+final class PopoverTopBarTests: QuietWindowTestCase {
     func testTheAccountsBarsTrailingButtonOpensAddAccount() async throws {
         let suite = "OpenUsageTests.PopoverTopBar.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -27,16 +27,10 @@ final class PopoverTopBarTests: XCTestCase {
         .environment(container.renaming)
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
-        let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = QuietWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = host
-        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-        window.orderFrontRegardless()
+        QuietTestProcess.show(window, in: self)
         host.layoutSubtreeIfNeeded()
-        addTeardownBlock {
-            window.attachedSheet.map { window.endSheet($0) }
-            window.close()
-        }
         XCTAssertNil(window.attachedSheet)
 
         // The trailing button's center: a large circular glass button inset by the bar's padding.
@@ -52,7 +46,8 @@ final class PopoverTopBarTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(800))
 
         XCTAssertTrue(layout.isAddingAccount)
-        XCTAssertNotNil(window.attachedSheet, "the + didn't present the Add Account sheet")
+        let sheet = try XCTUnwrap(window.attachedSheet, "the + didn't present the Add Account sheet")
+        XCTAssertFalse(QuietTestProcess.onAScreen(sheet), "the sheet shows on a screen")
     }
 
     func testLeavingAccountsDropsAnOpenAddAccountSheet() {

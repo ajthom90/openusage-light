@@ -7,7 +7,7 @@ import XCTest
 /// Cancel, and Escape with it, steps back from a provider's sign-in to the provider list; only on
 /// the list does it close the sheet.
 @MainActor
-final class AddAccountSheetTests: XCTestCase {
+final class AddAccountSheetTests: QuietWindowTestCase {
     func testCancelOnAProviderStepReturnsToTheListAndCancelOnTheListCloses() async throws {
         let suite = "OpenUsageTests.AddAccountSheet.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -19,15 +19,9 @@ final class AddAccountSheetTests: XCTestCase {
         let presentation = SheetPresentation()
         let host = NSHostingView(rootView: SheetHost(presentation: presentation, flow: flow))
         host.frame = NSRect(x: 0, y: 0, width: 400, height: 500)
-        let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = QuietWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = host
-        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-        window.orderFrontRegardless()
-        addTeardownBlock {
-            window.attachedSheet.map { window.endSheet($0) }
-            window.close()
-        }
+        QuietTestProcess.show(window, in: self)
         let sheet = try await waitForSheet(on: window)
 
         flow.choose(.codex)
@@ -58,16 +52,10 @@ final class AddAccountSheetTests: XCTestCase {
         let presentation = SheetPresentation()
         let host = NSHostingView(rootView: SheetHost(presentation: presentation, flow: flow))
         host.frame = NSRect(x: 0, y: 0, width: 400, height: 700)
-        let window = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = QuietWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = host
-        window.setFrameOrigin(NSPoint(x: -20_000, y: -20_000))
-        window.orderFrontRegardless()
-        addTeardownBlock {
-            flow.cancel()
-            window.attachedSheet.map { window.endSheet($0) }
-            window.close()
-        }
+        QuietTestProcess.show(window, in: self)
+        addTeardownBlock { flow.cancel() }
         let sheet = try await waitForSheet(on: window)
 
         press(keyCode: 125, character: "\u{F701}", in: sheet)
@@ -93,8 +81,8 @@ final class AddAccountSheetTests: XCTestCase {
     private func waitForSheet(on window: NSWindow) async throws -> NSWindow {
         try await waitUntil { window.attachedSheet != nil }
         let sheet = try XCTUnwrap(window.attachedSheet)
-        sheet.makeKey()
         try await Task.sleep(for: .milliseconds(300))
+        XCTAssertFalse(QuietTestProcess.onAScreen(sheet), "the sheet shows on a screen")
         return sheet
     }
 

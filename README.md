@@ -40,9 +40,11 @@ Requires macOS 15 or later and Swift 6.2.
 
 ```sh
 swift build
-swift test
+script/test_quiet.sh
 ./script/build_and_run.sh verify
 ```
+
+`script/test_quiet.sh` runs the tests without letting them take the keyboard or show a window on the Mac they run on; it takes `swift test` arguments such as `--filter`.
 
 The development app is staged as `dist/OpenUsage Light.app` with bundle identifier `com.robinebers.openusage-light.dev`.
 

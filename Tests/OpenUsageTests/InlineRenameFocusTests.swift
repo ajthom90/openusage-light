@@ -7,9 +7,10 @@ import XCTest
 /// field editor is first responder with the whole name selected after SwiftUI's focus has settled, and
 /// typing replaces the name. Each case starts with the panel not key, the state it's in after the app
 /// deactivates or a menu or popover took key, and drives the panel with real events sent through
-/// `NSApp`, so first-mouse handling and key routing are AppKit's own.
+/// `NSApp`, so first-mouse handling and key routing are AppKit's own. They make the panel key and the
+/// process active, so they run only under `OPENUSAGE_FOCUS_TESTS=1`.
 @MainActor
-final class InlineRenameFocusTests: XCTestCase {
+final class InlineRenameFocusTests: QuietWindowTestCase {
     private struct Hosted {
         let panel: MenuBarPanel
         let host: NSView
@@ -78,6 +79,7 @@ final class InlineRenameFocusTests: XCTestCase {
     /// The dashboard (or, with `accountsTitle`, that account's Accounts page) as `StatusItemController`
     /// hosts it, for Claude "Personal" and "Work", plus Codex "Sunstory" alone when `soleCodex`.
     private func host(soleCodex: Bool = false, accountsTitle: String? = nil) async throws -> Hosted {
+        try QuietTestProcess.requireFocus()
         let suite = "OpenUsageTests.InlineRenameFocus.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
