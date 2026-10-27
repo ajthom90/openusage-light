@@ -54,6 +54,29 @@ targets += [
 ]
 #endif
 
+// The Windows command line: the same core, with Windows' own encrypted credential store and data folder.
+#if os(Windows)
+products += [
+    .executable(name: "openusage", targets: ["OpenUsageWindowsCLI"])
+]
+targets += [
+    .target(
+        name: "OpenUsageWindows",
+        dependencies: ["OpenUsageCore"],
+        path: "Sources/OpenUsageWindows",
+        swiftSettings: swift6,
+        linkerSettings: [.linkedLibrary("Crypt32")]
+    ),
+    .executableTarget(name: "OpenUsageWindowsCLI", dependencies: ["OpenUsageWindows"], path: "Sources/OpenUsageWindowsCLI", swiftSettings: swift6),
+    .testTarget(
+        name: "OpenUsageWindowsTests",
+        dependencies: ["OpenUsageCore", "OpenUsageWindows"],
+        path: "Tests/OpenUsageWindowsTests",
+        swiftSettings: swift6
+    )
+]
+#endif
+
 let package = Package(
     name: "OpenUsage",
     platforms: [
