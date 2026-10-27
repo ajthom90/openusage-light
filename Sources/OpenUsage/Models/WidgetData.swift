@@ -70,6 +70,12 @@ struct WidgetData: Hashable {
     }
     var isBounded: Bool { limit != nil }
 
+    /// Whether the row's value is a Used/Left reading a click can flip: a bounded reading with data, not
+    /// a badge's text. As in the original OpenUsage.
+    var hasMeterStyleToggle: Bool {
+        hasData && isBounded && valueTextOverride == nil
+    }
+
     /// `values` projected through `selection` — exactly what this tile shows.
     var selectedValues: [MetricValue] { selection.apply(to: values) }
 

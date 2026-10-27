@@ -5,7 +5,8 @@ import SwiftUI
 /// of its accounts, every account one row per metric that has data, fed by the same `WidgetDataStore`
 /// the menu bar uses. Every row shows its label, bar, value and reset at rest and reacts to nothing
 /// under the pointer; only the Limit Resets row's count opens the resets timeline after a dwell. A click
-/// on a reset flips every row between countdown and exact time. While the pointer is
+/// on a value flips every row between used and left, a click on a reset between countdown and exact
+/// time. While the pointer is
 /// anywhere on a provider its logo turns into the copy button. A double-click on an account's name, in
 /// the header or on its caption, renames it, the same as the menu's Rename.
 ///
@@ -135,6 +136,7 @@ struct WidgetGroupedListView: View {
                 DashboardLiveRow(
                     line: line,
                     resetClaim: container.resetClaim(for: account.id),
+                    onToggleMeterStyle: { dataStore.meterStyle.toggle() },
                     onToggleResetDisplay: { dataStore.resetDisplayMode.toggle() }
                 )
                     .opacity(activeMetricID == line.id ? 0 : 1)

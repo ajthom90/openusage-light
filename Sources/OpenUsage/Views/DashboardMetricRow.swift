@@ -6,11 +6,15 @@ import SwiftUI
 /// sits before the value, inside the value column, in the pace's colour: orange cutting it close, red
 /// running out; nothing at rest, so the columns never move. A reading without a limit (a balance, a
 /// count, a status) has no bar: its figure takes the bar's place. Nothing on a row reacts to the
-/// pointer; a click on the reset flips every row between countdown and exact time, where the dashboard
-/// supplies `onToggleResetDisplay`, and the dashboard wraps the Limit Resets row's figure in its hover
-/// through `figure`. A drag preview and the share image supply neither, and draw the row inert.
+/// pointer; a click on the value flips every row between used and left, a click on the reset between
+/// countdown and exact time, where the dashboard supplies `onToggleMeterStyle` and
+/// `onToggleResetDisplay`, and the dashboard wraps the Limit Resets row's figure in its hover through
+/// `figure`. A drag preview and the share image supply none of them, and draw the row inert.
 struct DashboardMetricRow: View {
     let model: DashboardRowModel
+    /// Flips the global Used/Left meter style, as the original OpenUsage's headline does. `nil` where
+    /// the row is static or its value isn't a Used/Left reading: the value is plain text.
+    var onToggleMeterStyle: (() -> Void)?
     /// Flips the global countdown/exact-time reset display, as the original OpenUsage's reset label
     /// does. `nil` where the row is static: the reset is plain text.
     var onToggleResetDisplay: (() -> Void)?
@@ -36,12 +40,7 @@ struct DashboardMetricRow: View {
                             .foregroundStyle(Theme.severityColor(flame))
                             .accessibilityLabel(flame == .critical ? "Running out" : "Close to the limit")
                     }
-                    Text(value)
-                        .fontWeight(.medium)
-                        .foregroundStyle(severity == .normal ? AnyShapeStyle(.primary) : AnyShapeStyle(Theme.severityColor(severity)))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .contentTransition(.numericText())
+                    valueText(value, severity: severity)
                 }
                 .frame(width: DashboardGrid.valueWidth, alignment: .trailing)
                 resetColumn(reset)
@@ -62,6 +61,25 @@ struct DashboardMetricRow: View {
         .frame(height: DashboardGrid.rowHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    /// The value, in the severity's colour once the bar is orange or red, which flips every row between
+    /// used and left on a click where the dashboard supplies the flip; plain text in a preview, in the
+    /// share image, and on a badge.
+    @ViewBuilder
+    private func valueText(_ value: String, severity: WidgetData.MeterSeverity) -> some View {
+        let text = Text(value)
+            .fontWeight(.medium)
+            .foregroundStyle(severity == .normal ? AnyShapeStyle(.primary) : AnyShapeStyle(Theme.severityColor(severity)))
+            .monospacedDigit()
+            .lineLimit(1)
+            .contentTransition(.numericText())
+        if let onToggleMeterStyle {
+            Button(action: onToggleMeterStyle) { text }
+                .buttonStyle(.plain)
+        } else {
+            text
+        }
     }
 
     /// The reset: a countdown or a clock time, which flips the display on a click where the dashboard

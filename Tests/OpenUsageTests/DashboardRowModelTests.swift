@@ -34,6 +34,21 @@ final class DashboardRowModelTests: XCTestCase {
         XCTAssertEqual(resets.dashboardRow(now: now).mark, .value("2 available"))
     }
 
+    /// A bar row's value is the Used/Left flip's target; a badge's text, a reading without a limit and a
+    /// row without data are not.
+    func testOnlyABoundedReadingFlipsBetweenUsedAndLeft() {
+        XCTAssertTrue(paced(used: 30).hasMeterStyleToggle)
+        var badge = paced(used: 30)
+        badge.valueTextOverride = "Disabled"
+        XCTAssertFalse(badge.hasMeterStyleToggle)
+        var credits = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .count, used: 452, limit: nil)
+        credits.values = [MetricValue(number: 452, kind: .count, label: "credits")]
+        XCTAssertFalse(credits.hasMeterStyleToggle)
+        var empty = paced(used: 30)
+        empty.hasData = false
+        XCTAssertFalse(empty.hasMeterStyleToggle)
+    }
+
     /// Robin: Session 93% red above Fable 27% orange "makes no sense" — the colour follows the bar's
     /// level alone (orange at 75% used, red at 90%), never the pace. The pace shows as the flame
     /// instead: red while projected to run out before the reset, orange while projected to land inside

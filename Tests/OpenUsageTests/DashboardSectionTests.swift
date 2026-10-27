@@ -7,8 +7,8 @@ import XCTest
 /// click, no plan or name reacts to the pointer, a plan is plain text and never a badge, and a row under
 /// the pointer draws exactly as it does at rest. Five things react: resting the pointer on the Limit
 /// Resets row's count opens the resets timeline after the hover dwell, resting it on the warning or
-/// clock after an account's name opens a tooltip with the reason, a click on a row's reset flips the
-/// reset display, a double-click on an account's name renames it, on its caption or in a one-account
+/// clock after an account's name opens a tooltip with the reason, a click on a row's value or reset
+/// flips the display, a double-click on an account's name renames it, on its caption or in a one-account
 /// provider's header, and the logo turns into the copy button while the pointer is on the provider.
 /// Dragging still reorders: the header drags the provider, a caption drags its account, and a row
 /// drags itself.
@@ -18,6 +18,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         var accountDrags = 0
         var metricDrags = 0
         var headerDrags = 0
+        var styleFlips = 0
         var resetFlips = 0
     }
 
@@ -98,8 +99,9 @@ final class DashboardSectionTests: QuietWindowTestCase {
         // The name's one handler is the double-click (`onTapGesture(count: 2)`); the tests below prove
         // a single click there does nothing.
         XCTAssertEqual(interactiveParts(AccountName(account: personal, font: .body).body), ["TapGesture"], "name")
-        // A row's one handler is the reset's flip, a plain button only where the dashboard supplies the
-        // flip (the test below proves the click); a preview or the share image draws the reset as text.
+        // A row's handlers are the value's and the reset's flips, plain buttons only where the dashboard
+        // supplies the flips (the test below proves the clicks); a preview or the share image draws both
+        // as text.
         XCTAssertEqual(interactiveParts(DashboardMetricRow(model: lines[0].data.dashboardRow()).body), ["Button"], "row")
         XCTAssertEqual(interactiveParts(DashboardMetricRow(model: credits.dashboardRow()).body), ["Button"], "value row")
         XCTAssertEqual(interactiveParts(DashboardLiveRow(line: lines[0]).body), [], "live row")
@@ -193,22 +195,29 @@ final class DashboardSectionTests: QuietWindowTestCase {
         return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
     }
 
-    /// A click on a row's reset flips the reset display, once per click; a click on the row's label or
-    /// bar flips nothing, and no click opens anything or lifts the row.
-    func testClickingTheResetFlipsTheResetDisplayAndTheRestOfTheRowDoesNot() {
+    /// A click on a row's value flips the meter style and a click on its reset flips the reset display,
+    /// once per click; a click on the row's label or bar flips nothing, and no click opens anything or
+    /// lifts the row.
+    func testClickingTheValueOrTheResetFlipsItsDisplayAndTheRestOfTheRowDoesNot() {
         let log = Log()
         let hosted = hostWithRenaming(log: log)
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         let resetX = hosted.host.bounds.width - DashboardGrid.cardPadding - DashboardGrid.inset - 6
+        let valueX = resetX - DashboardGrid.resetWidth - DashboardGrid.columnGap
 
         click(CGPoint(x: Self.nameX, y: Self.firstRowY), hosted.window, hosted.host)
         click(CGPoint(x: hosted.host.bounds.width / 2, y: Self.firstRowY), hosted.window, hosted.host)
-        XCTAssertEqual(log.resetFlips, 0, "a click on the label or the bar flipped the reset display")
+        XCTAssertEqual(log.styleFlips + log.resetFlips, 0, "a click on the label or the bar flipped a display")
+
+        click(CGPoint(x: valueX, y: Self.firstRowY), hosted.window, hosted.host)
+        XCTAssertEqual(log.styleFlips, 1, "a click on the value didn't flip the meter style")
+        XCTAssertEqual(log.resetFlips, 0)
 
         click(CGPoint(x: resetX, y: Self.firstRowY), hosted.window, hosted.host)
         XCTAssertEqual(log.resetFlips, 1, "a click on the reset didn't flip the reset display")
         click(CGPoint(x: resetX, y: Self.firstRowY + DashboardGrid.rowHeight), hosted.window, hosted.host)
         XCTAssertEqual(log.resetFlips, 2, "a click on the second row's reset didn't flip the reset display")
+        XCTAssertEqual(log.styleFlips, 1)
 
         XCTAssertFalse(NSApp.windows.contains { $0.isVisible && !shown.contains(ObjectIdentifier($0)) }, "a click opened a window")
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
@@ -376,7 +385,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
                 DashboardAccountCaption(account: account, plan: "Max 5x")
                     .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.accountDrags += 1 })
                 ForEach(account.lines) { line in
-                    DashboardLiveRow(line: line, onToggleResetDisplay: { log.resetFlips += 1 })
+                    DashboardLiveRow(line: line, onToggleMeterStyle: { log.styleFlips += 1 }, onToggleResetDisplay: { log.resetFlips += 1 })
                         .highPriorityGesture(DragGesture(minimumDistance: 4).onChanged { _ in log.metricDrags += 1 })
                 }
             }
