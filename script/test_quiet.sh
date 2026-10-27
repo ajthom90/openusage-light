@@ -22,15 +22,16 @@ is_test_process() {
   esac
 }
 (
+  trap 'kill $! 2>/dev/null; exit 0' TERM
   while true; do
     app="$(front_app)"
     is_test_process "$app" && echo "$app" >> "$seen"
-    sleep 0.2
+    sleep 0.2 & wait $!
   done
-) &
+) 2>/dev/null &
 watcher=$!
 disown "$watcher"
-trap 'pkill -P "$watcher" 2>/dev/null; kill "$watcher" 2>/dev/null; rm -f "$seen"' EXIT
+trap 'kill "$watcher" 2>/dev/null; rm -f "$seen"' EXIT
 
 nice -n 19 swift test -j 2 "$@"
 status=$?
