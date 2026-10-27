@@ -392,24 +392,14 @@ final class WidgetDataStore {
     }
 
     func data(for descriptor: WidgetDescriptor) -> WidgetData {
-        var result: WidgetData
-        if let snapshot = snapshots[descriptor.providerID],
-           let line = snapshot.line(label: descriptor.metricLabel),
-           let data = resolve(line, descriptor: descriptor) {
-            result = data
-        } else {
-            // No real metric line backs this placed tile, so the sample's numbers are placeholders.
-            // Flag it as no-data; the tile renders "No data" instead of inventing usage.
-            result = descriptor.sample
-            result.hasData = false
-        }
-
         // Single global choke point: dashboard/share rows and menu-bar values all funnel through here,
-        // so stamping the mode once makes them follow the global setting. Inert for unbounded rows
-        // (limit == nil), whose displayed value ignores displayMode.
-        result.displayMode = meterStyle
-        result.resetDisplayMode = resetDisplayMode
-        return result
+        // so stamping the mode once makes them follow the global setting.
+        WidgetResolver.data(
+            for: descriptor,
+            snapshot: snapshots[descriptor.providerID],
+            displayMode: meterStyle,
+            resetDisplayMode: resetDisplayMode
+        )
     }
 
     /// The plan label for a provider's latest snapshot. `nil` until a snapshot exists or when the
@@ -439,59 +429,6 @@ final class WidgetDataStore {
             return nil
         }
         return StalenessHint(label: "Outdated", tooltip: "Last updated \(duration) ago")
-    }
-
-    private func resolve(_ line: MetricLine, descriptor: WidgetDescriptor) -> WidgetData? {
-        switch line {
-        case .progress(_, let used, let limit, let format, let resetsAt, let periodDurationMs, _):
-            // A percent meter is a bounded 0...100 domain; sanitize an out-of-range sample (a provider
-            // reporting a negative or >100 utilization) here, at the single construction choke point
-            // every provider funnels through, so no surface — the row, the menu bar — can
-            // render "-5%" or "105%". For percent the limit is always 100, so clamping `used` also
-            // keeps the meter's spent verdict intact (>=100 still reads spent). Non-percent
-            // meters keep their raw `used`: a dollar/count overage (used > limit) is real and is
-            // conveyed by the meter's spent state rather than hidden.
-            let normalizedUsed = format == .percent ? ProviderParse.clampPercent(used) : used
-            var result = WidgetData(
-                title: descriptor.sample.title,
-                icon: descriptor.sample.icon,
-                kind: format.metricKind,
-                used: normalizedUsed,
-                limit: limit,
-                countSuffix: format.countSuffix,
-                valuePrefix: descriptor.sample.valuePrefix,
-                resetsAt: resetsAt,
-                periodDurationMs: periodDurationMs
-            )
-            // Descriptor opt-in (session-window meters read "Not started" when unused); the fresh
-            // `.progress` result doesn't start from the sample, so carry the signal explicitly.
-            result.sessionStartSignal = descriptor.sample.sessionStartSignal
-            return result
-        case .text:
-            // Text lines carry provider notices; no dashboard descriptor consumes
-            // them. Numeric widgets use typed progress/values lines and must never parse display text.
-            return nil
-        case .values(_, let values, _, let expiriesAt):
-            // The number is carried raw — no regex re-parse. Presentation (title, icon, selection,
-            // trailing word) comes from the descriptor's sample; the live numbers come from the line.
-            var data = descriptor.sample
-            data.values = values
-            // A `.values` line is unbounded by definition (see `MetricLine`), so it never renders as a
-            // meter even when the descriptor template carries a placeholder limit — e.g. Claude's
-            // `claude.extra` is `boundedDollars` for its capped `.progress` case but feeds an uncapped
-            // `.values` row when there's no monthly cap.
-            data.limit = nil
-            // Optional expiry instants (Claude and Codex rate-limit resets): listed in the row's hover
-            // popover, which formats them live against the clock.
-            data.expiriesAt = expiriesAt
-            data.hasData = !data.selectedValues.isEmpty
-            return data
-        case .badge(_, let text, _, let subtitle):
-            var data = descriptor.sample
-            data.valueTextOverride = text
-            data.subtitleOverride = subtitle
-            return data
-        }
     }
 
 }
