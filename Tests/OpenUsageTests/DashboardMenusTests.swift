@@ -28,6 +28,11 @@ final class DashboardMenusTests: XCTestCase {
     }
 
     func testTheProviderMenuRefreshesManagesSharesEveryAccountAndOpensTheLinks() {
+        let sole = DashboardMenus.provider(DashboardFamily(id: "claude", provider: claude, accounts: [account()]))
+        XCTAssertEqual(titles(sole), [["Refresh"], ["Manage Accounts…"], ["Share Screenshot"], ["Status Page", "Usage Dashboard"]],
+                       "a one-account card's header has the provider's menu too")
+        XCTAssertEqual(sole[2][0].command, .shareScreenshot(["claude@1"]))
+
         let other = Provider(id: "claude@2", displayName: "Claude", icon: .providerMark("claude"), accountLabel: "AM 1")
         let family = DashboardFamily(id: "claude", provider: claude, accounts: [account(), DashboardAccount(provider: other, lines: [])])
         let menu = DashboardMenus.provider(family)
@@ -66,37 +71,6 @@ final class DashboardMenusTests: XCTestCase {
         ])
         XCTAssertNil(menu[0][0].command, "the status is a disabled line")
         XCTAssertEqual(menu[3][0].command, .showHiddenMetrics("claude@1"))
-    }
-
-    /// A provider with one account has no caption, so its menu carries the account's commands and the
-    /// provider's, with one Refresh.
-    func testAOneAccountCardsMenuMergesTheAccountAndProviderMenus() {
-        let menu = DashboardMenus.soleAccount(
-            account(),
-            status: "Couldn't refresh. Check your connection.",
-            hasHiddenMetrics: true
-        )
-
-        XCTAssertEqual(titles(menu), [
-            ["Couldn't refresh. Check your connection."],
-            ["Refresh"],
-            ["Rename", "Edit Account…", "Manage Accounts…"],
-            ["Share Screenshot"],
-            ["Show Hidden Metrics"],
-            ["Status Page", "Usage Dashboard"],
-        ])
-        XCTAssertEqual(menu.flatMap { $0 }.map(\.command), [
-            nil,
-            .refresh(["claude@1"]),
-            .rename("claude@1"), .editAccount("claude@1"), .manageAccounts,
-            .shareScreenshot(["claude@1"]),
-            .showHiddenMetrics("claude@1"),
-            .open(URL(string: "https://status.claude.com/")!), .open(URL(string: "https://claude.ai/settings/usage")!),
-        ])
-        XCTAssertEqual(
-            titles(DashboardMenus.soleAccount(account(), status: nil, hasHiddenMetrics: false)),
-            [["Refresh"], ["Rename", "Edit Account…", "Manage Accounts…"], ["Share Screenshot"], ["Status Page", "Usage Dashboard"]]
-        )
     }
 
     func testTheMetricMenuStarsAndHides() {
