@@ -54,7 +54,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         let logoEnd = boxWidth - inset
         let logoStart = logoEnd - DashboardGrid.iconSize
         let planEnd = logoStart - DashboardGrid.columnGap
-        let planWidth = try XCTUnwrap(Bitmap(Text(plan).font(.subheadline).fixedSize().padding(20), width: 120, scale: 2).inkSpan())
+        let planWidth = try XCTUnwrap(Bitmap(Text(plan).font(DashboardGrid.planFont).fixedSize().padding(20), width: 120, scale: 2).inkSpan())
         let planStart = planEnd - (planWidth.last - planWidth.first)
 
         let plate = try XCTUnwrap(bitmap.inkSpan(from: planStart - 2, to: logoStart - 2), "no plan drawn")
@@ -133,7 +133,7 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         let rows = [line(percent("Session", used: 8)), line(percent("Weekly", used: 81))]
         let unnamed = section(family([claude("Claude")], lines: rows), plans: ["claude@1": "Max 20x"])
         XCTAssertEqual(try Bitmap(unnamed, width: boxWidth).inkBands().count, 3, "a header and two rows, no caption")
-        XCTAssertEqual(try Bitmap(unnamed, width: boxWidth).height, 80, "a header and a card of two rows")
+        XCTAssertEqual(try Bitmap(unnamed, width: boxWidth).height, 76, "a header and a card of two rows")
         let unnamedHeader = try Bitmap(unnamed.header, width: boxWidth, scale: 2)
         XCTAssertNotNil(unnamedHeader.inkSpan(from: boxWidth / 2, to: boxWidth - inset - DashboardGrid.iconSize - 4), "the plan is on the header")
 
@@ -159,15 +159,18 @@ final class ProviderHeaderLayoutTests: XCTestCase {
     }
 
     /// Robin: "Everything takes too much space." The steps are pinned in literal points, so changing any
-    /// fails here: a 20 pt header, 4 to the card, 8 inside it, 16 per caption, 20 per row, 16 between
-    /// accounts, 16 between providers.
+    /// fails here: a 16 pt header (one Headline line), 4 to the card, 8 inside it, 14 per caption (one
+    /// Subheadline line), 20 per row, 16 between accounts, 16 between providers.
     func testSectionsKeepTheirHeights() throws {
         let rows = ["Session", "Weekly", "Fable"].map { line(percent($0, used: 30)) }
         let one = family([claude("Work")], lines: rows)
-        XCTAssertEqual(try Bitmap(section(one), width: boxWidth).height, 100, "a header and a card of three rows")
+        XCTAssertEqual(try Bitmap(section(one), width: boxWidth).height, 96, "a header and a card of three rows")
         let two = family([claude("Personal"), claude("Work", "claude@2")], lines: Array(rows.prefix(2)))
-        XCTAssertEqual(try Bitmap(section(two), width: boxWidth).height, 168, "two accounts, each a caption and two rows")
+        XCTAssertEqual(try Bitmap(section(two), width: boxWidth).height, 160, "two accounts, each a caption and two rows")
         XCTAssertEqual(DashboardGrid.sectionSpacing, 16)
+        XCTAssertEqual(DashboardGrid.headerHeight, DashboardGrid.lineHeight(.preferredFont(forTextStyle: .headline)))
+        XCTAssertEqual(DashboardGrid.captionHeight, DashboardGrid.lineHeight(.preferredFont(forTextStyle: .subheadline)))
+        XCTAssertEqual(DashboardGrid.iconSize, DashboardGrid.headerHeight, "the logo isn't as tall as the header's line")
     }
 
     /// A row at rest shows every column in its fixed place: the bar starts 8 pt after the 86 pt label

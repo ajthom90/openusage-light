@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// One provider on the dashboard: its header above its card. The header names the provider — and its
-/// account, when it has one with a name of its own that fits the line — in Title 3, with the plan
-/// right-aligned before the 16 pt logo at the end of the line, which ends where the rows' reset column
-/// does. The card holds the provider's accounts, separated by space alone: each a caption over one row
+/// account, when it has one with a name of its own that fits the line — in Headline, with the plan
+/// right-aligned before the logo at the end of the line, which ends where the rows' reset column does. The card holds the provider's accounts, separated by space alone: each a caption over one row
 /// per metric, the caption left out when the header names the account. Nothing on the line is ever
 /// cut or shrunk: a sole account whose "Provider — name" and plan don't fit beside the logo reads as a
 /// card of several accounts would, the provider alone above, the name and plan on the caption. Static:
@@ -56,26 +55,21 @@ struct DashboardProviderSection<Trailing: View, Account: View>: View {
     }
 }
 
-/// What fits on the header line, measured with the line's own fonts.
+/// What fits on the header line, measured with the line's own type.
 enum DashboardHeaderLine {
-    /// The header's type: Title 3 Semibold.
-    static let titleFont: Font = .title3.weight(.semibold)
-
     /// Whether "Provider — name" fits the line at `width` beside the plan and the logo. Room is kept for
     /// the status glyph, so a refresh spinner never flips the header, and for the point or two SwiftUI's
     /// text can run past AppKit's measure.
     static func fits(provider: Provider, name: String, plan: String?, width: CGFloat) -> Bool {
-        let titleFont = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold)
-        let planFont = NSFont.preferredFont(forTextStyle: .subheadline)
         func measure(_ text: String, _ font: NSFont) -> CGFloat {
             (text as NSString).size(withAttributes: [.font: font]).width.rounded(.up)
         }
         let insets = 2 * (DashboardGrid.cardPadding + DashboardGrid.inset)
         let glyph = Theme.Spacing.s + 12
         let logo = DashboardGrid.columnGap + DashboardGrid.iconSize
-        let planRoom = plan.map { measure($0, planFont) + DashboardGrid.columnGap } ?? 0
+        let planRoom = plan.map { measure($0, DashboardGrid.planNSFont) + DashboardGrid.columnGap } ?? 0
         let slack: CGFloat = 2
-        return measure("\(provider.displayName) — \(name)", titleFont) <= width - insets - glyph - logo - planRoom - slack
+        return measure("\(provider.displayName) — \(name)", DashboardGrid.headerNSFont) <= width - insets - glyph - logo - planRoom - slack
     }
 }
 
@@ -89,25 +83,23 @@ struct DashboardProviderHeader<Trailing: View>: View {
     var status = AccountStatus()
     @ViewBuilder var trailing: () -> Trailing
 
-    private static var titleFont: Font { DashboardHeaderLine.titleFont }
-
     var body: some View {
         HStack(spacing: 0) {
             if let account {
                 Text("\(provider.displayName) — ")
-                    .font(Self.titleFont)
+                    .font(DashboardGrid.headerFont)
                     .fixedSize()
-                AccountName(account: account, font: Self.titleFont)
+                AccountName(account: account, font: DashboardGrid.headerFont)
             } else {
                 Text(provider.displayName)
-                    .font(Self.titleFont)
+                    .font(DashboardGrid.headerFont)
                     .lineLimit(1)
             }
             status.glyph.padding(.leading, Theme.Spacing.s)
             Spacer(minLength: DashboardGrid.columnGap)
             if let plan {
                 Text(plan)
-                    .font(.subheadline)
+                    .font(DashboardGrid.planFont)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .fixedSize()
@@ -133,13 +125,13 @@ struct DashboardAccountCaption: View {
 
     var body: some View {
         HStack(spacing: Theme.Spacing.s) {
-            AccountName(account: account, font: .subheadline.weight(.semibold))
+            AccountName(account: account, font: DashboardGrid.captionFont)
                 .foregroundStyle(.secondary)
             status.glyph
             Spacer(minLength: DashboardGrid.columnGap)
             if let plan {
                 Text(plan)
-                    .font(.subheadline)
+                    .font(DashboardGrid.planFont)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .fixedSize()

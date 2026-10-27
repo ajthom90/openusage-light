@@ -47,13 +47,14 @@ final class DashboardLabelFitTests: XCTestCase {
     /// Robin's accounts, names and plans, as the dashboard draws them: a one-account provider in its
     /// header when that fits — `DashboardHeaderLine.fits`, checked against what the header really asks
     /// for when it names the account — on its caption otherwise, and a provider with several accounts
-    /// on each account's caption. "Grok — Grok Account  SuperGrok Heavy" asks for 301 of the 316 pt
-    /// and still moves: the 15 pt left is less than the refresh spinner's room, and the name must
-    /// never be cut while the spinner shows.
+    /// on each account's caption. "Grok — rob@sunstory.com  SuperGrok Heavy" still moves at the Headline
+    /// header; "Grok — Grok Account  SuperGrok Heavy" now fits with the refresh spinner's room to spare,
+    /// and "Grok — Grok Team Account" moves.
     func testRobinsAccountsFitWithoutTruncating() {
         let soleAccounts: [(ProviderKind, String, String, inHeader: Bool)] = [
             (.codex, "Sunstory", "Pro 200", true), (.opencodeGo, "Go Basic", "Go", true),
-            (.grok, "Grok Account", "SuperGrok Heavy", false), (.grok, "rob@sunstory.com", "SuperGrok Heavy", false),
+            (.grok, "Grok Account", "SuperGrok Heavy", true), (.grok, "Grok Team Account", "SuperGrok Heavy", false),
+            (.grok, "rob@sunstory.com", "SuperGrok Heavy", false),
             (.cursor, "rob@sunstory.com", "Ultra", true), (.copilot, "robinebers", "Individual", true),
             (.codex, "sam@hey.com", "Plus", true),
         ]

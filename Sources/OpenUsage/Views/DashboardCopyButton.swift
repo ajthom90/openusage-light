@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What ends a provider's header line. At rest it is the provider's 16 pt logo. While the pointer is
+/// What ends a provider's header line. At rest it is the provider's logo, as tall as the line. While the pointer is
 /// anywhere on the provider it is a camera.viewfinder button in the same box: resting on it lifts it on a
 /// plate and shows "Copy Screenshot" after the hover dwell, and a click copies an image of the provider's
 /// header and card to the clipboard and shows a green check for 1.5 s.

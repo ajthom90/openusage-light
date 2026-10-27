@@ -33,9 +33,8 @@ final class InlineRenameFocusTests: QuietWindowTestCase {
         let hosted = try await host(soleCodex: true)
         try await resignKey(hosted)
         let header = PanelMetrics.margin + DashboardGrid.headerHeight / 2
-        // The name follows "Codex — " in the header's Title 3 Semibold.
-        let font = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold)
-        let prefix = ("Codex — " as NSString).size(withAttributes: [.font: font]).width
+        // The name follows "Codex — " in the header's type.
+        let prefix = ("Codex — " as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width
         try await doubleClick(CGPoint(x: PanelMetrics.margin + DashboardGrid.cardPadding + DashboardGrid.inset + prefix + 10, y: header), hosted)
         try await assertRenameTakesTyping("Sunstory", hosted)
     }

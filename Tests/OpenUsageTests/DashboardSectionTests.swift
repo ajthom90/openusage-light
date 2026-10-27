@@ -237,8 +237,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         )
 
         let headerMid = DashboardGrid.headerHeight / 2
-        let font = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold)
-        let name = CGPoint(x: Self.nameX + ("Claude — " as NSString).size(withAttributes: [.font: font]).width, y: headerMid)
+        let name = CGPoint(x: Self.nameX + ("Claude — " as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width, y: headerMid)
         click(name, window, host)
         RunLoop.main.run(until: Date().addingTimeInterval(0.6))
         XCTAssertNil(renaming.edit, "a single click on the name starts a rename")
