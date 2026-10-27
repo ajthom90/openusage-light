@@ -210,21 +210,20 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertEqual(drawn.last - drawn.first, alone.last - alone.first, accuracy: 1, "the value shrank")
     }
 
-    /// A row whose pace is hot shows the flame before its value, inside the value column, and nothing
-    /// else moves: the label, the bar, the value's right edge and the reset sit where they do on a row at
-    /// rest, and even the widest value, "100%", keeps the flame inside the column. A healthy row shows
-    /// no flame.
+    /// A row running out shows the flame before its value, inside the value column, and nothing else
+    /// moves: the label, the bar, the value's right edge and the reset sit where they do on a row at
+    /// rest, and even the widest value, "100%", keeps the flame inside the column.
     func testTheFlameSitsInTheValueColumnAndMovesNothing() throws {
         let end = boxWidth - inset
         let resetStart = end - DashboardGrid.resetWidth
         let valueStart = resetStart - DashboardGrid.columnGap - DashboardGrid.valueWidth
         let barEnd = valueStart - DashboardGrid.columnGap
-        func row(_ flame: WidgetData.MeterSeverity?, value: String = "100%") -> some View {
-            DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0.6, severity: .normal, value: value, reset: "3d 12h", flame: flame)))
+        func row(flame: Bool, value: String = "100%") -> some View {
+            DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0.6, severity: flame ? .critical : .normal, value: value, reset: "3d 12h", flame: flame)))
                 .padding(.horizontal, DashboardGrid.cardPadding)
         }
-        let rest = try Bitmap(row(nil), width: boxWidth, scale: 2)
-        let hot = try Bitmap(row(.critical), width: boxWidth, scale: 2)
+        let rest = try Bitmap(row(flame: false), width: boxWidth, scale: 2)
+        let hot = try Bitmap(row(flame: true), width: boxWidth, scale: 2)
         for (name, from, to) in [("label", 0, valueStart - DashboardGrid.columnGap - 60), ("bar", valueStart - DashboardGrid.columnGap - 60, barEnd + 2), ("reset", resetStart - 2, boxWidth)] {
             let atRest = try XCTUnwrap(rest.inkSpan(from: from, to: to), "no \(name) at rest")
             let withFlame = try XCTUnwrap(hot.inkSpan(from: from, to: to), "no \(name) with the flame")
@@ -236,7 +235,6 @@ final class ProviderHeaderLayoutTests: XCTestCase {
         XCTAssertEqual(hotValue.last, restValue.last, accuracy: 0.5, "the flame moved the value")
         XCTAssertLessThan(hotValue.first, restValue.first - 6, "no flame before the value")
         XCTAssertGreaterThanOrEqual(hotValue.first, valueStart - 0.5, "the flame runs out of the value column")
-        XCTAssertEqual(try Bitmap(row(.warning), width: boxWidth, scale: 2).inkSpan(from: barEnd + 2, to: resetStart - 4)?.first ?? 0, hotValue.first, accuracy: 0.5)
     }
 }
 

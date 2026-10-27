@@ -1,11 +1,12 @@
 import XCTest
 @testable import OpenUsage
 
-/// The meter fill's colour, read off `WidgetData.meterState.severity`, follows the bar's level alone:
-/// blue, orange once 75% of the limit is used (a quarter left), red once 90% is (a tenth left),
-/// rounded to the whole percent the value shows, and red when the balance rounds to empty (`spent`). A reset window, how much of it has
-/// gone, and the pace projection change nothing: a colour that doesn't track the bar makes no sense.
-/// It keys off the share *used*, regardless of the Used/Left display mode.
+/// The meter's colour, read off `WidgetData.meterState(now:).severity`. With a reset window the colour
+/// is the pace verdict (`PaceTests`): blue on course, orange cutting it close, red running out. Without
+/// a trustworthy projection — no window, a session not started, under 5% used — it is the level's band:
+/// blue, orange once 75% of the limit is used (a quarter left), red once 90% is (a tenth left), rounded
+/// to the whole percent the value shows; and red when the balance rounds to empty (`spent`), whatever
+/// the pace. Every band keys off the share *used*, regardless of the Used/Left display mode.
 final class MeterSeverityTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private let week: TimeInterval = 7 * 24 * 60 * 60
@@ -25,7 +26,7 @@ final class MeterSeverityTests: XCTestCase {
     }
 
     private func severity(_ data: WidgetData) -> WidgetData.MeterSeverity? {
-        data.meterState.severity
+        data.meterState(now: now).severity
     }
 
     /// Robin read Session 83% and Fable 24% left, both blue, as "no colour coding at all": a quarter
@@ -39,31 +40,28 @@ final class MeterSeverityTests: XCTestCase {
         for testCase in cases {
             XCTAssertEqual(severity(percentData(used: testCase.used)), testCase.severity, "used: \(testCase.used)")
         }
-        XCTAssertEqual(percentData(used: 100).meterState, .spent)
-        XCTAssertEqual(percentData(used: 130).meterState, .spent)
+        XCTAssertEqual(percentData(used: 100).meterState(now: now), .spent)
+        XCTAssertEqual(percentData(used: 130).meterState(now: now), .spent)
     }
 
-    /// Robin's panel showed Session 93% red above Fable 27% orange, the orange from a pace projection.
-    /// For a fixed share the colour is the same with and without a reset window, however much of the
-    /// window has gone: pace tints nothing.
-    func testAResetWindowAndTheTimeGoneChangeNothing() {
-        for used in stride(from: 0.0, through: 100, by: 1) {
-            let plain = severity(percentData(used: used))
-            for elapsed in [0.02, 0.2, 0.363, 0.5, 0.9, 0.96, 0.997] {
-                XCTAssertEqual(severity(pacedData(used: used, elapsed: elapsed)), plain, "\(used)% used, \(elapsed) of the window gone")
-            }
-        }
-        // The cases the pace verdict used to recolour: 66% burning fast was red, 85% late in the window blue.
-        XCTAssertEqual(severity(pacedData(used: 66, elapsed: 0.363)), .normal)
-        XCTAssertEqual(severity(pacedData(used: 85, elapsed: 0.96)), .warning)
-        XCTAssertEqual(severity(pacedData(used: 27, elapsed: 0.9)), .normal)
+    /// With a reset window the colour is the pace verdict, as in the original OpenUsage: Robin's Session
+    /// at 59% used a third of the way through its window is red, not blue with a red flame. Under 5%
+    /// used the projection is noise and the level band stands in.
+    func testWithAResetWindowTheColourIsThePaceVerdict() {
+        XCTAssertEqual(severity(pacedData(used: 59, elapsed: 0.333)), .critical)
+        XCTAssertEqual(severity(pacedData(used: 66, elapsed: 0.363)), .critical)
         XCTAssertEqual(severity(pacedData(used: 93, elapsed: 0.1)), .critical)
-        // Robin's panel: Fable with 24% left is orange, Session with 83% left blue.
-        XCTAssertEqual(severity(pacedData(used: 76, elapsed: 0.74)), .warning)
+        XCTAssertEqual(severity(pacedData(used: 76, elapsed: 0.74)), .critical)
+        XCTAssertEqual(severity(pacedData(used: 85, elapsed: 0.9)), .warning)
+        XCTAssertEqual(severity(pacedData(used: 49, elapsed: 0.5)), .warning)
+        XCTAssertEqual(severity(pacedData(used: 85, elapsed: 0.96)), .normal)
+        XCTAssertEqual(severity(pacedData(used: 27, elapsed: 0.9)), .normal)
         XCTAssertEqual(severity(pacedData(used: 17, elapsed: 0.25)), .normal)
+        XCTAssertEqual(severity(pacedData(used: 4, elapsed: 0.02)), .normal)
+        XCTAssertEqual(pacedData(used: 4, elapsed: 0.02).meterState(now: now), .level(.normal))
     }
 
-    /// As the bar fills the colour only ever gets hotter: blue, then orange, then red.
+    /// As the bar fills within one window the colour only ever gets hotter: blue, then orange, then red.
     func testTheColourNeverCoolsAsTheShareUsedRises() {
         func rank(_ severity: WidgetData.MeterSeverity?) -> Int {
             switch severity {
@@ -85,11 +83,11 @@ final class MeterSeverityTests: XCTestCase {
 
     func testRemainderRoundingToZeroIsSpent() {
         // 99.6% used: the 0.4% remaining rounds to "0% left", so the balance reads empty.
-        XCTAssertEqual(pacedData(used: 99.6, elapsed: 0.997).meterState, .spent)
+        XCTAssertEqual(pacedData(used: 99.6, elapsed: 0.997).meterState(now: now), .spent)
         // A dollar metric one rounding-step from empty ($0.004 of $100 left → "$0.00") reads as spent.
         let dollars = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars,
                                  used: 99.996, limit: 100)
-        XCTAssertEqual(dollars.meterState, .spent)
+        XCTAssertEqual(dollars.meterState(now: now), .spent)
     }
 
     func testSeverityIgnoresTheUsedLeftDisplayMode() {
@@ -119,7 +117,7 @@ final class MeterSeverityTests: XCTestCase {
     func testNoDataHasNoSeverity() {
         var data = percentData(used: 50)
         data.hasData = false
-        XCTAssertEqual(data.meterState, .noData)
+        XCTAssertEqual(data.meterState(now: now), .noData)
         XCTAssertNil(severity(data))
     }
 }

@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// One metric on one row inside an account: label, bar, value and reset in fixed columns, so every bar
-/// in the panel starts and ends at the same x. The label is secondary, the value medium in the
-/// severity's colour once the bar is orange or red, the reset secondary. While the pace is hot a flame
-/// sits before the value, inside the value column, in the pace's colour: orange cutting it close, red
-/// running out; nothing at rest, so the columns never move. A reading without a limit (a balance, a
+/// in the panel starts and ends at the same x. The label is secondary, the value medium in the bar's
+/// colour once the bar is orange or red, the reset secondary. While the reading is projected to run
+/// out a red flame sits before the value, inside the value column; nothing otherwise, so the columns
+/// never move. A reading without a limit (a balance, a
 /// count, a status) has no bar: its figure takes the bar's place. Nothing on a row reacts to the
 /// pointer; a click on the value flips every row between used and left, a click on the reset between
 /// countdown and exact time, where the dashboard supplies `onToggleMeterStyle` and
@@ -34,11 +34,11 @@ struct DashboardMetricRow: View {
             case .bar(let fill, let severity, let value, let reset, let flame):
                 UsageMeterBar(fill: fill, severity: severity)
                 HStack(spacing: Theme.Spacing.xxs) {
-                    if let flame {
+                    if flame {
                         Image(systemName: "flame.fill")
                             .imageScale(.small)
-                            .foregroundStyle(Theme.severityColor(flame))
-                            .accessibilityLabel(flame == .critical ? "Running out" : "Close to the limit")
+                            .foregroundStyle(Theme.severityColor(.critical))
+                            .accessibilityLabel("Running out")
                     }
                     valueText(value, severity: severity)
                 }
@@ -63,7 +63,7 @@ struct DashboardMetricRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// The value, in the severity's colour once the bar is orange or red, which flips every row between
+    /// The value, in the bar's colour once the bar is orange or red, which flips every row between
     /// used and left on a click where the dashboard supplies the flip; plain text in a preview, in the
     /// share image, and on a badge.
     @ViewBuilder

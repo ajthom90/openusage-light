@@ -49,22 +49,25 @@ final class DashboardRowModelTests: XCTestCase {
         XCTAssertFalse(empty.hasMeterStyleToggle)
     }
 
-    /// Robin: Session 93% red above Fable 27% orange "makes no sense" — the colour follows the bar's
-    /// level alone (orange at 75% used, red at 90%), never the pace. The pace shows as the flame
-    /// instead: red while projected to run out before the reset, orange while projected to land inside
-    /// the last 10%, none on course, none once spent (the bar is red already), none without a window.
-    func testTheColourFollowsTheLevelAndTheFlameFollowsThePace() {
-        XCTAssertEqual(paced(used: 60).dashboardRow(now: now).mark, .bar(fill: 0.4, severity: .normal, value: "40%", reset: "3d 12h", flame: .critical))
-        XCTAssertEqual(paced(used: 49).dashboardRow(now: now).mark, .bar(fill: 0.51, severity: .normal, value: "51%", reset: "3d 12h", flame: .warning))
-        XCTAssertEqual(paced(used: 30).dashboardRow(now: now).mark, .bar(fill: 0.7, severity: .normal, value: "70%", reset: "3d 12h", flame: nil))
-        XCTAssertEqual(paced(used: 73, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.27, severity: .normal, value: "27%", reset: "16h 48m", flame: nil))
-        XCTAssertEqual(paced(used: 76, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.24, severity: .warning, value: "24%", reset: "16h 48m", flame: nil))
-        XCTAssertEqual(paced(used: 85, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.15, severity: .warning, value: "15%", reset: "16h 48m", flame: .warning))
-        XCTAssertEqual(paced(used: 93, elapsed: 0.2).dashboardRow(now: now).mark, .bar(fill: 0.07, severity: .critical, value: "7%", reset: "5d 14h", flame: .critical))
-        XCTAssertEqual(paced(used: 100).dashboardRow(now: now).mark, .bar(fill: 0, severity: .critical, value: "0%", reset: "3d 12h", flame: nil))
-        var noWindow = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars, used: 90, limit: 100)
-        noWindow.displayMode = .remaining
-        XCTAssertEqual(noWindow.dashboardRow(now: now).mark, .bar(fill: 0.1, severity: .critical, value: "$10", reset: nil, flame: nil))
+    /// Robin: "blue with red flame? look at original openusage logic" — one state colours the bar and
+    /// lights the flame. With a reset window the colour is the pace verdict: red with the flame while
+    /// projected to run out before the reset, orange and no flame while projected to land inside the
+    /// last 10%, blue and no flame on course. Spent is red with no flame (the bar is empty already).
+    /// Without a window the level's band colours the bar (orange once 75% is used, red once 90%), and
+    /// never a flame. A blue or an orange bar never carries a flame.
+    func testTheColourAndTheFlameFollowOneState() {
+        XCTAssertEqual(paced(used: 60).dashboardRow(now: now).mark, .bar(fill: 0.4, severity: .critical, value: "40%", reset: "3d 12h", flame: true))
+        XCTAssertEqual(paced(used: 93, elapsed: 0.2).dashboardRow(now: now).mark, .bar(fill: 0.07, severity: .critical, value: "7%", reset: "5d 14h", flame: true))
+        XCTAssertEqual(paced(used: 49).dashboardRow(now: now).mark, .bar(fill: 0.51, severity: .warning, value: "51%", reset: "3d 12h", flame: false))
+        XCTAssertEqual(paced(used: 85, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.15, severity: .warning, value: "15%", reset: "16h 48m", flame: false))
+        XCTAssertEqual(paced(used: 30).dashboardRow(now: now).mark, .bar(fill: 0.7, severity: .normal, value: "70%", reset: "3d 12h", flame: false))
+        XCTAssertEqual(paced(used: 76, elapsed: 0.9).dashboardRow(now: now).mark, .bar(fill: 0.24, severity: .normal, value: "24%", reset: "16h 48m", flame: false))
+        XCTAssertEqual(paced(used: 100).dashboardRow(now: now).mark, .bar(fill: 0, severity: .critical, value: "0%", reset: "3d 12h", flame: false))
+        for (used, severity) in [(74.0, WidgetData.MeterSeverity.normal), (75, .warning), (89, .warning), (90, .critical)] {
+            var noWindow = WidgetData(title: "Credits", icon: .providerMark("codex"), kind: .dollars, used: used, limit: 100)
+            noWindow.displayMode = .remaining
+            XCTAssertEqual(noWindow.dashboardRow(now: now).mark, .bar(fill: (100 - used) / 100, severity: severity, value: "$\(Int(100 - used))", reset: nil, flame: false), "$\(used) of $100")
+        }
     }
 
     func testTheResetFollowsTheClockSettingAndReadsSoonWhenDue() {

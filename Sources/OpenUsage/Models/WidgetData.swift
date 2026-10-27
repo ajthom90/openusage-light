@@ -107,46 +107,39 @@ struct WidgetData: Hashable {
         case normal, warning, critical
     }
 
-    /// The bar's colour (`meterState`), from the share used alone, so the colour always tracks the bar.
-    /// Precedence, highest first: no data → spent → the level bands.
+    /// The meter's state (`meterState(now:)`): one reading for the bar's colour, the value's colour,
+    /// the flame and the notifications, so none can contradict another. Precedence, highest first:
+    /// no data → spent → the live pace verdict → the level bands.
     enum MeterState: Hashable {
         /// No real metric backs the row — gray, empty track.
         case noData
         /// Spent to nothing the user can see: a real zero, or a remainder so small it rounds to
-        /// "0" at the value's precision ("0%", "$0.00", "0 credits"). Red.
+        /// "0" at the value's precision ("0%", "$0.00", "0 credits"). Red, no flame: the bar is empty
+        /// already. Outranks the pace verdict — a visibly empty bar is never a calmer colour.
         case spent
-        /// Blue, orange once 75% of the limit is used (a quarter left), red once 90% is (a tenth left).
+        /// Projected to run out before the reset, or to land right at the limit with no cushion to
+        /// speak of. Red, with the flame.
+        case runningOut
+        /// Projected to land inside the last 10% — cutting it close — but still with a cushion of at
+        /// least 1%. (A cushion that rounds to 0% promotes to `runningOut` instead.) Orange.
+        case closeToLimit
+        /// On course to finish with ≥10% to spare. Blue.
+        case healthy
+        /// No trustworthy projection — no reset window, a session not started, or too little used to
+        /// extrapolate from: blue, orange once 75% of the limit is used (a quarter left), red once 90%
+        /// is (a tenth left).
         case level(MeterSeverity)
 
         /// Bar fill severity, or `nil` for `noData` (the track stays gray).
         var severity: MeterSeverity? {
             switch self {
             case .noData: return nil
-            case .spent: return .critical
+            case .spent, .runningOut: return .critical
+            case .closeToLimit: return .warning
+            case .healthy: return .normal
             case .level(let severity): return severity
             }
         }
-    }
-
-    /// Where the quota is heading against its reset window (`paceState(now:)`): what the notifications
-    /// and the row's flame read. Never the bar's colour.
-    /// Precedence, highest first: no data → spent → the live pace verdict → unpaced.
-    enum PaceState: Hashable {
-        /// No real metric backs the row.
-        case noData
-        /// Spent to nothing the user can see (see `MeterState.spent`).
-        case spent
-        /// Projected to run out before the reset, or to land right at the limit with no cushion to
-        /// speak of.
-        case runningOut
-        /// Projected to land inside the last 10% — cutting it close — but still with a cushion of at
-        /// least 1%. (A cushion that rounds to 0% promotes to `runningOut` instead.)
-        case closeToLimit
-        /// On course to finish with ≥10% to spare.
-        case healthy
-        /// No trustworthy projection: no reset window, a session not started, or too little used to
-        /// extrapolate from.
-        case unpaced
     }
 
     /// `displayedValue` rounded the same way `format(_:)` rounds it for the row's value.
@@ -264,7 +257,7 @@ struct WidgetData: Hashable {
     }
 }
 
-// MARK: - Colour and pace
+// MARK: - Meter state
 
 extension WidgetData {
     /// The inputs pacing needs, present only for a bounded metric with a known reset window. `nil`
@@ -276,43 +269,32 @@ extension WidgetData {
         return (limit, resetsAt, TimeInterval(periodDurationMs) / 1000)
     }
 
-    /// The bar's colour, from the share used alone, so it rises with the bar and never with the clock:
+    /// The meter's state at `now`, the one source the bar's and the value's colour, the flame and the
+    /// notifications read, as in the original OpenUsage. Precedence, highest first:
     ///
     /// 1. **No data** → gray, empty.
     /// 2. **Spent** → red, whenever the remainder rounds to zero at the value's precision (a visibly
-    ///    empty bar always reads spent).
-    /// 3. **Level bands** → orange once 75% of the limit is used (a quarter left), red once 90% is (a
-    ///    tenth left), blue below, rounded to the whole percent the value shows.
+    ///    empty bar always reads spent, pace aside).
+    /// 3. **Live pace verdict** (a reset window): blue `healthy` while ≥10% is projected to spare,
+    ///    orange `closeToLimit` when projected inside the last 10% *with a cushion of at least 1%*,
+    ///    red `runningOut` when projected to blow past the limit before the reset or to land right at
+    ///    it (cushion rounds to 0%).
+    /// 4. **Level bands** (no window to project against, a session not started, or so little used
+    ///    that a linear projection is noise) → orange once 75% of the limit is used (a quarter left),
+    ///    red once 90% is (a tenth left), blue below, rounded to the whole percent the value shows.
     ///
     /// Every band keys off the share *used*, never the displayed fraction, so the colour doesn't flip
     /// with the Used/Left toggle.
-    var meterState: MeterState {
+    func meterState(now: Date = Date()) -> MeterState {
         guard hasData, let limit, limit > 0 else { return hasData ? .level(.normal) : .noData }
         if roundedAtDisplayPrecision(limit - used) <= 0 { return .spent }
-        return .level(levelSeverity(used: used, limit: limit))
-    }
-
-    /// Where the quota is heading against its reset window at `now`, for the notifications and the
-    /// row's flame. Precedence, highest first:
-    ///
-    /// 1. **No data**.
-    /// 2. **Spent**, whenever the remainder rounds to zero at the value's precision.
-    /// 3. **Live pace verdict** (a reset window): `healthy` while ≥10% is projected to spare,
-    ///    `closeToLimit` when projected inside the last 10% *with a cushion of at least 1%*,
-    ///    `runningOut` when projected to blow past the limit before reset or to land right at it
-    ///    (cushion rounds to 0%).
-    /// 4. **Unpaced**: no window to project against, a session not started, or so little used that a
-    ///    linear projection is noise.
-    func paceState(now: Date = Date()) -> PaceState {
-        guard hasData, let limit, limit > 0 else { return hasData ? .unpaced : .noData }
-        if roundedAtDisplayPrecision(limit - used) <= 0 { return .spent }
         // A "Not started" session has nothing to pace yet.
-        if isFreshSessionWindow(now: now) { return .unpaced }
+        if isFreshSessionWindow(now: now) { return levelState(used: used, limit: limit) }
 
         guard let ctx = paceContext,
               let result = Pace.evaluate(used: used, limit: ctx.limit, resetsAt: ctx.resetsAt,
                                          periodDuration: ctx.period, now: now)
-        else { return .unpaced }
+        else { return levelState(used: used, limit: limit) }
         // Coarse whole-percent meters can read 1% used very early in a window; linear extrapolation
         // then projects a bogus blow-out while the value still shows ~99% left. When >95% of the
         // quota clearly remains (used below 5%), distrust the projection entirely.
@@ -320,21 +302,22 @@ extension WidgetData {
         case .ahead:
             return .healthy
         case .onTrack:
-            guard used / ctx.limit >= 0.05 else { return .unpaced }
+            guard used / ctx.limit >= 0.05 else { return levelState(used: used, limit: limit) }
             let spare = Int(((1 - result.projectedUsage / ctx.limit) * 100).rounded())
             return spare >= 1 ? .closeToLimit : .runningOut
         case .behind:
-            guard used / ctx.limit >= 0.05 else { return .unpaced }
+            guard used / ctx.limit >= 0.05 else { return levelState(used: used, limit: limit) }
             return .runningOut
         }
     }
 
-    /// The colour band for the share used: orange at 75% used, red at 90%, blue below.
-    private func levelSeverity(used: Double, limit: Double) -> MeterSeverity {
+    /// The colour band for the share used, where there is no trustworthy pace projection: orange at
+    /// 75% used, red at 90%, blue below.
+    private func levelState(used: Double, limit: Double) -> MeterState {
         let percentUsed = (min(max(used / limit, 0), 1) * 100).rounded()
-        if percentUsed >= 90 { return .critical }
-        if percentUsed >= 75 { return .warning }
-        return .normal
+        if percentUsed >= 90 { return .level(.critical) }
+        if percentUsed >= 75 { return .level(.warning) }
+        return .level(.normal)
     }
 
     /// Session meters only (Claude/Antigravity/OpenCode): a "not started" state for the current window

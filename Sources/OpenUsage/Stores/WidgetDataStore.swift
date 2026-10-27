@@ -226,7 +226,7 @@ final class WidgetDataStore {
         guard let settingsProvider = notificationSettings else { return }
         let toggles = settingsProvider().toggles
         // Gather this pass's enabled, bounded, visible metrics — unbounded rows and charts have no pace
-        // story (their paceState never fires), so they're skipped here rather than occupying state.
+        // story (their meterState never paces), so they're skipped here rather than occupying state.
         // Order is the layout order; the evaluator prunes state for anything not passed this pass.
         // Deliberate delta from the pre-extraction loop: the pass decides from this snapshot, taken
         // before the first delivery `await`, where the old inline loop re-read `data(for:)` between

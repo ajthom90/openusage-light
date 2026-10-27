@@ -34,7 +34,7 @@ final class QuotaNotificationEvaluator {
         for metric in metrics {
             let key = metric.key
             let data = metric.data
-            let state = data.paceState(now: now)
+            let state = data.meterState(now: now)
             let previous = notificationState[key] ?? NotificationState()
             let currentBucket = PaceNotificationLogic.bucket(for: state)
             let resetDelta = Self.resetDelta(current: data.resetsAt, previous: previous.resetsAt)
@@ -151,14 +151,14 @@ final class QuotaNotificationEvaluator {
         }
     }
 
-    private static func notificationStateDescription(_ state: WidgetData.PaceState) -> String {
+    private static func notificationStateDescription(_ state: WidgetData.MeterState) -> String {
         switch state {
         case .noData: return "noData"
         case .spent: return "spent"
         case .runningOut: return "runningOut"
         case .closeToLimit: return "closeToLimit"
         case .healthy: return "healthy"
-        case .unpaced: return "unpaced"
+        case .level: return "level"
         }
     }
 }

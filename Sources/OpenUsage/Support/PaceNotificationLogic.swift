@@ -93,7 +93,7 @@ struct PaceNotificationToggles: Sendable {
 }
 
 /// Pure milestone logic — no SwiftUI, no UserNotifications — so the firing rules stay unit-testable.
-/// `WidgetDataStore.evaluateNotifications` feeds it the current `PaceState` + `fraction` + `resetsAt`
+/// `WidgetDataStore.evaluateNotifications` feeds it the current `MeterState` + `fraction` + `resetsAt`
 /// for each metric and posts a notification for every returned milestone.
 enum PaceNotificationLogic {
     /// Result of one evaluation: the milestones to fire now, and the state to persist for next time.
@@ -102,12 +102,12 @@ enum PaceNotificationLogic {
         var newState: NotificationState
     }
 
-    /// Maps a pace state to its bucket. The "no trustworthy pace" states (no data, fresh session, no
-    /// reset window) are `untracked` for pace milestones; `.unpaced` may still fire the independent
-    /// remaining-based Almost Out milestone.
-    static func bucket(for state: WidgetData.PaceState) -> PaceBucket {
+    /// Maps a meter state to its bucket. The "no trustworthy pace" states (no data, and a level band:
+    /// a fresh session, no reset window, too little used) are `untracked` for pace milestones; a level
+    /// may still fire the independent remaining-based Almost Out milestone.
+    static func bucket(for state: WidgetData.MeterState) -> PaceBucket {
         switch state {
-        case .noData, .unpaced: return .untracked
+        case .noData, .level: return .untracked
         case .healthy: return .healthy
         case .closeToLimit: return .close
         case .runningOut, .spent: return .runningOut
@@ -125,12 +125,12 @@ enum PaceNotificationLogic {
     /// - `underTenPercent` fires the first time remaining crosses under 10% this window; recovering
     ///   above 10% re-arms it so a later dip re-fires.
     /// - `untracked` states carry no trustworthy pace and therefore suppress pace milestones. No data
-    ///   suppresses everything; `.unpaced` can still fire Almost Out from its remaining share. Neither
+    ///   suppresses everything; a level can still fire Almost Out from its remaining share. Neither
     ///   disturbs the recorded pace signals, so a momentary gap does not spuriously re-fire when real
     ///   pace data returns.
     /// - Improving pace clears the relevant fired flags so a later worsening re-fires.
     static func transitions(
-        state: WidgetData.PaceState,
+        state: WidgetData.MeterState,
         /// Remaining share of the limit, 0...1 — must mean "remaining" regardless of display mode
         /// (callers pass `WidgetData.remainingFraction`, not the display-mode-dependent `fraction`).
         fraction: Double,

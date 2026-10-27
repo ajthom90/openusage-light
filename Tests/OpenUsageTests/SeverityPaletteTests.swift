@@ -40,10 +40,13 @@ final class SeverityPaletteTests: XCTestCase {
                 let row = DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0, severity: severity, value: "0%", reset: "1d 8h")))
                     .frame(width: 292)
                 XCTAssertEqual(try dominant(row), name, "value \(severity)")
-                // A blue row running hot: the flame is the row's only colour besides the bar's fill.
-                let flame = DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0, severity: .normal, value: "60%", reset: "1d 8h", flame: severity)))
+            }
+            // The flame is red, the colour of the one state that lights it; here on a bar with no fill
+            // and a plain value, so it is the row's only colour.
+            if severity == .critical {
+                let flame = DashboardMetricRow(model: DashboardRowModel(label: "Weekly", mark: .bar(fill: 0, severity: .normal, value: "60%", reset: "1d 8h", flame: true)))
                     .frame(width: 292)
-                XCTAssertEqual(try dominant(flame), name, "flame \(severity)")
+                XCTAssertEqual(try dominant(flame), name, "flame")
             }
 
             let expiry = Date().addingTimeInterval(expiryOffset(severity))
