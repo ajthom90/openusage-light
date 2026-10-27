@@ -178,6 +178,13 @@ private struct MenuBarTextStrip: View {
             ProviderIconShape(mark: mark, inset: 0.04)
                 .fill(Color.black)
                 .frame(width: Self.glyphSide, height: Self.glyphSide)
+        } else if let image = ProviderMarks.raster(for: icon.providerID) {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(Color.black)
+                .frame(width: Self.glyphSide, height: Self.glyphSide)
         } else {
             Circle().fill(Color.black).frame(width: Self.glyphSide - 1, height: Self.glyphSide - 1)
         }

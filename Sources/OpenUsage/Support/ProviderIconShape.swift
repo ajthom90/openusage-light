@@ -15,6 +15,14 @@ struct ProviderIcon: View {
         if let mark = ProviderMarks.mark(for: source.providerID) {
             ProviderIconShape(mark: mark, inset: inset)
                 .fill(Theme.iconGray)
+        } else if let image = ProviderMarks.raster(for: source.providerID) {
+            // A bundled bitmap logo, drawn as a silhouette in the same grey as the vector marks.
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .scaleEffect(1 - inset * 2)
+                .foregroundStyle(Theme.iconGray)
         } else {
             Image(systemName: ProviderMarks.symbolFallback(for: source.providerID))
                 .foregroundStyle(Theme.iconGray)
@@ -82,6 +90,18 @@ enum ProviderMarks {
         let mark = ProviderMark(path: d)
         cache[id] = mark
         return mark
+    }
+
+    private static var rasterCache: [String: NSImage] = [:]
+
+    /// A provider's bundled bitmap logo (`ProviderIcons/<id>.png`), for a provider whose official mark
+    /// comes as a PNG. It is drawn as a tinted silhouette, so it needs an alpha channel.
+    static func raster(for id: String) -> NSImage? {
+        if let cached = rasterCache[id] { return cached }
+        guard let url = Bundle.openUsageResources.url(forResource: id, withExtension: "png", subdirectory: "ProviderIcons"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        rasterCache[id] = image
+        return image
     }
 
     static func symbolFallback(for id: String) -> String {
