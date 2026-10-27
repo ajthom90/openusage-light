@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// One provider on the dashboard: its header above its card. Every card is drawn the same way, however
 /// many accounts it holds: the header is the provider's logo and name, and each account in the card is

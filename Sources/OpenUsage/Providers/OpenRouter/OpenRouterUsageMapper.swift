@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Builds metric lines from the OpenRouter `/credits` and `/key` payloads. Each endpoint maps
 /// independently so the provider can show whatever came back: `/credits` carries the balance, `/key`

@@ -3,6 +3,7 @@ import Observation
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Cancel, and Escape with it, steps back from a provider's sign-in to the provider list; only on
 /// the list does it close the sheet.

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Cursor's access token is a 60-day JWT that is also its refresh token. The login poll returns the
 /// same JWT for both. `/oauth/token` answers with a new `access_token` and no `refresh_token`.

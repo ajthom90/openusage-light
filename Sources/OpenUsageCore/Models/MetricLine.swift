@@ -3,12 +3,12 @@ import Foundation
 /// Provider output normalized into a small app-owned vocabulary.
 ///
 /// This mirrors the old JavaScript plugin contract while keeping rendering decisions in Swift.
-enum ProgressFormat: Hashable, Sendable, Codable {
+package enum ProgressFormat: Hashable, Sendable, Codable {
     case percent
     case dollars
     case count(suffix: String)
 
-    var metricKind: MetricKind {
+    package var metricKind: MetricKind {
         switch self {
         case .percent:
             return .percent
@@ -19,7 +19,7 @@ enum ProgressFormat: Hashable, Sendable, Codable {
         }
     }
 
-    var countSuffix: String? {
+    package var countSuffix: String? {
         if case .count(let suffix) = self { return suffix }
         return nil
     }
@@ -35,7 +35,7 @@ enum ProgressFormat: Hashable, Sendable, Codable {
         case count
     }
 
-    init(from decoder: Decoder) throws {
+    package init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         switch try container.decode(Kind.self, forKey: .kind) {
         case .percent:
@@ -47,7 +47,7 @@ enum ProgressFormat: Hashable, Sendable, Codable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    package func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .percent:
@@ -61,7 +61,7 @@ enum ProgressFormat: Hashable, Sendable, Codable {
     }
 }
 
-enum MetricLine: Hashable, Sendable, Codable {
+package enum MetricLine: Hashable, Sendable, Codable {
     case text(label: String, value: String, colorHex: String? = nil, subtitle: String? = nil)
     /// An unbounded row carrying one or more raw numbers (see `MetricValue`) — the preferred shape for
     /// numeric rows. The number is the source of truth; formatting and which value(s) to show happen at
@@ -90,7 +90,7 @@ enum MetricLine: Hashable, Sendable, Codable {
     )
     case badge(label: String, text: String, colorHex: String? = nil, subtitle: String? = nil)
 
-    var label: String {
+    package var label: String {
         switch self {
         case .text(let label, _, _, _),
              .progress(let label, _, _, _, _, _, _),
@@ -103,9 +103,9 @@ enum MetricLine: Hashable, Sendable, Codable {
     /// The badge label that marks a provider-level error line (produced by `ProviderSnapshot.error`).
     /// Shared so the producer and `isError`'s detection are compile-time coupled and can't drift apart —
     /// a silent drift would let a failed provider's error render as a normal pill and cache stale data.
-    static let errorBadgeLabel = "Error"
+    package static let errorBadgeLabel = "Error"
 
-    var isError: Bool {
+    package var isError: Bool {
         if case .badge(let label, _, _, _) = self {
             return label == Self.errorBadgeLabel
         }
@@ -113,11 +113,11 @@ enum MetricLine: Hashable, Sendable, Codable {
     }
 
     /// The shared "no usage data" placeholder badge, shown when a provider returns no metric lines.
-    static let noUsageData = MetricLine.badge(label: "Status", text: "No usage data", colorHex: "#A3A3A3")
+    package static let noUsageData = MetricLine.badge(label: "Status", text: "No usage data", colorHex: "#A3A3A3")
 
     /// Append `noUsageData` when nothing was produced, so an empty result reads as a clear status
     /// instead of a blank tile.
-    static func appendNoDataIfNeeded(_ lines: inout [MetricLine]) {
+    package static func appendNoDataIfNeeded(_ lines: inout [MetricLine]) {
         if lines.isEmpty {
             lines.append(.noUsageData)
         }
@@ -146,7 +146,7 @@ enum MetricLine: Hashable, Sendable, Codable {
         case badge
     }
 
-    init(from decoder: Decoder) throws {
+    package init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let label = try container.decode(String.self, forKey: .label)
         switch try container.decode(LineType.self, forKey: .type) {
@@ -184,7 +184,7 @@ enum MetricLine: Hashable, Sendable, Codable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    package func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .text(let label, let value, let colorHex, let subtitle):

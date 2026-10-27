@@ -1,6 +1,7 @@
 import Foundation
 import os
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class FakeHTTPClient: HTTPClient, @unchecked Sendable {
     var response: HTTPResponse

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// One of the three quota milestones a user can be alerted about. Each maps to a single per-trigger
 /// toggle in Settings and is deduped independently within a reset window.

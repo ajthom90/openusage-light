@@ -1,12 +1,12 @@
 import Foundation
 
-enum ProviderAuthMethod: Sendable, Equatable {
+package enum ProviderAuthMethod: Sendable, Equatable {
     case oauth
     /// Signs in with a pasted API key, created on the provider's `keyPage`.
     case apiKey(keyPage: URL)
 }
 
-enum ProviderKind: String, Codable, CaseIterable, Sendable {
+package enum ProviderKind: String, Codable, CaseIterable, Sendable {
     case claude
     case codex
     case cursor
@@ -18,7 +18,7 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
     case openrouter
     case zai
 
-    var displayName: String {
+    package var displayName: String {
         switch self {
         case .claude: "Claude"
         case .codex: "Codex"
@@ -33,11 +33,11 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    var iconSource: IconSource { .providerMark(rawValue) }
+    package var iconSource: IconSource { .providerMark(rawValue) }
 
     /// The provider's quick links, in its card's right-click menu on the dashboard. The same links
     /// OpenUsage ships.
-    var links: [ProviderLink] {
+    package var links: [ProviderLink] {
         switch self {
         case .claude: [.init(label: "Status Page", url: "https://status.claude.com/"),
                        .init(label: "Usage Dashboard", url: "https://claude.ai/settings/usage")]
@@ -58,7 +58,7 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    var authMethod: ProviderAuthMethod {
+    package var authMethod: ProviderAuthMethod {
         switch self {
         case .claude, .codex, .cursor, .antigravity, .copilot, .grok: .oauth
         case .ollama: .apiKey(keyPage: URL(string: "https://ollama.com/settings/keys")!)
@@ -69,17 +69,17 @@ enum ProviderKind: String, Codable, CaseIterable, Sendable {
     }
 }
 
-struct Account: Codable, Identifiable, Hashable, Sendable {
-    let id: UUID
-    let kind: ProviderKind
-    var label: String
-    let addedAt: Date
+package struct Account: Codable, Identifiable, Hashable, Sendable {
+    package let id: UUID
+    package let kind: ProviderKind
+    package var label: String
+    package let addedAt: Date
 
-    var cardID: String {
+    package var cardID: String {
         "\(kind.rawValue)@\(id.uuidString.lowercased().prefix(8))"
     }
 
-    init(id: UUID = UUID(), kind: ProviderKind, label: String, addedAt: Date = Date()) {
+    package init(id: UUID = UUID(), kind: ProviderKind, label: String, addedAt: Date = Date()) {
         self.id = id
         self.kind = kind
         self.label = label
@@ -87,13 +87,13 @@ struct Account: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-struct OAuthTokens: Codable, Sendable, Equatable {
-    var accessToken: String
-    var refreshToken: String?
-    var expiresAt: Date?
-    var extras: [String: String]
+package struct OAuthTokens: Codable, Sendable, Equatable {
+    package var accessToken: String
+    package var refreshToken: String?
+    package var expiresAt: Date?
+    package var extras: [String: String]
 
-    init(accessToken: String, refreshToken: String? = nil, expiresAt: Date? = nil, extras: [String: String] = [:]) {
+    package init(accessToken: String, refreshToken: String? = nil, expiresAt: Date? = nil, extras: [String: String] = [:]) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
         self.expiresAt = expiresAt
@@ -101,7 +101,7 @@ struct OAuthTokens: Codable, Sendable, Equatable {
     }
 }
 
-enum AccountCredential: Codable, Sendable, Equatable {
+package enum AccountCredential: Codable, Sendable, Equatable {
     case oauth(OAuthTokens)
     case apiKey(String)
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The Accounts list (L1): every account in the user's saved order, grouped in one card the way
 /// Settings groups its rows; the top bar's + opens the Add Account sheet. Click a row to open that

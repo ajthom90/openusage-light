@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the per-provider failure backoff: a refresh that fails is negatively cached for a short
 /// window, so an over-eager refresh loop (e.g. a wake burst) can't re-probe a broken provider — the

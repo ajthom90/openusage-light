@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The Claude "Rate Limit Resets" row, read from the reset-grants response's `cedar_ember` block
 /// (Anthropic's one-off usage-limit reset grants).

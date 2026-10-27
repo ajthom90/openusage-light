@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// A screen's navigation chrome. It reads the screen it belongs to, not the destination, so during a
 /// slide each mounted page carries its own bar and the bar travels with its content.

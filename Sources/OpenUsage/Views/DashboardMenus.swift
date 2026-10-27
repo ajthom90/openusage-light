@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// What a dashboard right-click menu item does. `WidgetGroupedListView` performs it.
 enum DashboardCommand: Equatable {

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Owns the quota pace-notification subsystem: the per-metric dedup state, the fire/deliver/commit
 /// decision, and the debug trace. Split out of `WidgetDataStore` (which orchestrates refresh + resolves

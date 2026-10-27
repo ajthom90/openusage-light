@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Regression coverage for #582: a refresh that keeps failing leaves the last good snapshot on screen
 /// (stale-while-revalidate by design), but nothing told the user how old that data was — the fossilized

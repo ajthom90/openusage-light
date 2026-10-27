@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The metrics the original OpenUsage showed for Cursor, restored in Light: every one that comes from
 /// Cursor's API. Response shapes match the live API on 2026-10-23; every value is fake.

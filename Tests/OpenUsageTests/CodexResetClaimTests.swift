@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The Codex reset-credit claim: request shape, outcome decoding, expiry-to-id matching, and the account
 /// runtime's list-then-consume flow, all through a stub HTTP client with the account's own vault

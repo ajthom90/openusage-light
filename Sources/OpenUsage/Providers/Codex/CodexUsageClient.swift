@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct CodexRefreshResponse: Sendable, Equatable {
     var accessToken: String

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the crux of #604: the user's log level is a single floor that decides what actually reaches
 /// the file sink. The sink is pointed at a per-test temp file so we can read back exactly what the gate

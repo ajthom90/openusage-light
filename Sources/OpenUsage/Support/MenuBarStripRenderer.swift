@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// Renders the Text-style menu-bar strip (`MenuBarContent`) into a template `NSImage` for the
 /// `MenuBarExtra` label: provider mark + bare value for a single metric, or a tight labeled stack for

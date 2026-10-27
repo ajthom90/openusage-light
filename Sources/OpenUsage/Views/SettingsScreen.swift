@@ -35,6 +35,9 @@ struct SettingsScreen: View {
                 }
                 usageDisplaySection
                 notificationsSection
+                if CommandLineInstaller.forRunningApp().status() != .unavailable {
+                    section("Command Line") { SettingsCommandLineRow() }
+                }
             }
             .padding(PanelMetrics.margin)
         }

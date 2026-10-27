@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The dashboard as the app hosts it — `WidgetGroupedListView` with its stores, in an `NSHostingView`
 /// inside a window — keeps the grid's heights: 20 pt per row, one Subheadline line per caption, one

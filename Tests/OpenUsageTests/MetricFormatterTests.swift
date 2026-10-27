@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The one number→text place. `.tray` is the menu-bar form (shortest), `.row` the popover form
 /// (abbreviated but money keeps cents). These cases pin the behavior the old `WidgetData.format`,

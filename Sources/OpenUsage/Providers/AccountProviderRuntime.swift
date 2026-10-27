@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 @MainActor
 final class AccountProviderRuntime: ProviderRuntime {
@@ -169,7 +170,7 @@ final class AccountProviderRuntime: ProviderRuntime {
     func refresh() async -> ProviderSnapshot {
         do {
             let result = try await refresh(try await loadCredential())
-            return ProviderSnapshot.make(provider: provider, plan: result.plan, lines: result.lines, refreshedAt: Date())
+            return ProviderSnapshot.make(provider: provider, plan: result.plan, lines: result.lines, refreshedAt: now())
         } catch {
             return ProviderSnapshot.error(provider: provider, error: error)
         }

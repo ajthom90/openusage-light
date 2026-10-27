@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class WidgetRegistryTests: XCTestCase {
     private func provider(_ id: String) -> Provider {

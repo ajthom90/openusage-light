@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The reset-grants request is the one Anthropic throttles when polled, so a regular refresh reads plain
 /// usage and the Rate Limit Resets row is checked at most once an hour per account.

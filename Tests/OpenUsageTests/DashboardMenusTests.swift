@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Apart from the Limit Resets row's popover, right-click is the only way to act on the dashboard, and
 /// its Share Screenshot the only way to copy a picture: a provider's header shares all its accounts, an

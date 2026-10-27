@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct ClaudeMappedUsage: Equatable, Sendable {
     var plan: String?

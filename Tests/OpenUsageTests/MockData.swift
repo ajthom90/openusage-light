@@ -1,5 +1,6 @@
 import SwiftUI
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Test fixtures: sample providers and the widgets they register (mirroring OpenUsage's real
 /// metrics and units). Lives in the test target only — the app builds its registry from the

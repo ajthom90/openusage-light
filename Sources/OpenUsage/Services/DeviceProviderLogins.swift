@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct CopilotLogin: ProviderLogin {
     static let clientID = String(data: Data(base64Encoded: "SXYxLmI1MDdhMDhjODdlY2ZlOTg=")!, encoding: .utf8)!

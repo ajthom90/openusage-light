@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 final class AntigravityArgonQuotaTests: XCTestCase {
     private func summary(groupName: String = "Gemini 4 Argon", buckets: String) -> Data {

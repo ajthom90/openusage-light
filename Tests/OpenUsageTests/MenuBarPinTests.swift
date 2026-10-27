@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the menu-bar pin model on `LayoutStore`: the ≤2-per-provider rendering cap, denial
 /// reasons/notices, order derivation from the Customize order, and persistence across relaunch.

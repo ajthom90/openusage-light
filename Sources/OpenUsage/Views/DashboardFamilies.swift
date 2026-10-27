@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The dashboard's shape: one card per provider (Claude, Codex, …) holding that provider's accounts in
 /// the user's account order. Built from `LayoutStore.displayGroups`, which has one group per account.

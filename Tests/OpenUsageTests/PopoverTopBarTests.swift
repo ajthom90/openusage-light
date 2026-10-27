@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The Accounts list's top bar: its trailing + opens the Add Account sheet, the screen's only way in.
 @MainActor

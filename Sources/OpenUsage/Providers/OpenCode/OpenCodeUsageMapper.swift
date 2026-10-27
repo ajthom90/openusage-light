@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Turns `GET /zen/go/v1/usage` into the three Go plan meters. The endpoint reports percent used
 /// (same numbers as the OpenCode dashboard) plus an ISO reset time — not dollar spend — so each row

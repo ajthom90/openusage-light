@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// A typed read of the usage body's `cedar_ember` block (Anthropic's one-off usage-limit reset grants).
 /// Both the Rate Limit Resets row and the claim read this one model.

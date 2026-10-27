@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Antigravity quota widget IDs and metric labels, shared by account runtimes
 /// and `AntigravityUsageMapper` so both sides of the exact-string label binding

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Regression for #703: a percent meter fed an out-of-range sample (a provider reporting a negative or
 /// >100 utilization) must never surface "-5%" or "105%" on any rendering path — the row's hover text or

@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The per-provider refresh deadline (#1081). A provider whose `refresh()` never returns must not leave
 /// the dashboard spinner turning for the rest of the session, the abandoned work must actually be

@@ -12,6 +12,21 @@ To rename an account, double-click its name on the dashboard, choose Rename from
 
 Account metadata is stored in the app's UserDefaults domain. OAuth tokens and API keys are stored in this app's own Keychain service. OpenUsage Light does not read credentials, files, Keychain items, databases, or environment variables belonging to other tools.
 
+## Command Line
+
+`openusage` prints the limits your accounts report, as JSON, and exits. It reads the accounts you added in the app, so it needs no sign-in of its own and the app does not have to be running.
+
+```sh
+openusage                  # every account, refreshing results older than five minutes
+openusage codex            # every Codex account
+openusage codex@86802bcd   # one account, by the id listed in "order"
+openusage --force          # refresh now instead of reusing recent results
+```
+
+Install it from Settings → Command Line, which links `/usr/local/bin/openusage` to the helper inside the app, so app updates update the command. Exit codes are `0` for success, `2` for invalid arguments or an unknown provider, and `4` when a refresh failed; the last good results are still printed, with the failure listed in `errors`.
+
+The output is the `openusage.limits.v1` document: `order` lists the account ids in your dashboard order, and `providers` maps each id to its plan, `fetchedAt`, `expiresAt`, `stale`, and a `resources` object. A resource is either `consumption` (`used`, plus `limit`, `remaining`, `utilization` and `resetsAt` when the provider reports them) or `balance` (`available`), with an explicit `unit`. Only provider-reported numbers appear; a resource the provider did not report is left out. Credentials never appear.
+
 ## Providers
 
 The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Ollama, OpenCode, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode, OpenRouter, and Z.ai, which use API keys: none of them offers a sign-in that the app can use to read usage. Each API-key step links to the page where you create the key. OpenRouter's balance needs a Management key.
@@ -50,7 +65,9 @@ The development app is staged as `dist/OpenUsage Light.app` with bundle identifi
 
 ## Architecture
 
-This SwiftPM app uses an AppKit status item and panel with SwiftUI content. `AccountStore` persists account metadata; `CredentialVault` stores each account's credential; `ProviderLogin` implements sign-in; and `AccountProviderRuntime` fetches and maps usage for one account. The dashboard is built from those runtimes and the account-specific metric layout.
+This SwiftPM package has three code targets. `OpenUsageCore` holds the platform-neutral data model and the limits document (Foundation only, so a Windows or Linux app can build on it); `OpenUsage` is the macOS app library; `OpenUsageCLI` is the `openusage` command. A test fails if `OpenUsageCore` imports anything but Foundation. Provider clients and mappers also import only Foundation, but still lean on app-side logging and parsing helpers; they are the next code to move into the core.
+
+The app uses an AppKit status item and panel with SwiftUI content. `AccountStore` persists account metadata; `CredentialVault` stores each account's credential; `ProviderLogin` implements sign-in; and `AccountProviderRuntime` fetches and maps usage for one account. The dashboard is built from those runtimes and the account-specific metric layout.
 
 `AGENTS.md` describes repository conventions.
 

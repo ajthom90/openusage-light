@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Providers and accounts keep the user's order; new ones go to the bottom in the order they were added.
 @MainActor

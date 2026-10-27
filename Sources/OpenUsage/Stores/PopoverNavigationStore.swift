@@ -1,4 +1,5 @@
 import Observation
+import OpenUsageCore
 
 /// The screen showing inside the menu-bar popover. Accounts and Settings replace the dashboard
 /// in place (the popover has no window stack); Esc backs out to the dashboard first.

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Builds metric lines from the Z.ai `/api/monitor/usage/quota/limit` payload and the plan name from
 /// `/api/biz/subscription/list`. Ports and extends the legacy Tauri plugin's mapping:

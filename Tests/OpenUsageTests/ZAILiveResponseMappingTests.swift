@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Verifies the Swift mapper against a captured live Z.ai API response. Both endpoints are
 /// undocumented internal APIs, so this guards the mapping against the real shape — not just the

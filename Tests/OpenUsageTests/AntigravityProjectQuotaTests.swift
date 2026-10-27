@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Free-tier Google accounts get 403 SUBSCRIPTION_REQUIRED from `retrieveUserQuotaSummary` unless the
 /// request names the account's Cloud Code project from `loadCodeAssist`. Shapes taken from the live

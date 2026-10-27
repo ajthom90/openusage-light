@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// OpenCode is named "OpenCode" with a "Go" plan tag, while every stored identifier keeps `opencode`.
 @MainActor

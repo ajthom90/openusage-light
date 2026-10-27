@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Go plan meters from `/zen/go/v1/usage`: percent format, resets, periods, and boundary failures.
 final class OpenCodeUsageMapperTests: XCTestCase {

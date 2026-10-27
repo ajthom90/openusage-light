@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct CodexMappedUsage: Equatable, Sendable {
     var plan: String?

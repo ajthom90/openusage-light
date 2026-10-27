@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct OpenRouterUsageClient: Sendable {
     static let creditsURL = "https://openrouter.ai/api/v1/credits"

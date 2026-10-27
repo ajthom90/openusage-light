@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct ClaudeRefreshResponse: Decodable, Hashable, Sendable {
     var accessToken: String

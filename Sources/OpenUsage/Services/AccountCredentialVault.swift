@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import OpenUsageCore
 
 protocol CredentialVault: Sendable {
     func load(_ id: UUID) throws -> AccountCredential?

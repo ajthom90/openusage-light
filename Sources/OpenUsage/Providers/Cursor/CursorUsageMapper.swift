@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct CursorMappedUsage: Equatable, Sendable {
     var plan: String?

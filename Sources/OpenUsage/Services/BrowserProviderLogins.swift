@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct ClaudeLogin: ProviderLogin {
     static let clientID = String(data: Data(base64Encoded: "OWQxYzI1MGEtZTYxYi00NGQ5LTg4ZWQtNTk0NGQxOTYyZjVl")!, encoding: .utf8)!

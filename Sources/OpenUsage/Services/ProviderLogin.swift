@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 enum LoginPrompt: Sendable {
     case browser(URL, acceptsPastedCode: Bool)

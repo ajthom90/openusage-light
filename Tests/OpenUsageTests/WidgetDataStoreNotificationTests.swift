@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// End-to-end coverage of `WidgetDataStore.evaluateNotifications`: it resolves each visible
 /// bounded metric, runs the pure milestone logic, gates on the per-trigger settings, dedups per metric

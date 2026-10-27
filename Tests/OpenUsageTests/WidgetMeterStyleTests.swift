@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the global meter-style setting: one switch (`WidgetDataStore.meterStyle`) flips every bounded
 /// tile between "used" and "left/remaining", overrides any per-descriptor sample mode, leaves unbounded

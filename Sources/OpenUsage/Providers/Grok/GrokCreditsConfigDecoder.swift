@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The slice of Grok's credits config OpenUsage renders: the shared-pool usage percent and the
 /// period it applies to. Decoded from `GET /v1/billing?format=credits` (proto-JSON).

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct GrokMappedUsage: Equatable, Sendable {
     var lines: [MetricLine]

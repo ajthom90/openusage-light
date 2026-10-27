@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OpenUsageCore
 
 /// The Add Account sheet's state: the provider being chosen, the running sign-in, and its outcome.
 /// It owns the sign-in task so a failed attempt can be retried and a cancelled sheet stops the login.

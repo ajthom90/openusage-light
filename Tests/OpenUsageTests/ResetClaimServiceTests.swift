@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The resets popover's claim seam: which accounts get one, which outcomes refresh the account, and how
 /// the post-claim refresh waits out an in-flight refresh or a transient failure.

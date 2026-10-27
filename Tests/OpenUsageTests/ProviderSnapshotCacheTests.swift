@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Guards the in-memory write-through mirror: reads must reflect writes, a second store must not drop
 /// the first, and the mirror must stay a cache over real persistence (a fresh instance reads from disk).

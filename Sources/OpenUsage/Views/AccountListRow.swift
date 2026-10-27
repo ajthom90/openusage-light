@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// One row in the Accounts list (L1), shaped like a Settings row: the drag grip, the provider mark, the
 /// provider name with the account's name in secondary text (the same pairing as the dashboard header),

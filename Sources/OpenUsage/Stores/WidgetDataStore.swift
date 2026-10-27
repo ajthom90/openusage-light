@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OpenUsageCore
 
 /// A compact staleness hint for a provider's on-screen snapshot. `label` is a short, fixed word
 /// ("Outdated") that stays narrow next to long plan names like "Super Grok Heavy", while the precise

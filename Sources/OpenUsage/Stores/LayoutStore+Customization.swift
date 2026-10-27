@@ -1,3 +1,5 @@
+import OpenUsageCore
+
 extension LayoutStore {
     func provider(id: String) -> Provider? { registry.provider(id: id) }
 

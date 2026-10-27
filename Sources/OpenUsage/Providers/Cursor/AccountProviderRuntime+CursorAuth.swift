@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 extension AccountProviderRuntime {
     /// Cursor's access token is a 60-day JWT that is also its refresh token, so the sign-in dies at that

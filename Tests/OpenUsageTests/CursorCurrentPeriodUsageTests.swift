@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// `GetCurrentPeriodUsage` answers with the usage object at the top level (no `usage` envelope).
 /// Shape taken from the live API on 2026-10-23; values are fake.

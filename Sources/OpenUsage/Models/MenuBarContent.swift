@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Resolved, ordered, capped data for the menu-bar strip, built from the pinned metrics and their live
 /// values: one segment per pinned provider, each with its 1–2 pinned metrics. `isEmpty` means render

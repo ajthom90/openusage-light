@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import OpenUsage
+@testable import OpenUsageCore
 
 struct OpenUsageISO8601Tests {
     @Test func parsesZuluISO() {

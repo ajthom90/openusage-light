@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers `WidgetDataStore.plan(for:)`: the provider-header plan is `nil` until the provider has a
 /// snapshot, then mirrors that snapshot's `plan`.

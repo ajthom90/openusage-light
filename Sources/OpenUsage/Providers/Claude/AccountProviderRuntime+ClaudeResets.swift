@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The last reset-grants answer for a Claude account. A failed attempt keeps the previous status and
 /// still counts as the hour's check, so an outage or 429 is retried an hour later rather than every

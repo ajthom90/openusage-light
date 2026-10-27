@@ -1,6 +1,7 @@
 import AppKit
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The panel's rounded corners hold for everything drawn in the window, including the dimming AppKit
 /// adds over the panel while a sheet such as Add Account is attached.

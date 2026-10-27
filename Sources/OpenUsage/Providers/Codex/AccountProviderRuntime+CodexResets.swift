@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 extension AccountProviderRuntime {
     /// The account's reset credits with each credit's expiry, read with the same sign-in right after a

@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 enum ProviderRefreshContext {
     @TaskLocal static var isManual = false

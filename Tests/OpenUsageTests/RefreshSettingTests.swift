@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the refresh cadence as the single source of truth: `RefreshSetting`'s fixed interval, and the
 /// snapshot cache's session-scoped freshness — a snapshot is fresh for one interval only *within the

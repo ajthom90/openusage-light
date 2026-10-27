@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the "No data" state: a placed tile whose provider snapshot has no line matching the
 /// descriptor's metric label must report `hasData == false`, render the exact "—"/"No data" copy, and

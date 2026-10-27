@@ -1,5 +1,6 @@
 import Foundation
 import os
+import OpenUsageCore
 
 /// Subsystem tags that prefix every log line, keeping lines grep-friendly (`[refresh]`, `[cache]`,
 /// `[plugin:claude]`, …). The raw value is the bracketed text and the `os.Logger` category.

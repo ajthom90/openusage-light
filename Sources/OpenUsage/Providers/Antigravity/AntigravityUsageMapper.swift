@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// One model's quota as returned by any source (LS, Cloud Code models, Cloud Code buckets), normalized
 /// before pooling. `remainingFraction` is 0…1 (1 = full); a model with no quota info is treated as

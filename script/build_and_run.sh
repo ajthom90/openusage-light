@@ -38,9 +38,15 @@ echo "==> swift build ($CONFIG)"
 swift build -c "$CONFIG"
 BUILD_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$TARGET_NAME"
+CLI_NAME="openusage-cli"                # the `openusage` command; named apart because paths ignore case
+BUILD_CLI="$BUILD_DIR/$CLI_NAME"
 
 if [ ! -x "$BUILD_BINARY" ]; then
   echo "missing built binary: $BUILD_BINARY" >&2
+  exit 1
+fi
+if [ ! -x "$BUILD_CLI" ]; then
+  echo "missing built command: $BUILD_CLI" >&2
   exit 1
 fi
 echo "==> staging $APP_BUNDLE"
@@ -48,6 +54,8 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+cp "$BUILD_CLI" "$APP_MACOS/$CLI_NAME"
+chmod +x "$APP_MACOS/$CLI_NAME"
 
 # SwiftPM stamps LC_BUILD_VERSION's `sdk` field with the deployment target (macOS 15), not the real
 # SDK it compiled against. macOS gates the modern Liquid Glass control appearance (pop-up buttons,
@@ -138,6 +146,10 @@ if [ -z "$CODESIGN_IDENTITY" ]; then
 fi
 
 if [ -n "$CODESIGN_IDENTITY" ]; then
+  # The command reads the app's own Keychain items, which trust the app's code identity. Signing it
+  # with the app's identifier and certificate gives it that identity, so it reads them without a prompt.
+  /usr/bin/codesign --force --options runtime --identifier "$BUNDLE_ID" \
+    --sign "$CODESIGN_IDENTITY" "$APP_MACOS/$CLI_NAME" >/dev/null
   /usr/bin/codesign --force --options runtime \
     --sign "$CODESIGN_IDENTITY" \
     --entitlements "$SIGN_ENTITLEMENTS" \

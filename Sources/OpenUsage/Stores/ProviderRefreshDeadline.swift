@@ -1,5 +1,6 @@
 import Foundation
 import os
+import OpenUsageCore
 
 /// Runs one provider's `refresh()` under a hard deadline (#1081).
 ///

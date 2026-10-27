@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// The single place a number becomes display text. Every surface — popover rows, the menu-bar strip,
 /// and hover details — formats through here, so a value can never read one way in the tray and another

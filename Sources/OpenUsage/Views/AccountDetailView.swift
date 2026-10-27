@@ -1,4 +1,5 @@
 import SwiftUI
+import OpenUsageCore
 
 /// The Accounts detail for one account (L2). The title bar carries the account's name, which renames
 /// in place (`PopoverTopBar`). Below it is one card with every metric the account supports, in its

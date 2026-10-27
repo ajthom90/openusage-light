@@ -1,6 +1,7 @@
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The provider's header and card, as drawn: the header is the logo and the provider's name, and every
 /// account, one or several, is captioned in the card; the header's logo, every caption and every label

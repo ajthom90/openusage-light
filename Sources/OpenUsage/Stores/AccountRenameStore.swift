@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OpenUsageCore
 
 /// The one account name being edited in place, on a dashboard card header or as the Accounts detail
 /// title. Return or a click elsewhere commits the edit; Esc cancels it. Committing saves the trimmed

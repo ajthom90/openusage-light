@@ -1,3 +1,5 @@
+import OpenUsageCore
+
 /// A provider and its enabled widgets in the provider's metric order. Drives the grouped dashboard list.
 struct ProviderGroup: Identifiable {
     let provider: Provider

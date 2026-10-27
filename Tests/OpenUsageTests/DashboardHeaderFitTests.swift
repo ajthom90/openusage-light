@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Robin's own accounts at the 340 pt panel, as the dashboard hosts them: every account's caption,
 /// name and plan, sits whole inside its card with room for the status glyph, and nothing is ever

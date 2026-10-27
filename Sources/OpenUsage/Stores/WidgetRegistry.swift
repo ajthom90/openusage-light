@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Read-only catalog of providers and the widgets they register, built from the live
 /// `ProviderRuntime`s at launch.

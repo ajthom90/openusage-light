@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers the relative/absolute reset display: `Formatters.whenLabel` (the claim timeline's and claim
 /// notice's "when" phrase) with its absolute day buckets, the session rows' "not started" state (an

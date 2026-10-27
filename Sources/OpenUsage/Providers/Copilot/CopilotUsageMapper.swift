@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 struct CopilotMappedUsage: Equatable, Sendable {
     var plan: String?

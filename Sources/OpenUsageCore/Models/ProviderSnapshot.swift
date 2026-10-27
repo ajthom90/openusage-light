@@ -1,22 +1,22 @@
 import Foundation
 
 /// Latest normalized output for one provider refresh.
-struct ProviderSnapshot: Hashable, Sendable, Codable {
-    let providerID: String
-    let displayName: String
-    var plan: String?
-    var lines: [MetricLine]
-    var refreshedAt: Date
+package struct ProviderSnapshot: Hashable, Sendable, Codable {
+    package let providerID: String
+    package let displayName: String
+    package var plan: String?
+    package var lines: [MetricLine]
+    package var refreshedAt: Date
     /// A soft, non-blocking notice carried on a *successful* snapshot — e.g. Claude's "Re-login for live
     /// usage" when the saved login lacks the `user:profile` scope. Distinct from `errorCategory` (which is
     /// only on error snapshots): the refresh succeeded and partial data (spend tiles) still loads, so this
     /// surfaces as the provider header's orange triangle rather than blanking the provider. Cached with the
     /// snapshot; cleared on the next refresh when the condition resolves.
-    var warning: String?
+    package var warning: String?
     /// Set only on error snapshots to classify provider failures. Always `nil` on success.
-    var errorCategory: ErrorCategory?
+    package var errorCategory: ErrorCategory?
 
-    init(
+    package init(
         providerID: String,
         displayName: String,
         plan: String? = nil,
@@ -34,13 +34,13 @@ struct ProviderSnapshot: Hashable, Sendable, Codable {
         self.errorCategory = errorCategory
     }
 
-    func line(label: String) -> MetricLine? {
+    package func line(label: String) -> MetricLine? {
         lines.first { $0.label == label }
     }
 
     /// The success-path counterpart to `error(provider:message:)`: derives `providerID`/`displayName`
     /// from the provider so account runtimes build their snapshots consistently.
-    static func make(
+    package static func make(
         provider: Provider,
         plan: String?,
         lines: [MetricLine],
@@ -61,7 +61,7 @@ struct ProviderSnapshot: Hashable, Sendable, Codable {
     /// user-facing `localizedDescription`, and the category is derived from the error's
     /// `CategorizedError` conformance (falling back to `.other` for anything that
     /// doesn't classify itself). Preferred over `error(provider:message:)` wherever an `Error` is in hand.
-    static func error(provider: Provider, error: Error) -> ProviderSnapshot {
+    package static func error(provider: Provider, error: Error) -> ProviderSnapshot {
         Self.error(
             provider: provider,
             message: error.localizedDescription,
@@ -69,7 +69,7 @@ struct ProviderSnapshot: Hashable, Sendable, Codable {
         )
     }
 
-    static func error(provider: Provider, message: String, category: ErrorCategory? = nil) -> ProviderSnapshot {
+    package static func error(provider: Provider, message: String, category: ErrorCategory? = nil) -> ProviderSnapshot {
         ProviderSnapshot(
             providerID: provider.id,
             displayName: provider.displayName,

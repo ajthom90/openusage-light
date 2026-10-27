@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// What an account response said about the plan. Distinct from a plain `String?` because "no badge" has
 /// two very different causes: an account that has no plan (ordinary) and a response OpenUsage could not

@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Every metric title and plan a provider can produce renders at full size in the panel: every title
 /// fits the 86 pt label column and no plan truncates. Plans are the providers' official names, never

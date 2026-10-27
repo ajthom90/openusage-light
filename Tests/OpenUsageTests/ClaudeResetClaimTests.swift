@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Claiming a Claude reset grant: request shape, outcome decoding, and the account runtime's full flow,
 /// all through a stub HTTP client with the account's own vault credential.

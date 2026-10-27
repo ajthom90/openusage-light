@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 struct EmptyDashboardView: View {
     let addAccount: () -> Void

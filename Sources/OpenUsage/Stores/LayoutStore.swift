@@ -1,11 +1,14 @@
 import SwiftUI
 import Observation
+import OpenUsageCore
 
 /// Mutable layout: which widgets are enabled, provider order, and each provider's metric order.
 /// `placed` is the enabled set (with stable widget ids); `metricOrderByProvider` is the user's custom order.
 @MainActor
 @Observable
 final class LayoutStore {
+    static let defaultStorageKey = "openusage.layout.v1"
+
     // Swift's private access is file-scoped. Members shared with `LayoutStore+Customization.swift`
     // stay module-internal below; implementation details used only here remain private.
     var placed: [PlacedWidget] = []
@@ -108,7 +111,7 @@ final class LayoutStore {
     init(
         registry: WidgetRegistry,
         defaults: UserDefaults = .standard,
-        storageKey: String = "openusage.layout.v1",
+        storageKey: String = LayoutStore.defaultStorageKey,
         defaultMetricIDs: [String] = DefaultLayout.metricIDs,
         migrationBaselineMetricIDs: [String] = DefaultLayout.migrationBaselineMetricIDs,
         defaultPinnedMetricIDs: [String] = DefaultLayout.pinnedMetricIDs

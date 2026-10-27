@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// Adds an account: choose a provider, then finish its browser, device-code, or API-key sign-in.
 /// Opened as a sheet on the popover from the Accounts list and the empty dashboard.

@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// Covers `MenuBarContentBuilder`: it resolves pinned provider groups into strip groups (order, labels,
 /// and values preserved), and reports empty when nothing is pinned.

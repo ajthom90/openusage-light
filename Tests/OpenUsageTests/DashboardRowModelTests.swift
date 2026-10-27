@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// What a dashboard row shows, resolved from its reading for one instant: a bar in the severity's colour
 /// with its value and its reset beside it — always, at rest — or a value where the bar would be. The

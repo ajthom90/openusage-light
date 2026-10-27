@@ -3,12 +3,12 @@ import Foundation
 /// Shared ISO-8601 date parsing/formatting used by multiple providers and the local API. Normalizes
 /// the various timestamp shapes providers return (space-separated, " UTC" suffix, variable fractional
 /// digits) before parsing.
-enum OpenUsageISO8601 {
-    static func string(from date: Date) -> String {
+package enum OpenUsageISO8601 {
+    package static func string(from date: Date) -> String {
         formatter(fractionalSeconds: true).string(from: date)
     }
 
-    static func date(from value: String) -> Date? {
+    package static func date(from value: String) -> Date? {
         let normalized = normalizeTimestamp(value)
         return formatter(fractionalSeconds: true).date(from: normalized) ??
         formatter(fractionalSeconds: false).date(from: normalized)

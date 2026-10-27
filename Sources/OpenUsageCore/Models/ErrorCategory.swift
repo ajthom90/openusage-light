@@ -1,6 +1,6 @@
 import Foundation
 
-enum ErrorCategory: String, Sendable, CaseIterable, Codable {
+package enum ErrorCategory: String, Sendable, CaseIterable, Codable {
     case notLoggedIn = "not_logged_in"
     case authExpired = "auth_expired"
     case authInvalid = "auth_invalid"
@@ -13,7 +13,7 @@ enum ErrorCategory: String, Sendable, CaseIterable, Codable {
     case notAvailable = "not_available"
     case other
 
-    static func http(_ statusCode: Int) -> ErrorCategory {
+    package static func http(_ statusCode: Int) -> ErrorCategory {
         switch statusCode {
         case 429: .rateLimited
         case 400..<500: .http4xx
@@ -23,6 +23,6 @@ enum ErrorCategory: String, Sendable, CaseIterable, Codable {
     }
 }
 
-protocol CategorizedError: Error {
+package protocol CategorizedError: Error {
     var errorCategory: ErrorCategory { get }
 }

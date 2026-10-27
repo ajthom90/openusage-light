@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OpenUsageCore
 
 /// The text field an account's name turns into while `AccountRenameStore` has an edit open for it. It
 /// takes the keyboard as it appears: it makes its panel key, which the non-activating panel isn't

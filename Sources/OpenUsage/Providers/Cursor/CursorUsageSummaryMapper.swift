@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Combines the two REST payloads used by Cursor Enterprise/team dashboards. The request endpoint
 /// carries the included request allowance, while usage-summary carries structured percentages,

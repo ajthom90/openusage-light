@@ -1,4 +1,5 @@
 import Foundation
+import OpenUsageCore
 
 /// Shared descriptor factories — the one place that knows how a descriptor's template `WidgetData`
 /// is assembled, so providers declare flat metric lists instead of re-implementing the same private

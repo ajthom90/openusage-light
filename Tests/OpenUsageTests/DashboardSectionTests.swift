@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import OpenUsage
+@testable import OpenUsageCore
 
 /// The dashboard shows what it shows: nothing on a provider's header, a caption or a row opens on a
 /// click, no plan or name reacts to the pointer, a plan is plain text and never a badge, and a row under
