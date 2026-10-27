@@ -1,6 +1,6 @@
 # Muse Code usage tracking: findings and open questions
 
-Status: **no documented usage API; an undocumented one exists. Nothing built.** Findings are from Meta's public pages read on 2026-10-27.
+Status: **the usage data and its likely source are identified; the request itself is not yet confirmed. Nothing built.** Findings are from Meta's public pages read on 2026-10-27.
 
 ## What Muse Code is
 
@@ -33,16 +33,26 @@ On first run the CLI offers "a browser sign-in or an API key". `/login` reopens 
 - The app must not read the Muse Code CLI's saved credentials, files, or environment (`META_API_KEY` included), and must not scan its logs.
 - No estimates: counting prompts and dividing by an allowance such as "10-50 prompts" would be an estimate, so a usage meter needs Meta to report used and limit.
 
+## What the CLI itself shows (checked 2026-10-27 on the owner's installed 1.4.13 and their test account)
+
+All of this came from the CLI's own output, its offline `muse schema`, and text in its launcher script and binary. No credentials were read.
+
+- `muse usage --json` prints, after one model turn: `{"allowance":{"tier":"Muse Code Power Usage","window":{"usedPercent":2,"resetsAtMs":...},"weekly":{"usedPercent":0,"resetsAtMs":...},"asOfMs":...,"source":"mint"}}`. Before any turn it printed `"allowance":null,"reason":"server_sent_no_usage"`.
+- Meta's wire schema (`SubscriptionUsage`) defines it: plan `tier`, a 5-hour-class `window` (`usedPercent`, `resetsAtMs`, `windowDurationMins`) and a rolling `weekly` block (`usedPercent`, `resetsAtMs`). Percentages are integers that may exceed 100. That is the same two-meter shape the app already draws for Claude and Codex.
+- **`source: "mint"`**: the usage arrives with the "mint" request, the call that turns the browser sign-in into a working key. The binary's `MintedKey` structure has 15 fields, including `api_key`, `is_subs_active`, `subs_tier_id`, `subs_tier_name`, `has_payment_method`, `can_subscribe`, `subs_usage`, `user_full_name`, `user_email`. The binary reads `TBH_MINT_BASE_URL` to override the mint service's base URL, and uses `https://api.meta.ai/v1` for the model API.
+- **Sign-in is the standard OAuth device flow** against `https://auth.meta.com`: `POST /oidc/device/authorization/` and `POST /oidc/device/token/` with the public client id `1031625952748946` and the grant `urn:ietf:params:oauth:grant-type:device_code` (from the launcher script; the same client id appears beside `MintedKey` in the binary). The app already implements this flow for Copilot, Grok, and Cursor.
+- Route fragments seen in the binary under `https://api.meta.ai/muse-code/`: `config`, `key`, `models`, `search`, `telemetry/...`, `logout`. **`muse-code/key` is a guess for the mint route; its method, headers, and exact response keys are unconfirmed.**
+
 ## What a real implementation needs
 
-1. **The endpoint behind `muse usage`:** its URL, the auth it expects, and its response shape. This is the same kind of first-party-but-undocumented endpoint the app already uses for other providers' usage (for example Claude's `/api/oauth/usage`), so it fits the project's pattern, but it can change without notice.
-2. **A sign-in the app can run itself** (AGENTS.md: sign-in happens in the app). If the endpoint accepts an API key, a paste field would do. If it needs the browser sign-in, the app needs that flow's protocol too, which is also undocumented.
-3. **Not acceptable:** running `muse usage` as a subprocess or reading the CLI's stored credentials. That relies on another tool's login, which the project rules forbid.
+1. **Sign-in in the app:** the device flow above (the app's existing `DeviceCodePoller` pattern), producing a token the app stores in its own vault. No reading of `~/.config/muse/auth.json`.
+2. **The mint call** with that token, then read `subs_usage` (window and weekly) plus `subs_tier_name`. Confirm the route, method, and response keys by making the call once with an app-obtained token.
+3. **Caveats:** the mint endpoint is undocumented and can change; it may mint a new API key each time it is called (side effects not yet known); whether the launcher's client id is accepted for this scope is unverified.
+4. **Not acceptable:** running `muse usage` as a subprocess or reading the CLI's stored credentials.
 
-## Ways to find the endpoint (needs the owner's go-ahead)
+## Safe way to confirm the route (needs the owner)
 
-- Install the `muse` CLI into an isolated folder (`curl -fsSL https://dev.meta.ai/install.sh | bash` is the documented installer; its script and the binary would be read before running), sign in with the owner's test Meta AI account *by the owner*, and watch what `muse usage` sends through a local intercepting proxy. Nothing the CLI stores would be read by the app.
-- Static look at the downloaded binary for URLs.
+A throwaway script runs the device flow: it prints a code and link, the owner approves it in the browser with the test Meta AI account, and the script makes the one mint call and prints only the non-secret usage fields. It stores nothing. This avoids reading the CLI's credentials, and it needs no proxy. (A TLS-intercepting proxy would also work, but running one downloaded from PyPI was declined by the sandbox and needs explicit permission.)
 
 ## Sources
 
