@@ -1,0 +1,116 @@
+name: Windows
+
+# Builds and tests the Windows programs, packages them, and then runs the package on a fresh runner that
+# has never had Swift installed, to prove the zip carries everything it needs.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/windows.yml"
+      - "Package.swift"
+      - "script/package_windows.cmd"
+      - "Sources/OpenUsageCore/**"
+      - "Sources/OpenUsageWindows*/**"
+      - "Tests/OpenUsageCoreTests/**"
+      - "Tests/OpenUsageWindowsTests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and package (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: windows-latest, swift_arch: amd64 }
+          - { arch: arm64, runner: windows-11-arm, swift_arch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: compnerd/gha-setup-swift@v0.5.1
+        with:
+          swift-version: swift-6.4.1-release
+          swift-build: 6.4.1-RELEASE
+          build_arch: ${{ matrix.swift_arch }}
+
+      # The Visual Studio build tools environment for this architecture, which the Swift linker needs.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Tests (core and Windows)
+        shell: cmd
+        run: swift test
+
+      - name: Package
+        shell: cmd
+        run: script\package_windows.cmd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenUsageLight-windows-${{ matrix.arch }}
+          path: dist/OpenUsageLight-windows-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  verify:
+    name: Run the package on a clean machine (${{ matrix.arch }})
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: windows-latest }
+          - { arch: arm64, runner: windows-11-arm }
+    steps:
+      # Deliberately no checkout and no Swift: only the zip.
+      - uses: actions/download-artifact@v4
+        with:
+          name: OpenUsageLight-windows-${{ matrix.arch }}
+
+      - name: This machine has no Swift
+        shell: pwsh
+        run: |
+          if (Get-Command swift -ErrorAction SilentlyContinue) { throw "swift is installed on this runner" }
+          if (Get-Command swiftCore.dll -ErrorAction SilentlyContinue) { throw "the Swift runtime is on this runner's PATH" }
+          "no swift, no Swift runtime on PATH"
+
+      - name: Extract
+        shell: pwsh
+        run: |
+          tar -xf OpenUsageLight-windows-${{ matrix.arch }}.zip
+          Get-ChildItem OpenUsageLight-windows-${{ matrix.arch }} -Filter *.exe | Select-Object Name, Length
+          "libraries: " + (Get-ChildItem OpenUsageLight-windows-${{ matrix.arch }} -Filter *.dll).Count
+
+      - name: Run with only the Windows folders on PATH
+        shell: pwsh
+        run: |
+          $dir = (Resolve-Path "OpenUsageLight-windows-${{ matrix.arch }}").Path
+          $env:PATH = "C:\Windows\System32;C:\Windows"
+
+          $version = & "$dir\openusage.exe" --version
+          "openusage --version -> $version (exit $LASTEXITCODE)"
+          if ($LASTEXITCODE -ne 0 -or $version -ne "0.1.0") { throw "openusage did not run" }
+
+          $limits = & "$dir\openusage.exe" | Out-String
+          "openusage with no accounts -> exit $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0 -or $limits -notmatch "openusage.limits.v1") { throw "openusage printed no document" }
+
+          $snapshot = Join-Path $dir "popover.bmp"
+          $p = Start-Process "$dir\OpenUsageLight.exe" -ArgumentList "--demo","--light","--snapshot",$snapshot -Wait -PassThru
+          "tray app --snapshot -> exit $($p.ExitCode), $((Get-Item $snapshot).Length) bytes"
+          if ($p.ExitCode -ne 0 -or (Get-Item $snapshot).Length -lt 100000) { throw "the tray app did not render" }
+
+      - name: The check can fail (a library removed)
+        shell: pwsh
+        run: |
+          $dir = (Resolve-Path "OpenUsageLight-windows-${{ matrix.arch }}").Path
+          Rename-Item "$dir\swiftCore.dll" "swiftCore.hidden"
+          $env:PATH = "C:\Windows\System32;C:\Windows"
+          $p = Start-Process "$dir\openusage.exe" -ArgumentList "--version" -Wait -PassThru -NoNewWindow
+          "without swiftCore.dll -> exit $($p.ExitCode)"
+          if ($p.ExitCode -eq 0) { throw "the program ran without a bundled library, so this check proves nothing" }
