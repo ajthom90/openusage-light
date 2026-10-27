@@ -25,7 +25,19 @@ package enum WindowsApp {
         // `--snapshot <file.bmp>`: draw the popover off-screen to a picture and exit.
         if let flag = arguments.firstIndex(of: "--snapshot"), arguments.indices.contains(flag + 1) {
             let palette: PopoverPalette = arguments.contains("--dark") ? .dark : arguments.contains("--light") ? .light : .current()
-            let renderer = PopoverRenderer(sections: model.sections, palette: palette, dpi: Int(GetDpiForSystem()), status: "Updated just now")
+            var screen = PopoverScreen.dashboard
+            if let at = arguments.firstIndex(of: "--screen"), arguments.indices.contains(at + 1) {
+                switch arguments[at + 1] {
+                case "accounts": screen = .accounts
+                case "picker": screen = .picker
+                case "entry": screen = .entry(.openrouter)
+                default: break
+                }
+            }
+            let renderer = PopoverRenderer(
+                sections: model.sections, palette: palette, dpi: Int(GetDpiForSystem()), status: "Updated just now",
+                screen: screen, accounts: summaries(model)
+            )
             return SnapshotWriter.write(renderer: renderer, to: URL(fileURLWithPath: arguments[flag + 1])) ? 0 : 1
         }
         let popover = PopoverWindow()
@@ -35,11 +47,27 @@ package enum WindowsApp {
 
         // The window's thread draws from a snapshot of the model; every model change sends a new one.
         let publish: @MainActor () -> Void = {
-            popover.update(PopoverState(sections: model.sections, isRefreshing: model.isRefreshing, lastRefreshed: model.lastRefreshed))
+            popover.update(PopoverState(
+                sections: model.sections, isRefreshing: model.isRefreshing, lastRefreshed: model.lastRefreshed,
+                accounts: Self.summaries(model)
+            ))
         }
         model.onChange = publish
         publish()
         popover.onRefresh = { Task { @MainActor in await model.refresh(force: true) } }
+        popover.onAddAccount = { kind, key in
+            Task { @MainActor in
+                model.accounts.add(kind: kind, label: kind.displayName, credential: .apiKey(key))
+                model.reload()
+                if !demo { await model.refresh(force: true) }
+            }
+        }
+        popover.onRemoveAccount = { id in
+            Task { @MainActor in
+                model.accounts.remove(id)
+                model.reload()
+            }
+        }
 
         // Refresh on the shared interval, concurrently with the window.
         let refresher = Task { @MainActor in
@@ -56,6 +84,14 @@ package enum WindowsApp {
         }
         refresher.cancel()
         return created ? 0 : 1
+    }
+
+    /// The accounts in the dashboard's order, for the accounts page.
+    @MainActor
+    private static func summaries(_ model: DashboardModel) -> [AccountSummary] {
+        model.sections.compactMap { section in
+            model.accounts.accounts.first { $0.cardID == section.id }.map { AccountSummary(id: $0.id, kind: $0.kind, label: $0.label) }
+        }
     }
 
     /// The name of a window station or desktop (a window shown on anything but the user's "WinSta0" is

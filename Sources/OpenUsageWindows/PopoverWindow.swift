@@ -27,6 +27,7 @@ struct PopoverState: Sendable {
     var sections: [DashboardSection] = []
     var isRefreshing = false
     var lastRefreshed: Date?
+    var accounts: [AccountSummary] = []
 }
 
 /// The tray icon and the popover window it opens. Painting is `PopoverRenderer`'s; this owns the window,
@@ -46,6 +47,10 @@ final class PopoverWindow: @unchecked Sendable {
     /// Whether losing focus closes the popover. Off for `--show`, which keeps it up for screenshots.
     var hidesWhenDeactivated = true
 
+    /// Called on the window's thread with a provider and the key the user typed.
+    var onAddAccount: @Sendable (ProviderKind, String) -> Void = { _, _ in }
+    var onRemoveAccount: @Sendable (Foundation.UUID) -> Void = { _ in }
+
     /// Called on the window's thread.
     var onRefresh: @Sendable () -> Void = {}
 
@@ -56,6 +61,12 @@ final class PopoverWindow: @unchecked Sendable {
     private var scroll: Int32 = 0
     private var hits: [PopoverRenderer.Hit] = []
     private var hiddenAt: ULONGLONG = 0
+    private var screen: PopoverScreen = .dashboard
+    private var note: String?
+    /// The key text box, a real Windows EDIT control placed over the entry page's field.
+    private var edit: HWND?
+    private var editFont: HFONT?
+    private var editBrush: HBRUSH?
 
     init() {}
 
@@ -116,6 +127,7 @@ final class PopoverWindow: @unchecked Sendable {
         )
         guard let window else { return false }
         windowBits.withLock { $0 = UInt(bitPattern: window) }
+        createEdit(parent: window)
         // Rounded corners on Windows 11 (ignored where unsupported).
         var corner: Int32 = 2
         DwmSetWindowAttribute(window, DWORD(33), &corner, DWORD(MemoryLayout<Int32>.size))
@@ -124,6 +136,8 @@ final class PopoverWindow: @unchecked Sendable {
     }
 
     func destroy() {
+        if let editFont { DeleteObject(editFont) }
+        if let editBrush { DeleteObject(editBrush) }
         guard let window else { return }
         var data = trayData(window)
         Shell_NotifyIconW(DWORD(NIM_DELETE), &data)
@@ -176,6 +190,14 @@ final class PopoverWindow: @unchecked Sendable {
     func hide(_ reason: String = "unspecified") {
         guard let window, isVisible else { return }
         UIDebugLog.write("hide reason=\(reason)")
+        if screen != .dashboard {
+            screen = .dashboard
+            note = nil
+            if let edit {
+                SetWindowTextW(edit, Win32.wide(""))
+                ShowWindow(edit, SW_HIDE)
+            }
+        }
         ShowWindow(window, SW_HIDE)
         hiddenAt = GetTickCount64()
     }
@@ -190,7 +212,10 @@ final class PopoverWindow: @unchecked Sendable {
 
     private func renderer() -> PopoverRenderer {
         let snapshot = state.withLock { $0 }
-        return PopoverRenderer(sections: snapshot.sections, palette: .current(), dpi: dpi, status: statusText(snapshot))
+        return PopoverRenderer(
+            sections: snapshot.sections, palette: .current(), dpi: dpi, status: statusText(snapshot),
+            screen: screen, accounts: snapshot.accounts, note: note
+        )
     }
 
     private func statusText(_ snapshot: PopoverState) -> String {
@@ -234,12 +259,20 @@ final class PopoverWindow: @unchecked Sendable {
             return 0
         case UINT(WM_ERASEBKGND):
             return 1
+        case UINT(WM_CTLCOLOREDIT):
+            guard let dc = HDC(bitPattern: UInt(wParam)), let editBrush else { return DefWindowProcW(hwnd, message, wParam, lParam) }
+            let palette = PopoverPalette.current()
+            SetTextColor(dc, palette.text)
+            SetBkColor(dc, palette.track)
+            return LRESULT(Int(bitPattern: editBrush))
         case UINT(WM_ACTIVATE):
-            if (wParam & 0xFFFF) == UInt(WA_INACTIVE), hidesWhenDeactivated { hide("deactivated") }
+            if (wParam & 0xFFFF) == UInt(WA_INACTIVE), hidesWhenDeactivated, screen == .dashboard { hide("deactivated") }
             return 0
         case UINT(WM_KEYDOWN):
             UIDebugLog.write("key \(wParam)")
-            if wParam == UInt(VK_ESCAPE) { hide("escape") }
+            if wParam == UInt(VK_ESCAPE) {
+                if screen == .dashboard { hide("escape") } else { goBack() }
+            }
             return 0
         case UINT(WM_MOUSEWHEEL):
             let delta = Int32(Int16(truncatingIfNeeded: wParam >> 16))
@@ -278,8 +311,92 @@ final class PopoverWindow: @unchecked Sendable {
             case .quit:
                 UIDebugLog.write("quit")
                 PostQuitMessage(0)
+            case .accounts: go(.accounts)
+            case .back: goBack()
+            case .addAccount: go(.picker)
+            case .choose(let kind): go(.entry(kind))
+            case .remove(let id): onRemoveAccount(id)
+            case .openKeyPage: openKeyPage()
+            case .submit: submit()
             }
+            return
         }
+    }
+
+    // MARK: - Add-account pages
+
+    private func createEdit(parent: HWND) {
+        let style = DWORD(WS_CHILD) | DWORD(WS_BORDER) | DWORD(ES_AUTOHSCROLL) | DWORD(ES_PASSWORD)
+        edit = CreateWindowExW(0, Win32.wide("EDIT"), Win32.wide(""), style, 0, 0, 10, 10, parent, nil, GetModuleHandleW(nil), nil)
+        guard let edit else { return }
+        editFont = CreateFontW(
+            -Win32.scale(14, dpi), 0, 0, 0, Int32(FW_NORMAL), 0, 0, 0,
+            DWORD(DEFAULT_CHARSET), DWORD(OUT_DEFAULT_PRECIS), DWORD(CLIP_DEFAULT_PRECIS),
+            DWORD(CLEARTYPE_QUALITY), DWORD(DEFAULT_PITCH | FF_DONTCARE), Win32.wide("Segoe UI")
+        )
+        SendMessageW(edit, UINT(WM_SETFONT), WPARAM(UInt(bitPattern: editFont)), 1)
+        SendMessageW(edit, UINT(EM_SETLIMITTEXT), 600, 0)
+    }
+
+    private func go(_ next: PopoverScreen) {
+        if case .entry = screen, next != screen, let edit { SetWindowTextW(edit, Win32.wide("")) }
+        screen = next
+        scroll = 0
+        if case .entry = next {} else { note = nil }
+        resize()
+        updateEdit()
+        if let window { InvalidateRect(window, nil, false) }
+    }
+
+    private func goBack() {
+        switch screen {
+        case .dashboard: break
+        case .accounts: go(.dashboard)
+        case .picker: go(.accounts)
+        case .entry: go(.picker)
+        }
+    }
+
+    /// Shows the key text box over the entry page's field, or hides it on every other page.
+    private func updateEdit() {
+        guard let edit else { return }
+        guard case .entry = screen, let window else {
+            ShowWindow(edit, SW_HIDE)
+            return
+        }
+        var client = RECT()
+        GetClientRect(window, &client)
+        let field = renderer().entryFieldRect(width: client.right)
+        let inset = Win32.scale(2, dpi)
+        SetWindowPos(
+            edit, nil, field.left + inset, field.top + inset,
+            field.right - field.left - inset * 2, field.bottom - field.top - inset * 2, UINT(SWP_NOZORDER)
+        )
+        if let old = editBrush { DeleteObject(old) }
+        editBrush = CreateSolidBrush(PopoverPalette.current().track)
+        ShowWindow(edit, SW_SHOW)
+        SetFocus(edit)
+    }
+
+    private func submit() {
+        guard case .entry(let kind) = screen, let edit else { return }
+        let length = Int(GetWindowTextLengthW(edit))
+        var buffer = [WCHAR](repeating: 0, count: length + 1)
+        GetWindowTextW(edit, &buffer, Int32(buffer.count))
+        let key = String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        for index in buffer.indices { buffer[index] = 0 }
+        guard !key.isEmpty else {
+            note = "Paste your API key first."
+            if let window { InvalidateRect(window, nil, false) }
+            return
+        }
+        onAddAccount(kind, key)
+        go(.dashboard)
+    }
+
+    private func openKeyPage() {
+        guard case .entry(let kind) = screen, case .apiKey(let page) = kind.authMethod else { return }
+        ShellExecuteW(nil, Win32.wide("open"), Win32.wide(page.absoluteString), nil, nil, Int32(SW_SHOWNORMAL))
     }
 
     /// For `--show`: three seconds after showing, copy what the screen shows under the window to a file.

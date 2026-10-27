@@ -6,7 +6,12 @@ import WinSDK
 /// Draws the dashboard into a device context with plain GDI. It knows nothing about windows: give it
 /// sections, a palette and a size, and it paints and reports where the buttons are.
 struct PopoverRenderer {
-    enum Button: Equatable { case refresh, quit }
+    enum Button: Equatable {
+        case accounts, refresh, quit
+        case back, addAccount, openKeyPage, submit
+        case remove(Foundation.UUID)
+        case choose(ProviderKind)
+    }
 
     struct Hit {
         var rect: RECT
@@ -18,21 +23,26 @@ struct PopoverRenderer {
     var dpi: Int
     /// The footer's status text ("Updated 2m ago", "Refreshing…").
     var status: String
+    var screen: PopoverScreen = .dashboard
+    var accounts: [AccountSummary] = []
+    /// A short message on the add-account form ("Paste your API key first.").
+    var note: String?
 
     // Layout, in 96-dpi pixels.
     static let width = 340
-    private let padding = 14
-    private let headerHeight = 44
-    private let noticeHeight = 18
-    private let rowHeight = 36
-    private let sectionPadding = 10
-    private let footerHeight = 40
-    private let emptyHeight = 92
+    let padding = 14
+    let headerHeight = 44
+    let noticeHeight = 18
+    let rowHeight = 36
+    let sectionPadding = 10
+    let footerHeight = 40
+    let emptyHeight = 92
 
-    private func s(_ value: Int) -> Int32 { Win32.scale(value, dpi) }
+    func s(_ value: Int) -> Int32 { Win32.scale(value, dpi) }
 
     /// The height the sections need, without the footer.
     func contentHeight() -> Int32 {
+        if screen != .dashboard { return screenHeight() }
         guard !sections.isEmpty else { return s(emptyHeight) }
         let total = sections.reduce(0) { sum, section in
             sum + sectionPadding * 2 + headerHeight + (section.notice == nil ? 0 : noticeHeight) + section.rows.count * rowHeight
@@ -40,7 +50,7 @@ struct PopoverRenderer {
         return s(total)
     }
 
-    var footerPixels: Int32 { s(footerHeight) }
+    var footerPixels: Int32 { screen == .dashboard ? s(footerHeight) : 0 }
 
     /// Paints everything for a view `size` pixels wide and tall, scrolled by `scroll`, and returns the
     /// footer buttons' rectangles.
@@ -50,6 +60,7 @@ struct PopoverRenderer {
         SetBkMode(hdc, TRANSPARENT)
         let fonts = Fonts(dpi: dpi)
         defer { fonts.release() }
+        if screen != .dashboard { return drawScreen(on: hdc, fonts: fonts, size: size) }
 
         let contentBottom = size.cy - footerPixels
         var clip = RECT(left: 0, top: 0, right: size.cx, bottom: contentBottom)
@@ -158,26 +169,29 @@ struct PopoverRenderer {
         fill(hdc, &line, palette.divider)
 
         var hits: [Hit] = []
-        var quit = RECT(left: size.cx - pad - s(44), top: top, right: size.cx - pad, bottom: size.cy)
+        var quit = RECT(left: size.cx - pad - s(36), top: top, right: size.cx - pad, bottom: size.cy)
         text(hdc, fonts.body, palette.normal, "Quit", &quit, DT_RIGHT)
         hits.append(Hit(rect: quit, button: .quit))
-        var refresh = RECT(left: quit.left - s(76), top: top, right: quit.left - s(10), bottom: size.cy)
+        var refresh = RECT(left: quit.left - s(66), top: top, right: quit.left - s(14), bottom: size.cy)
         text(hdc, fonts.body, palette.normal, "Refresh", &refresh, DT_RIGHT)
         hits.append(Hit(rect: refresh, button: .refresh))
-        var status = RECT(left: pad, top: top, right: refresh.left - s(8), bottom: size.cy)
+        var accounts = RECT(left: refresh.left - s(76), top: top, right: refresh.left - s(14), bottom: size.cy)
+        text(hdc, fonts.body, palette.normal, "Accounts", &accounts, DT_RIGHT)
+        hits.append(Hit(rect: accounts, button: .accounts))
+        var status = RECT(left: pad, top: top, right: accounts.left - s(8), bottom: size.cy)
         text(hdc, fonts.small, palette.secondaryText, self.status, &status, DT_LEFT)
         return hits
     }
 
     // MARK: - Primitives
 
-    private func fill(_ hdc: HDC, _ rect: inout RECT, _ color: COLORREF) {
+    func fill(_ hdc: HDC, _ rect: inout RECT, _ color: COLORREF) {
         let brush = CreateSolidBrush(color)
         FillRect(hdc, &rect, brush)
         DeleteObject(brush)
     }
 
-    private func roundedBar(_ hdc: HDC, left: Int32, top: Int32, width: Int32, height: Int32, color: COLORREF) {
+    func roundedBar(_ hdc: HDC, left: Int32, top: Int32, width: Int32, height: Int32, color: COLORREF) {
         let brush = CreateSolidBrush(color)
         let oldBrush = SelectObject(hdc, brush)
         let oldPen = SelectObject(hdc, GetStockObject(NULL_PEN))
@@ -187,7 +201,7 @@ struct PopoverRenderer {
         DeleteObject(brush)
     }
 
-    private func text(_ hdc: HDC, _ font: HFONT?, _ color: COLORREF, _ string: String, _ rect: inout RECT, _ align: Int32) {
+    func text(_ hdc: HDC, _ font: HFONT?, _ color: COLORREF, _ string: String, _ rect: inout RECT, _ align: Int32) {
         let old = SelectObject(hdc, font)
         SetTextColor(hdc, color)
         var units = Win32.wide(string)
@@ -196,7 +210,7 @@ struct PopoverRenderer {
         SelectObject(hdc, old)
     }
 
-    private func measure(_ hdc: HDC, _ font: HFONT?, _ string: String) -> Int32 {
+    func measure(_ hdc: HDC, _ font: HFONT?, _ string: String) -> Int32 {
         let old = SelectObject(hdc, font)
         defer { SelectObject(hdc, old) }
         var units = Win32.wide(string)
