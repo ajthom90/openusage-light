@@ -238,6 +238,7 @@ final class PopoverWindow: @unchecked Sendable {
             if (wParam & 0xFFFF) == UInt(WA_INACTIVE), hidesWhenDeactivated { hide("deactivated") }
             return 0
         case UINT(WM_KEYDOWN):
+            UIDebugLog.write("key \(wParam)")
             if wParam == UInt(VK_ESCAPE) { hide("escape") }
             return 0
         case UINT(WM_MOUSEWHEEL):
@@ -246,9 +247,12 @@ final class PopoverWindow: @unchecked Sendable {
             invalidate()
             return 0
         case UINT(WM_LBUTTONUP):
-            click(x: Int32(Int16(truncatingIfNeeded: lParam)), y: Int32(Int16(truncatingIfNeeded: lParam >> 16)))
+            let x = Int32(Int16(truncatingIfNeeded: lParam)), y = Int32(Int16(truncatingIfNeeded: lParam >> 16))
+            UIDebugLog.write("click x=\(x) y=\(y) buttons=\(hits.map { "\($0.button)@\($0.rect.left),\($0.rect.top),\($0.rect.right),\($0.rect.bottom)" })")
+            click(x: x, y: y)
             return 0
         case Self.trayMessage:
+            UIDebugLog.write("tray message \(lParam & 0xFFFF)")
             switch UINT(truncatingIfNeeded: lParam & 0xFFFF) {
             case UINT(WM_LBUTTONUP): toggle()
             case UINT(WM_RBUTTONUP): showMenu(hwnd)
@@ -271,7 +275,9 @@ final class PopoverWindow: @unchecked Sendable {
         for hit in hits where x >= hit.rect.left && x <= hit.rect.right && y >= hit.rect.top && y <= hit.rect.bottom {
             switch hit.button {
             case .refresh: onRefresh()
-            case .quit: PostQuitMessage(0)
+            case .quit:
+                UIDebugLog.write("quit")
+                PostQuitMessage(0)
             }
         }
     }
