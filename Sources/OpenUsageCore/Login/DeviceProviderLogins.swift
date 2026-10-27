@@ -1,11 +1,10 @@
 import Foundation
-import OpenUsageCore
 
-struct CopilotLogin: ProviderLogin {
-    static let clientID = String(data: Data(base64Encoded: "SXYxLmI1MDdhMDhjODdlY2ZlOTg=")!, encoding: .utf8)!
-    var http: any HTTPClient = URLSessionHTTPClient()
+package struct CopilotLogin: ProviderLogin {
+    package static let clientID = String(data: Data(base64Encoded: "SXYxLmI1MDdhMDhjODdlY2ZlOTg=")!, encoding: .utf8)!
+    package var http: any HTTPClient = URLSessionHTTPClient()
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let startURL = URL(string: "https://github.com/login/device/code")!
         let startResponse = try await LoginHTTP.postForm(startURL, fields: [
             "client_id": Self.clientID,
@@ -48,12 +47,12 @@ struct CopilotLogin: ProviderLogin {
     }
 }
 
-struct GrokLogin: ProviderLogin {
-    static let clientID = OAuthClients.grokClientID
-    static let scopes = "openid profile email offline_access grok-cli:access api:access"
-    var http: any HTTPClient = URLSessionHTTPClient()
+package struct GrokLogin: ProviderLogin {
+    package static let clientID = OAuthClients.grokClientID
+    package static let scopes = "openid profile email offline_access grok-cli:access api:access"
+    package var http: any HTTPClient = URLSessionHTTPClient()
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let start = try await LoginHTTP.postForm(URL(string: "https://auth.x.ai/oauth2/device/code")!, fields: [
             "client_id": Self.clientID,
             "scope": Self.scopes
@@ -90,10 +89,10 @@ struct GrokLogin: ProviderLogin {
     }
 }
 
-struct CursorLogin: ProviderLogin {
-    var http: any HTTPClient = URLSessionHTTPClient()
+package struct CursorLogin: ProviderLogin {
+    package var http: any HTTPClient = URLSessionHTTPClient()
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let pkce = PKCE.generate()
         let uuid = UUID().uuidString
         var components = URLComponents(string: "https://cursor.com/loginDeepControl")!
@@ -130,10 +129,10 @@ struct CursorLogin: ProviderLogin {
     }
 }
 
-struct APIKeyLogin: ProviderLogin {
-    let kind: ProviderKind
+package struct APIKeyLogin: ProviderLogin {
+    package let kind: ProviderKind
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         var iterator = pastedCode.makeAsyncIterator()
         guard let value = await iterator.next() else { throw LoginError.cancelled }
         let key = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -142,28 +141,28 @@ struct APIKeyLogin: ProviderLogin {
     }
 }
 
-enum ProviderLoginCatalog {
-    static func login(for kind: ProviderKind) -> any ProviderLogin {
+/// The logins that need no local redirect listener: a pasted key, or a code approved in a browser. Each
+/// platform's catalog uses these, and adds the sign-ins it can host itself. `nil` for the others.
+package enum SharedProviderLogins {
+    package static func login(for kind: ProviderKind) -> (any ProviderLogin)? {
         switch kind {
-        case .claude: ClaudeLogin()
-        case .codex: CodexLogin()
         case .cursor: CursorLogin()
-        case .antigravity: AntigravityLogin()
         case .copilot: CopilotLogin()
         case .grok: GrokLogin()
         case .musecode: MuseCodeLogin()
         case .ollama, .opencodeGo, .openrouter, .zai: APIKeyLogin(kind: kind)
+        case .claude, .codex, .antigravity: nil
         }
     }
 }
 
 private struct GitHubDeviceCode: Decodable {
-    let deviceCode: String
-    let userCode: String
-    let verificationURI: String
-    let expiresIn: Int
-    let interval: TimeInterval?
-    enum CodingKeys: String, CodingKey {
+    package let deviceCode: String
+    package let userCode: String
+    package let verificationURI: String
+    package let expiresIn: Int
+    package let interval: TimeInterval?
+    package enum CodingKeys: String, CodingKey {
         case deviceCode = "device_code"
         case userCode = "user_code"
         case verificationURI = "verification_uri"
@@ -173,20 +172,20 @@ private struct GitHubDeviceCode: Decodable {
 }
 
 private struct GitHubDeviceToken: Sendable {
-    let accessToken: String
+    package let accessToken: String
 }
 
 private struct GitHubUser: Decodable {
-    let login: String
+    package let login: String
 }
 
 private struct XAIDeviceCode: Decodable {
-    let deviceCode: String
-    let userCode: String
-    let verificationURI: String
-    let expiresIn: Int
-    let interval: TimeInterval?
-    enum CodingKeys: String, CodingKey {
+    package let deviceCode: String
+    package let userCode: String
+    package let verificationURI: String
+    package let expiresIn: Int
+    package let interval: TimeInterval?
+    package enum CodingKeys: String, CodingKey {
         case deviceCode = "device_code"
         case userCode = "user_code"
         case verificationURI = "verification_uri"
@@ -196,31 +195,31 @@ private struct XAIDeviceCode: Decodable {
 }
 
 private struct OAuthTokenResponse: Decodable {
-    let accessToken: String
-    let refreshToken: String?
-    let expiresIn: Double?
-    let idToken: String?
-    enum CodingKeys: String, CodingKey {
+    package let accessToken: String
+    package let refreshToken: String?
+    package let expiresIn: Double?
+    package let idToken: String?
+    package enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
         case idToken = "id_token"
     }
-    var expiry: Date? { expiresIn.map { Date().addingTimeInterval(max(0, $0 - 300)) } }
+    package var expiry: Date? { expiresIn.map { Date().addingTimeInterval(max(0, $0 - 300)) } }
 }
 
 private struct CursorTokenResponse: Decodable, Sendable {
-    let accessToken: String
-    let refreshToken: String
-    let userID: String?
+    package let accessToken: String
+    package let refreshToken: String
+    package let userID: String?
 }
 
 private struct GrokIDClaims: Decodable {
-    let email: String?
+    package let email: String?
 }
 
 private extension String {
-    func jwtPayload<T: Decodable>(as type: T.Type) -> T? {
+    package func jwtPayload<T: Decodable>(as type: T.Type) -> T? {
         guard let data = LoginHTTP.jwtPayload(self) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
     }

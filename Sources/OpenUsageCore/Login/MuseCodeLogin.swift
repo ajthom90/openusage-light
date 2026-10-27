@@ -1,18 +1,17 @@
 import Foundation
-import OpenUsageCore
 
 /// Signs in to Muse Code with Meta's standard device flow: the app shows a code and a link, the user
 /// approves it in a browser, and the app receives a sign-in token. The token is stored in this app's own
 /// vault. The account is named after the signed-in Meta account's email when it reports one.
-struct MuseCodeLogin: ProviderLogin {
-    static let clientID = OAuthClients.museCodeClientID
+package struct MuseCodeLogin: ProviderLogin {
+    package static let clientID = OAuthClients.museCodeClientID
     /// Meta's endpoints end in a slash, and the server answers the slashless form with an error, so these
     /// are written out whole rather than built with `appendingPathComponent`, which drops it.
-    static let authorizationURL = URL(string: "https://auth.meta.com/oidc/device/authorization/")!
-    static let tokenURL = URL(string: "https://auth.meta.com/oidc/device/token/")!
-    var http: any HTTPClient = URLSessionHTTPClient()
+    package static let authorizationURL = URL(string: "https://auth.meta.com/oidc/device/authorization/")!
+    package static let tokenURL = URL(string: "https://auth.meta.com/oidc/device/token/")!
+    package var http: any HTTPClient = URLSessionHTTPClient()
 
-    func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
+    package func login(prompt: @Sendable (LoginPrompt) async -> Void, pastedCode: AsyncStream<String>) async throws -> (label: String, credential: AccountCredential) {
         let start = try await LoginHTTP.postForm(Self.authorizationURL, fields: [
             "client_id": Self.clientID
         ], using: http)
@@ -54,13 +53,13 @@ struct MuseCodeLogin: ProviderLogin {
 }
 
 private struct MetaDeviceCode: Decodable {
-    let deviceCode: String
-    let userCode: String
-    let verificationURI: String
-    let verificationURIComplete: String?
-    let expiresIn: Int
-    let interval: TimeInterval?
-    enum CodingKeys: String, CodingKey {
+    package let deviceCode: String
+    package let userCode: String
+    package let verificationURI: String
+    package let verificationURIComplete: String?
+    package let expiresIn: Int
+    package let interval: TimeInterval?
+    package enum CodingKeys: String, CodingKey {
         case deviceCode = "device_code"
         case userCode = "user_code"
         case verificationURI = "verification_uri"
@@ -72,8 +71,8 @@ private struct MetaDeviceCode: Decodable {
 
 /// Meta's token answer carries only the token and its type: no refresh token and no expiry.
 private struct MetaTokenResponse: Decodable {
-    let accessToken: String
-    enum CodingKeys: String, CodingKey {
+    package let accessToken: String
+    package enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
     }
 }

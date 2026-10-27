@@ -1,15 +1,14 @@
 import Foundation
-import OpenUsageCore
 
-enum DeviceCodePollResult<Value: Sendable>: Sendable {
+package enum DeviceCodePollResult<Value: Sendable>: Sendable {
     case pending
     case slowDown
     case complete(Value)
     case failed(String)
 }
 
-enum DeviceCodePoller {
-    static func poll<Value: Sendable>(
+package enum DeviceCodePoller {
+    package static func poll<Value: Sendable>(
         interval: TimeInterval,
         expiresIn: TimeInterval,
         now: @escaping @Sendable () -> Date = Date.init,
@@ -38,12 +37,12 @@ enum DeviceCodePoller {
     }
 }
 
-struct DeviceCodeError: LocalizedError, Sendable {
-    let message: String
+package struct DeviceCodeError: LocalizedError, Sendable {
+    package let message: String
 
-    init(_ message: String) {
+    package init(_ message: String) {
         self.message = message
     }
 
-    var errorDescription: String? { message }
+    package var errorDescription: String? { message }
 }
