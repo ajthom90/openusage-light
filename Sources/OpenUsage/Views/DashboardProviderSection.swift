@@ -5,8 +5,9 @@ import SwiftUI
 /// right-aligned before the logo at the end of the line, which ends where the rows' reset column does. The card holds the provider's accounts, separated by space alone: each a caption over one row
 /// per metric, the caption left out when the header names the account. Nothing on the line is ever
 /// cut or shrunk: a sole account whose "Provider — name" and plan don't fit beside the logo reads as a
-/// card of several accounts would, the provider alone above, the name and plan on the caption. Static:
-/// the dashboard adds hover, menus and drags around it, and the share image draws it as it is.
+/// card of several accounts would, the provider alone above, the name and plan on the caption. Static
+/// but for the status glyph's tooltip: the dashboard adds hover, menus and drags around it, and the
+/// share image draws it as it is.
 struct DashboardProviderSection<Trailing: View, Account: View>: View {
     let family: DashboardFamily
     /// The plan of an account, by its id.
@@ -168,14 +169,14 @@ struct AccountName: View {
 }
 
 /// An account's refresh state, after its name: a spinner while it refreshes, a warning when the refresh
-/// failed, a clock when its reading is stale. Nothing while all is well. The right-click menu explains a
-/// warning or clock.
+/// failed, a clock when its reading is stale. Nothing while all is well. A warning or clock explains
+/// itself on hover, as the right-click menu does; the spinner says nothing.
 struct AccountStatus {
     var refreshing = false
     var notice: String?
     var staleness: StalenessHint?
 
-    @ViewBuilder
+    @MainActor @ViewBuilder
     var glyph: some View {
         if refreshing {
             MotionAwareProgressView(controlSize: .mini)
@@ -184,11 +185,13 @@ struct AccountStatus {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.notice)
+                .hoverTooltip(notice)
                 .accessibilityLabel(notice)
         } else if let staleness {
             Image(systemName: "clock")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.tertiary)
+                .hoverTooltip(staleness.tooltip)
                 .accessibilityLabel(staleness.tooltip)
         }
     }

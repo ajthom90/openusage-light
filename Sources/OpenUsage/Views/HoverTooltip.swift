@@ -185,7 +185,7 @@ private final class TooltipPresenter {
     /// The target currently on screen (and its text, to detect a live text change), and the one a
     /// pending reveal is scheduled for.
     private var shownID: UUID?
-    private var shownText: String?
+    private(set) var shownText: String?
     private var pendingID: UUID?
     private var revealTask: Task<Void, Never>?
 
@@ -404,6 +404,8 @@ private final class TooltipPresenter {
 @MainActor
 enum HoverTooltips {
     static func dismissAll() { TooltipPresenter.shared.dismissAll() }
+    /// The text of the tooltip on screen, or `nil` while none is: what a test reads off a hover.
+    static var visibleText: String? { TooltipPresenter.shared.shownText }
 }
 
 /// Never becomes key or main, so showing it can't pull focus and dismiss the transient popover.

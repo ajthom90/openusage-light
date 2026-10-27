@@ -5,10 +5,11 @@ import XCTest
 
 /// The dashboard shows what it shows: nothing on a provider's header, a caption or a row opens on a
 /// click, no plan or name reacts to the pointer, a plan is plain text and never a badge, and a row under
-/// the pointer draws exactly as it does at rest. Three things react: resting the pointer on the Limit
-/// Resets row's count opens the resets timeline after the hover dwell, a double-click on an account's
-/// name renames it, on its caption or in a one-account provider's header, and the logo turns into the
-/// copy button while the pointer is on the provider. Dragging still reorders: the header drags the
+/// the pointer draws exactly as it does at rest. Four things react: resting the pointer on the Limit
+/// Resets row's count opens the resets timeline after the hover dwell, resting it on the warning or
+/// clock after an account's name opens a tooltip with the reason, a double-click on an account's name
+/// renames it, on its caption or in a one-account provider's header, and the logo turns into the copy
+/// button while the pointer is on the provider. Dragging still reorders: the header drags the
 /// provider, a caption drags its account, and a row drags itself.
 @MainActor
 final class DashboardSectionTests: QuietWindowTestCase {
@@ -88,9 +89,10 @@ final class DashboardSectionTests: QuietWindowTestCase {
 
         XCTAssertEqual(interactiveParts(section.body), [], "section")
         XCTAssertEqual(interactiveParts(section.header), [], "header")
-        XCTAssertEqual(interactiveParts(DashboardAccountCaption(account: personal, plan: "Max 5x").body), [], "caption")
-        XCTAssertEqual(interactiveParts(stale.body), [], "stale caption")
-        XCTAssertEqual(interactiveParts(AccountStatus(notice: "Refresh failed").glyph), [], "status glyph")
+        // The caption's one reaction is the status glyph's tooltip, which the warning and the clock carry.
+        XCTAssertEqual(interactiveParts(DashboardAccountCaption(account: personal, plan: "Max 5x").body), ["Hover", "Tooltip"], "caption")
+        XCTAssertEqual(interactiveParts(stale.body), ["Hover", "Tooltip"], "stale caption")
+        XCTAssertEqual(interactiveParts(AccountStatus(notice: "Refresh failed").glyph), ["Hover", "Tooltip"], "status glyph")
         // The name's one handler is the double-click (`onTapGesture(count: 2)`); the tests below prove
         // a single click there does nothing.
         XCTAssertEqual(interactiveParts(AccountName(account: personal, font: .body).body), ["TapGesture"], "name")
@@ -131,6 +133,39 @@ final class DashboardSectionTests: QuietWindowTestCase {
         XCTAssertEqual(hosted.host.fittingSize.height, height, "the hover changed the height")
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
         HoverPopoverState.dismissAll()
+    }
+
+    /// The warning after the name of an account whose refresh failed explains itself: resting the pointer
+    /// on it opens a tooltip with the notice after the hover dwell, which goes once the pointer leaves.
+    /// The name beside it opens nothing.
+    func testHoveringTheWarningShowsTheNoticeAndHoveringTheNameShowsNothing() throws {
+        let notice = "Refresh failed: the token has expired."
+        let (renaming, provider) = storedAccount(label: "Work")
+        let family = DashboardFamily(id: "claude", provider: provider, accounts: [account(provider)])
+        let section = DashboardProviderSection(family: family, status: AccountStatus(notice: notice)) {
+            ProviderIcon(source: provider.icon, inset: 0.04)
+        } account: { account, captioned in
+            DashboardAccountRows(account: account, captioned: captioned)
+        }
+        let (window, host) = hostView(section, renaming: renaming)
+        let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
+        func opened() -> [NSWindow] { NSApp.windows.filter { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
+        let headerMid = DashboardGrid.headerHeight / 2
+        let nameEnd = DashboardGrid.cardPadding + DashboardGrid.inset + ("Claude — Work" as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width
+
+        try hover(CGPoint(x: Self.nameX, y: headerMid), window, host)
+        XCTAssertTrue(opened().isEmpty, "hovering the name opens something")
+        XCTAssertNil(HoverTooltips.visibleText)
+
+        try hover(CGPoint(x: nameEnd + Theme.Spacing.s + 5, y: headerMid), window, host)
+        let tooltip = try XCTUnwrap(opened().first, "hovering the warning opens no tooltip")
+        XCTAssertEqual(opened().count, 1)
+        XCTAssertFalse(tooltip.isKeyWindow, "the tooltip took the keyboard")
+        XCTAssertEqual(HoverTooltips.visibleText, notice, "the tooltip doesn't read the notice")
+
+        try leave(window, host)
+        XCTAssertTrue(opened().isEmpty, "the tooltip stayed after the pointer left")
+        XCTAssertNil(HoverTooltips.visibleText)
     }
 
     /// A plan is plain secondary text, in the header and on a caption alike: no capsule, no plate.
@@ -362,6 +397,24 @@ final class DashboardSectionTests: QuietWindowTestCase {
         )!)
         send(.mouseMoved, at: point, window, host)
         RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+    }
+
+    /// Takes the pointer off the section: the exit event for the host's tracking area, which is what
+    /// ends a hover (a move to another point of the section does not).
+    private func leave(_ window: NSWindow, _ host: NSView) throws {
+        let area = try XCTUnwrap(host.trackingAreas.first, "nothing on the section tracks the pointer")
+        host.mouseExited(with: NSEvent.enterExitEvent(
+            with: .mouseExited,
+            location: NSPoint(x: -10, y: -10),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            trackingNumber: Int(bitPattern: Unmanaged.passUnretained(area).toOpaque()),
+            userData: nil
+        )!)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
     }
 
     private func click(_ point: CGPoint, _ window: NSWindow, _ host: NSView) {
