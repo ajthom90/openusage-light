@@ -32,15 +32,22 @@ package enum WindowsApp {
                 case "picker": screen = .picker
                 case "entry": screen = .entry(.openrouter)
                 case "signin": screen = .signIn(.musecode)
+                case "signin-paste": screen = .signIn(.claude)
                 default: break
                 }
             }
             let renderer = PopoverRenderer(
                 sections: model.sections, palette: palette, dpi: Int(GetDpiForSystem()), status: "Updated just now",
                 screen: screen, accounts: summaries(model),
-                signIn: screen == .signIn(.musecode)
-                    ? SignInState(kind: .musecode, userCode: "ABCD-EFGH", url: URL(string: "https://auth.meta.com/oauth/device/"))
-                    : nil
+                signIn: {
+                    switch screen {
+                    case .signIn(.musecode):
+                        SignInState(kind: .musecode, userCode: "ABCD-EFGH", url: URL(string: "https://auth.meta.com/oauth/device/"))
+                    case .signIn(let kind):
+                        SignInState(kind: kind, url: URL(string: "https://claude.ai/oauth/authorize"), acceptsPastedCode: true)
+                    default: nil
+                    }
+                }()
             )
             return SnapshotWriter.write(renderer: renderer, to: URL(fileURLWithPath: arguments[flag + 1])) ? 0 : 1
         }
@@ -71,6 +78,7 @@ package enum WindowsApp {
             Task { @MainActor in signIns.start(kind, model: model, popover: popover, refreshAfter: !demo) }
         }
         popover.onCancelSignIn = { Task { @MainActor in signIns.cancel() } }
+        popover.onSubmitCode = { code in Task { @MainActor in signIns.submit(code: code) } }
         popover.onRemoveAccount = { id in
             Task { @MainActor in
                 model.accounts.remove(id)

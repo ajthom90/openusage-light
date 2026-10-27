@@ -66,7 +66,7 @@ targets += [
         dependencies: ["OpenUsageCore"],
         path: "Sources/OpenUsageWindows",
         swiftSettings: swift6,
-        linkerSettings: [.linkedLibrary("Crypt32"), .linkedLibrary("Dwmapi"), .linkedLibrary("Shell32")]
+        linkerSettings: [.linkedLibrary("Crypt32"), .linkedLibrary("Dwmapi"), .linkedLibrary("Shell32"), .linkedLibrary("Ws2_32")]
     ),
     // The tray app: a GUI-subsystem program, so no console window opens beside it.
     .executableTarget(

@@ -9,7 +9,7 @@ struct PopoverRenderer {
     enum Button: Equatable {
         case accounts, refresh, quit
         case back, addAccount, openKeyPage, submit
-        case openSignInPage, retrySignIn
+        case openSignInPage, retrySignIn, copySignInLink, submitCode
         case remove(Foundation.UUID)
         case choose(ProviderKind)
     }

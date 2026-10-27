@@ -87,47 +87,16 @@ final class LoopbackCallbackServer: OAuthCallbackServer, @unchecked Sendable {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { [weak self] data, _, _, error in
             guard let self else { connection.cancel(); return }
             guard error == nil, let data, let request = String(data: data, encoding: .utf8) else {
-                self.reply(connection, status: 400, body: "Sign-in failed.", result: .failure(LoopbackCallbackError.invalidRequest))
+                self.reply(connection, OAuthCallbackRequest.unreadable)
                 return
             }
-            self.handle(request, connection: connection)
+            self.reply(connection, OAuthCallbackRequest.evaluate(request, path: path, state: state))
         }
     }
 
-    private func handle(_ request: String, connection: NWConnection) {
-        guard let line = request.components(separatedBy: "\r\n").first,
-              let target = line.split(separator: " ").dropFirst().first,
-              line.hasPrefix("GET ") else {
-            reply(connection, status: 405, body: "Only GET is supported.", result: .failure(LoopbackCallbackError.invalidRequest))
-            return
-        }
-        guard let url = URL(string: "http://localhost\(target)"), url.path == path else {
-            reply(connection, status: 404, body: "Sign-in callback not found.", result: .failure(LoopbackCallbackError.invalidRequest))
-            return
-        }
-        guard URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "state" })?.value == state else {
-            reply(connection, status: 400, body: "Sign-in state did not match.", result: .failure(LoopbackCallbackError.stateMismatch))
-            return
-        }
-        if let error = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "error" })?.value {
-            reply(connection, status: 400, body: "Sign-in failed.", result: .failure(LoopbackCallbackError.authorization(error)))
-            return
-        }
-        guard let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "code" })?.value,
-              !code.isEmpty else {
-            reply(connection, status: 400, body: "Authorization code was missing.", result: .failure(LoopbackCallbackError.invalidRequest))
-            return
-        }
-        reply(connection, status: 200, body: "Sign-in complete. You may close this page.", result: .success(code))
-    }
-
-    private func reply(_ connection: NWConnection, status: Int, body: String, result: Result<String, Error>) {
-        finish(result)
-        let bodyData = Data("<!doctype html><title>OpenUsage Light</title><p>\(body)</p>".utf8)
-        let response = Data(
-            "HTTP/1.1 \(status) \(status == 200 ? "OK" : "Error")\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(bodyData.count)\r\nConnection: close\r\n\r\n".utf8
-        ) + bodyData
-        connection.send(content: response, completion: .contentProcessed { [listener] _ in
+    private func reply(_ connection: NWConnection, _ outcome: OAuthCallbackRequest.Outcome) {
+        finish(outcome.result)
+        connection.send(content: OAuthCallbackRequest.response(for: outcome), completion: .contentProcessed { [listener] _ in
             connection.cancel()
             listener.cancel()
         })

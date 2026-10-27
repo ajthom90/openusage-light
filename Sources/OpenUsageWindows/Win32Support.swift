@@ -27,6 +27,19 @@ enum Win32 {
         Int32((Double(value) * Double(dpi) / 96).rounded())
     }
 
+    /// Puts `string` on the clipboard as Unicode text.
+    static func copyToClipboard(_ string: String, owner: HWND?) {
+        guard OpenClipboard(owner) else { return }
+        defer { CloseClipboard() }
+        EmptyClipboard()
+        let units = wide(string)
+        let bytes = units.count * MemoryLayout<WCHAR>.size
+        guard let handle = GlobalAlloc(UINT(GMEM_MOVEABLE), SIZE_T(bytes)), let memory = GlobalLock(handle) else { return }
+        units.withUnsafeBytes { memory.copyMemory(from: $0.baseAddress!, byteCount: bytes) }
+        GlobalUnlock(handle)
+        SetClipboardData(UINT(CF_UNICODETEXT), handle)
+    }
+
     /// Whether Windows apps are set to the dark theme.
     static func appsUseDarkTheme() -> Bool {
         var value: DWORD = 1

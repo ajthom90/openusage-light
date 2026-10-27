@@ -42,7 +42,7 @@ final class PopoverWindow: @unchecked Sendable {
     private static let trayMessage = UINT(WM_APP + 1)
     private static let stateMessage = UINT(WM_APP + 2)
     private static let className = "OpenUsageLightPopover"
-    private enum MenuCommand: UInt { case refresh = 1, quit = 2 }
+    private enum MenuCommand: UInt { case refresh = 1, quit = 2, launchAtLogin = 3 }
 
     /// Whether losing focus closes the popover. Off for `--show`, which keeps it up for screenshots.
     var hidesWhenDeactivated = true
@@ -53,6 +53,8 @@ final class PopoverWindow: @unchecked Sendable {
     /// Called when the user picks a browser-approval provider, and when they back out of it.
     var onStartSignIn: @Sendable (ProviderKind) -> Void = { _ in }
     var onCancelSignIn: @Sendable () -> Void = {}
+    /// Called with a code the user pasted into the sign-in page.
+    var onSubmitCode: @Sendable (String) -> Void = { _ in }
 
     /// Called on the window's thread.
     var onRefresh: @Sendable () -> Void = {}
@@ -71,6 +73,7 @@ final class PopoverWindow: @unchecked Sendable {
     private var edit: HWND?
     private var editFont: HFONT?
     private var editBrush: HBRUSH?
+    private var trayIcon: HICON?
 
     init() {}
 
@@ -98,7 +101,7 @@ final class PopoverWindow: @unchecked Sendable {
         var next = SignInState(kind: kind)
         switch prompt {
         case .deviceCode(let code, let url): next.userCode = code; next.url = url
-        case .browser(let url, _): next.url = url
+        case .browser(let url, let acceptsPastedCode): next.url = url; next.acceptsPastedCode = acceptsPastedCode
         }
         signInState.withLock { $0 = next }
         post()
@@ -159,6 +162,7 @@ final class PopoverWindow: @unchecked Sendable {
         guard let window else { return false }
         windowBits.withLock { $0 = UInt(bitPattern: window) }
         createEdit(parent: window)
+        trayIcon = TrayIcon.make(dpi: dpi)
         // Rounded corners on Windows 11 (ignored where unsupported).
         var corner: Int32 = 2
         DwmSetWindowAttribute(window, DWORD(33), &corner, DWORD(MemoryLayout<Int32>.size))
@@ -169,6 +173,7 @@ final class PopoverWindow: @unchecked Sendable {
     func destroy() {
         if let editFont { DeleteObject(editFont) }
         if let editBrush { DeleteObject(editBrush) }
+        if let trayIcon { DestroyIcon(trayIcon) }
         guard let window else { return }
         var data = trayData(window)
         Shell_NotifyIconW(DWORD(NIM_DELETE), &data)
@@ -183,7 +188,7 @@ final class PopoverWindow: @unchecked Sendable {
         data.uID = 1
         data.uFlags = UINT(NIF_MESSAGE | NIF_ICON | NIF_TIP)
         data.uCallbackMessage = Self.trayMessage
-        data.hIcon = LoadIconW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))
+        data.hIcon = trayIcon ?? LoadIconW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))
         Win32.copy("OpenUsage Light", into: &data.szTip, capacity: 128)
         return data
     }
@@ -292,6 +297,7 @@ final class PopoverWindow: @unchecked Sendable {
                 go(.dashboard)
                 return 0
             }
+            if case .signIn = screen { resize(); updateEdit() }
             invalidate()
             return 0
         case UINT(WM_TIMER):
@@ -336,6 +342,7 @@ final class PopoverWindow: @unchecked Sendable {
             switch MenuCommand(rawValue: UInt(wParam & 0xFFFF)) {
             case .refresh: onRefresh()
             case .quit: PostQuitMessage(0)
+            case .launchAtLogin: LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
             case nil: break
             }
             return 0
@@ -360,6 +367,8 @@ final class PopoverWindow: @unchecked Sendable {
             case .submit: submit()
             case .openSignInPage: openSignInPage()
             case .retrySignIn: if case .signIn(let kind) = screen { startSignIn(kind) }
+            case .copySignInLink: copySignInLink()
+            case .submitCode: submitPastedCode()
             }
             return
         }
@@ -406,13 +415,22 @@ final class PopoverWindow: @unchecked Sendable {
     /// Shows the key text box over the entry page's field, or hides it on every other page.
     private func updateEdit() {
         guard let edit else { return }
-        guard case .entry = screen, let window else {
+        guard let window else { ShowWindow(edit, SW_HIDE); return }
+        var client = RECT()
+        GetClientRect(window, &client)
+        let field: RECT
+        switch screen {
+        case .entry:
+            field = renderer().entryFieldRect(width: client.right)
+            SendMessageW(edit, UINT(EM_SETPASSWORDCHAR), 0x25CF, 0)           // a key is masked
+        case .signIn:
+            guard let paste = renderer().pasteFieldRect(width: client.right) else { ShowWindow(edit, SW_HIDE); return }
+            field = paste
+            SendMessageW(edit, UINT(EM_SETPASSWORDCHAR), 0, 0)                // a sign-in code is shown
+        default:
             ShowWindow(edit, SW_HIDE)
             return
         }
-        var client = RECT()
-        GetClientRect(window, &client)
-        let field = renderer().entryFieldRect(width: client.right)
         let inset = Win32.scale(2, dpi)
         SetWindowPos(
             edit, nil, field.left + inset, field.top + inset,
@@ -454,6 +472,24 @@ final class PopoverWindow: @unchecked Sendable {
         onStartSignIn(kind)
     }
 
+    private func copySignInLink() {
+        guard let url = signInState.withLock({ $0?.url }) else { return }
+        Win32.copyToClipboard(url.absoluteString, owner: window)
+    }
+
+    private func submitPastedCode() {
+        guard let edit else { return }
+        let length = Int(GetWindowTextLengthW(edit))
+        var buffer = [WCHAR](repeating: 0, count: length + 1)
+        GetWindowTextW(edit, &buffer, Int32(buffer.count))
+        let code = String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else { return }
+        SetWindowTextW(edit, Win32.wide(""))
+        signInState.withLock { $0?.submitted = true }
+        if let window { InvalidateRect(window, nil, false) }
+        onSubmitCode(code)
+    }
+
     private func openSignInPage() {
         guard let url = signInState.withLock({ $0?.url }) else { return }
         ShellExecuteW(nil, Win32.wide("open"), Win32.wide(url.absoluteString), nil, nil, Int32(SW_SHOWNORMAL))
@@ -475,6 +511,11 @@ final class PopoverWindow: @unchecked Sendable {
     private func showMenu(_ hwnd: HWND?) {
         guard let menu = CreatePopupMenu() else { return }
         AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(MenuCommand.refresh.rawValue), Win32.wide("Refresh"))
+        AppendMenuW(
+            menu, UINT(MF_STRING) | (LaunchAtLogin.isEnabled ? UINT(MF_CHECKED) : 0),
+            UINT_PTR(MenuCommand.launchAtLogin.rawValue), Win32.wide("Launch at Login")
+        )
+        AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
         AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(MenuCommand.quit.rawValue), Win32.wide("Quit OpenUsage Light"))
         var cursor = POINT()
         GetCursorPos(&cursor)

@@ -18,6 +18,9 @@ struct SignInState: Equatable, Sendable {
     var userCode: String?
     var url: URL?
     var errorMessage: String?
+    var acceptsPastedCode = false
+    /// A pasted code has been sent and the sign-in is finishing.
+    var submitted = false
     var finished = false
 }
 
@@ -30,7 +33,7 @@ enum SignInMethod: Equatable {
 
     init(_ kind: ProviderKind) {
         if case .apiKey = kind.authMethod { self = .apiKey }
-        else if SharedProviderLogins.login(for: kind) != nil { self = .browserApproval }
+        else if SharedProviderLogins.login(for: kind, callbackServer: WinsockCallbackServer.factory) != nil { self = .browserApproval }
         else { self = .unavailable }
     }
 }
@@ -60,7 +63,7 @@ extension PopoverRenderer {
         case .accounts: s(titleHeight + max(accounts.count, 1) * accountRowHeight + 64)
         case .picker: s(titleHeight + Self.pickerKinds.count * pickerRowHeight + 24)
         case .entry: s(titleHeight + 172)
-        case .signIn: s(titleHeight + 190)
+        case .signIn: s(signInLayout().height)
         }
     }
 
@@ -159,37 +162,84 @@ extension PopoverRenderer {
         }
     }
 
+    /// Where each part of the sign-in page sits (96-dpi units from the top), which depends on whether the
+    /// provider shows a code and accepts a pasted one. Shared by drawing and by placing the text box.
+    struct SignInLayout {
+        var intro = 0, codeBox: Int?, status = 0, buttons = 0, pasteLabel: Int?, field: Int?, height = 0
+    }
+
+    func signInLayout() -> SignInLayout {
+        var layout = SignInLayout()
+        var y = titleHeight + 6
+        layout.intro = y
+        y += 48
+        if signIn?.userCode != nil {
+            layout.codeBox = y
+            y += 64
+        }
+        layout.status = y
+        y += 28
+        layout.buttons = y
+        y += 30
+        if signIn?.acceptsPastedCode == true {
+            layout.pasteLabel = y + 6
+            layout.field = y + 30
+            y += 30 + 32 + 12 + 30
+        }
+        layout.height = y + 12
+        return layout
+    }
+
+    /// The paste box's rectangle in client pixels (the real text box is placed over it).
+    func pasteFieldRect(width: Int32) -> RECT? {
+        guard let top = signInLayout().field else { return nil }
+        let pad = s(padding)
+        return RECT(left: pad, top: s(top), right: width - pad, bottom: s(top + 32))
+    }
+
     private func drawSignIn(_ kind: ProviderKind, _ hdc: HDC, _ fonts: Fonts, _ size: SIZE, _ hits: inout [Hit]) {
         let pad = s(padding)
         header("Sign In to \(kind.displayName)", button: "Cancel", action: .back, hdc, fonts, size, &hits)
         let state = signIn
-        var y = s(titleHeight + 6)
+        let layout = signInLayout()
         if let message = state?.errorMessage {
-            var rect = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + s(70))
+            var rect = RECT(left: pad, top: s(titleHeight + 6), right: size.cx - pad, bottom: s(titleHeight + 76))
             text(hdc, fonts.small, palette.notice, message, &rect, DT_LEFT | DT_WORDBREAK)
-            var retry = RECT(left: pad, top: y + s(90), right: size.cx - pad, bottom: y + s(116))
+            var retry = RECT(left: pad, top: s(titleHeight + 96), right: size.cx - pad, bottom: s(titleHeight + 122))
             text(hdc, fonts.bodyBold, palette.normal, SignInCopy.tryAgain, &retry, DT_LEFT)
             hits.append(Hit(rect: retry, button: .retrySignIn))
             return
         }
-        let instruction = state?.userCode == nil && state?.url != nil
+        let ready = state?.url != nil
+        let instruction = state?.userCode == nil
             ? "Continue in your browser. This closes when you\u{2019}re signed in."
             : SignInCopy.deviceCodeInstruction
-        var intro = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + s(40))
-        text(hdc, fonts.small, palette.secondaryText, state?.url == nil ? SignInCopy.preparing : instruction, &intro, DT_LEFT | DT_WORDBREAK)
-        y += s(48)
-        if let code = state?.userCode {
-            var box = RECT(left: pad, top: y, right: size.cx - pad, bottom: y + s(52))
+        var intro = RECT(left: pad, top: s(layout.intro), right: size.cx - pad, bottom: s(layout.intro + 40))
+        text(hdc, fonts.small, palette.secondaryText, ready ? instruction : SignInCopy.preparing, &intro, DT_LEFT | DT_WORDBREAK)
+        if let boxTop = layout.codeBox, let code = state?.userCode {
+            var box = RECT(left: pad, top: s(boxTop), right: size.cx - pad, bottom: s(boxTop + 52))
             fill(hdc, &box, palette.track)
             text(hdc, fonts.code, palette.text, code, &box, DT_CENTER)
-            y += s(64)
         }
-        var status = RECT(left: pad, top: y, right: size.cx / 2 + s(20), bottom: y + s(24))
-        text(hdc, fonts.small, palette.secondaryText, state?.url == nil ? SignInCopy.preparing : SignInCopy.waitingForBrowser, &status, DT_LEFT)
-        if state?.url != nil {
-            var open = RECT(left: size.cx / 2, top: y, right: size.cx - pad, bottom: y + s(24))
-            text(hdc, fonts.bodyBold, palette.normal, SignInCopy.openBrowser, &open, DT_RIGHT)
+        var status = RECT(left: pad, top: s(layout.status), right: size.cx - pad, bottom: s(layout.status + 24))
+        let statusText = !ready ? SignInCopy.preparing : (state?.submitted == true ? SignInCopy.signingIn : SignInCopy.waitingForBrowser)
+        text(hdc, fonts.small, palette.secondaryText, statusText, &status, DT_LEFT)
+        if ready {
+            var open = RECT(left: pad, top: s(layout.buttons), right: size.cx / 2, bottom: s(layout.buttons + 26))
+            text(hdc, fonts.bodyBold, palette.normal, SignInCopy.openBrowser, &open, DT_LEFT)
             hits.append(Hit(rect: open, button: .openSignInPage))
+            var copy = RECT(left: size.cx / 2, top: s(layout.buttons), right: size.cx - pad, bottom: s(layout.buttons + 26))
+            text(hdc, fonts.body, palette.normal, "Copy Link", &copy, DT_RIGHT)
+            hits.append(Hit(rect: copy, button: .copySignInLink))
+        }
+        if let labelTop = layout.pasteLabel, let fieldTop = layout.field {
+            var label = RECT(left: pad, top: s(labelTop), right: size.cx - pad, bottom: s(labelTop + 22))
+            text(hdc, fonts.small, palette.secondaryText, "If your browser shows a code, paste it here:", &label, DT_LEFT)
+            var field = RECT(left: pad, top: s(fieldTop), right: size.cx - pad, bottom: s(fieldTop + 32))
+            fill(hdc, &field, palette.track)
+            var next = RECT(left: size.cx / 2, top: s(fieldTop + 40), right: size.cx - pad, bottom: s(fieldTop + 66))
+            text(hdc, fonts.bodyBold, palette.normal, "Continue", &next, DT_RIGHT)
+            hits.append(Hit(rect: next, button: .submitCode))
         }
     }
 
