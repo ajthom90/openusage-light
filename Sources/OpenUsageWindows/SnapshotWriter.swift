@@ -28,21 +28,54 @@ enum SnapshotWriter {
         GdiFlush()
         SelectObject(memory, previous)
 
-        let pixelBytes = Int(width) * Int(height) * 4
-        var file = Data()
-        func append<T: FixedWidthInteger>(_ value: T) { withUnsafeBytes(of: value.littleEndian) { file.append(contentsOf: $0) } }
-        file.append(contentsOf: [0x42, 0x4D])                     // "BM"
-        append(UInt32(14 + 40 + pixelBytes)); append(UInt32(0)); append(UInt32(14 + 40))
-        append(UInt32(40)); append(Int32(width)); append(Int32(-height))
-        append(UInt16(1)); append(UInt16(32)); append(UInt32(0)); append(UInt32(pixelBytes))
-        append(Int32(2835)); append(Int32(2835)); append(UInt32(0)); append(UInt32(0))
-        file.append(Data(bytes: bits, count: pixelBytes))
+        let file = BMPFile.data(width: Int(width), height: Int(height), pixels: bits)
         do {
             try file.write(to: url, options: .atomic)
             return true
         } catch {
             return false
         }
+    }
+}
+
+/// A 32-bit top-down BMP file from raw BGRA pixels.
+enum BMPFile {
+    static func data(width: Int, height: Int, pixels: UnsafeRawPointer) -> Data {
+        let pixelBytes = width * height * 4
+        var file = Data()
+        func append<T: FixedWidthInteger>(_ value: T) { withUnsafeBytes(of: value.littleEndian) { file.append(contentsOf: $0) } }
+        file.append(contentsOf: [0x42, 0x4D])
+        append(UInt32(14 + 40 + pixelBytes)); append(UInt32(0)); append(UInt32(14 + 40))
+        append(UInt32(40)); append(Int32(width)); append(Int32(-height))
+        append(UInt16(1)); append(UInt16(32)); append(UInt32(0)); append(UInt32(pixelBytes))
+        append(Int32(2835)); append(Int32(2835)); append(UInt32(0)); append(UInt32(0))
+        file.append(Data(bytes: pixels, count: pixelBytes))
+        return file
+    }
+}
+
+/// Reads back what the composed desktop shows inside `rect`, from the screen itself.
+enum ScreenGrab {
+    static func write(rect: RECT, to url: URL) -> Bool {
+        let width = rect.right - rect.left, height = rect.bottom - rect.top
+        guard width > 0, height > 0, let screen = GetDC(nil), let memory = CreateCompatibleDC(screen) else { return false }
+        defer { ReleaseDC(nil, screen); DeleteDC(memory) }
+        var info = BITMAPINFO()
+        info.bmiHeader.biSize = DWORD(MemoryLayout<BITMAPINFOHEADER>.size)
+        info.bmiHeader.biWidth = width
+        info.bmiHeader.biHeight = -height
+        info.bmiHeader.biPlanes = 1
+        info.bmiHeader.biBitCount = 32
+        info.bmiHeader.biCompression = DWORD(BI_RGB)
+        var bits: UnsafeMutableRawPointer?
+        guard let bitmap = CreateDIBSection(memory, &info, UINT(DIB_RGB_COLORS), &bits, nil, 0), let bits else { return false }
+        defer { DeleteObject(bitmap) }
+        let previous = SelectObject(memory, bitmap)
+        let copied = BitBlt(memory, 0, 0, width, height, screen, rect.left, rect.top, DWORD(SRCCOPY) | DWORD(CAPTUREBLT))
+        GdiFlush()
+        SelectObject(memory, previous)
+        guard copied else { return false }
+        return (try? BMPFile.data(width: Int(width), height: Int(height), pixels: bits).write(to: url, options: .atomic)) != nil
     }
 }
 #endif

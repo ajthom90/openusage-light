@@ -28,34 +28,44 @@ package enum WindowsApp {
             let renderer = PopoverRenderer(sections: model.sections, palette: palette, dpi: Int(GetDpiForSystem()), status: "Updated just now")
             return SnapshotWriter.write(renderer: renderer, to: URL(fileURLWithPath: arguments[flag + 1])) ? 0 : 1
         }
-        let popover = PopoverWindow(model: model)
-        PopoverWindow.shared = popover
-        guard popover.create() else { return 1 }
-        defer { popover.destroy() }
-
-        var quit = false
-        model.onChange = { popover.invalidate() }
-        popover.onQuit = { quit = true }
-        popover.onRefresh = { Task { await model.refresh(force: true) } }
-
+        let popover = PopoverWindow()
         popover.hidesWhenDeactivated = !showAtStart
         UIDebugLog.enabled = showAtStart
-        if showAtStart { popover.show() }
-        var nextRefresh = Date()
-        while !quit {
-            var message = MSG()
-            while PeekMessageW(&message, nil, 0, 0, UINT(PM_REMOVE)) {
-                if message.message == UINT(WM_QUIT) { quit = true }
-                TranslateMessage(&message)
-                DispatchMessageW(&message)
-            }
-            if !demo, Date() >= nextRefresh {
-                nextRefresh = Date().addingTimeInterval(RefreshSetting.interval)
-                Task { await model.refresh() }
-            }
-            try? await Task.sleep(for: .milliseconds(10))
+        UIDebugLog.write("session station=\(objectName(GetProcessWindowStation())) desktop=\(objectName(GetThreadDesktop(GetCurrentThreadId())))")
+
+        // The window's thread draws from a snapshot of the model; every model change sends a new one.
+        let publish: @MainActor () -> Void = {
+            popover.update(PopoverState(sections: model.sections, isRefreshing: model.isRefreshing, lastRefreshed: model.lastRefreshed))
         }
-        return 0
+        model.onChange = publish
+        publish()
+        popover.onRefresh = { Task { @MainActor in await model.refresh(force: true) } }
+
+        // Refresh on the shared interval, concurrently with the window.
+        let refresher = Task { @MainActor in
+            while !Task.isCancelled {
+                if !demo { await model.refresh() }
+                try? await Task.sleep(for: .seconds(RefreshSetting.interval))
+            }
+        }
+        let created = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            let thread = Thread { continuation.resume(returning: popover.runMessageLoop(showAtStart: showAtStart)) }
+            thread.name = "OpenUsage Light window"
+            thread.stackSize = 4 << 20
+            thread.start()
+        }
+        refresher.cancel()
+        return created ? 0 : 1
+    }
+
+    /// The name of a window station or desktop (a window shown on anything but the user's "WinSta0" is
+    /// never seen by them).
+    private static func objectName(_ handle: HANDLE?) -> String {
+        guard let handle else { return "none" }
+        var buffer = [WCHAR](repeating: 0, count: 256)
+        var needed: DWORD = 0
+        guard GetUserObjectInformationW(handle, Int32(UOI_NAME), &buffer, DWORD(buffer.count * 2), &needed) else { return "unknown" }
+        return String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self)
     }
 
     @MainActor
