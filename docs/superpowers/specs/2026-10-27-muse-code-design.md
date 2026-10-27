@@ -1,6 +1,6 @@
 # Muse Code usage tracking: findings and open questions
 
-Status: **the usage data and its likely source are identified; the request itself is not yet confirmed. Nothing built.** Findings are from Meta's public pages read on 2026-10-27.
+Status: **the usage request is confirmed against a real account (2026-10-27). One side effect (minting a key per call) is still being checked. Nothing built.** Findings are from Meta's public pages read on 2026-10-27.
 
 ## What Muse Code is
 
@@ -50,9 +50,26 @@ All of this came from the CLI's own output, its offline `muse schema`, and text 
 3. **Caveats:** the mint endpoint is undocumented and can change; it may mint a new API key each time it is called (side effects not yet known); whether the launcher's client id is accepted for this scope is unverified.
 4. **Not acceptable:** running `muse usage` as a subprocess or reading the CLI's stored credentials.
 
-## Safe way to confirm the route (needs the owner)
+## Confirmed against a real account (2026-10-27)
 
-A throwaway script runs the device flow: it prints a code and link, the owner approves it in the browser with the test Meta AI account, and the script makes the one mint call and prints only the non-secret usage fields. It stores nothing. This avoids reading the CLI's credentials, and it needs no proxy. (A TLS-intercepting proxy would also work, but running one downloaded from PyPI was declined by the sandbox and needs explicit permission.)
+A throwaway script (stdlib only, nothing stored, secrets redacted) ran the device flow with the owner's test Meta AI account, then called the mint route:
+
+- **Sign-in:** `POST https://auth.meta.com/oidc/device/authorization/` with `client_id=1031625952748946` (form-encoded) returns a code and `https://auth.meta.com/oauth/device/?code=XXXX-XXXX`, valid 600 s. Polling `POST /oidc/device/token/` with the device-code grant returns `{access_token, token_type}`: **no scope, no `expires_in`, no refresh token.** How long the token lives is unknown.
+- **Usage:** `POST https://api.meta.ai/muse-code/key` with `Authorization: Bearer <that token>` and an empty form body returns HTTP 200. (`GET` on the same route is 405 "No path defined with the given http verb".) JSON fields: `api_key` (secret), `base_url` (`https://api.meta.ai/v1`), `is_subs_active`, `can_subscribe`, `show_subs_upsell`, `is_subs_upgrade_available`, `has_payment_method`, `require_payment`, `payment_method`, `action_url`, `subs_tier_id`, `subs_tier_name` ("Muse Code Power Usage"), the account's name, email and avatar (not to be shown or logged), and
+  `subs_usage: { window: { used_percent: 30, window_duration_mins: 300, resets_at: <epoch seconds> }, weekly: { used_percent: 10, resets_at: <epoch seconds> }, tier: <id> }`.
+  Percentages are integers; `resets_at` is in **seconds** (the CLI's own `resetsAtMs` is milliseconds).
+- `GET /muse-code/config` with the sign-in token returns 401 "Invalid or expired API key": other routes want the *minted* key, not the sign-in token.
+
+## Open question: does each call mint a new key?
+
+The response carries a fresh `api_key`. If every call creates a key on the account, polling every five minutes would create hundreds a day. The CLI re-mints only when needed ("mint-once"). A second probe compares two consecutive calls (by hash, never printing a key) to see whether the key is stable. If it is not, the provider would mint rarely and cache nothing secret beyond the sign-in token, or the feature should not poll on the shared interval.
+
+## Plan once that is settled
+
+1. `MuseCodeLogin` (device flow, same shape as `GrokLogin`/`CopilotLogin`) storing the sign-in token in the app's own vault.
+2. A `ProviderKind.musecode` with `MuseCodeUsageClient` (the mint call) and `MuseCodeUsageMapper`: a "Session" meter from `window` (percent, `window_duration_mins`), a "Weekly" meter from `weekly`, plan from `subs_tier_name`. Treat `used_percent > 100` as over quota.
+3. Friendly errors: 401/403 means sign in again; `require_payment` or an inactive subscription is shown as a notice, not an error.
+4. Resource keys `session` and `weekly` in `LimitsProjection`, an icon, a README line, and tests with stubbed responses.
 
 ## Sources
 
