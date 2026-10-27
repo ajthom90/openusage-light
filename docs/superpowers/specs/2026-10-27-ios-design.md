@@ -46,12 +46,12 @@ Could the phone share logins with the Mac over iCloud Keychain? **Technically ye
 
 - **"Updates only while a Mac is awake": acceptable.** The recommended shape stands as written.
 - **Paid Apple developer account: available.** Entitlements, App Groups, and TestFlight/App Store distribution are open to us.
-- **Devices: iPhone and iPad are required, and so is "iPhone Duo".** *I do not know what "iPhone Duo" means; Apple has no device by that name. Clarify before any layout work: a dual-screen or foldable device, a split-screen mode, or something else?*
+- **Devices: iPhone, iPad, and iPhone Duo are all required.** iPhone Duo is a new foldable iPhone ([Apple's page](https://developer.apple.com/iphone-duo/)). That page, as read on 2026-10-27, gives no specifications. What it does say: Xcode 27.1 provides the SDKs to build and test for it; apps should "dynamically resize and adjust" their layouts and "explore resizability for all screen sizes"; its video titles cover adaptive layouts, multiple displays and scenes, and the camera; and the App Store has a "Made for iPhone Duo" badge. Screen sizes, size classes, and multitasking rules are on its Human Interface Guidelines and "Preparing your app for iPhone Duo" pages, **which I have not read**. Read them before any layout work.
 - **Widgets: varying sizes wanted.** Plan on the small, medium, and large Home Screen families and the Lock Screen families, each drawing from the shared row model. Exact sizes per device to be settled at design time.
 
 ## Still open
 
-- What "iPhone Duo" refers to (above).
+- iPhone Duo's actual display and scene behavior (the HIG and "Preparing your app" pages).
 - Whether API-key accounts should also sync their keys so the phone can refresh them itself, or the phone should stay display-only for every account.
 
 ## Not decided here
