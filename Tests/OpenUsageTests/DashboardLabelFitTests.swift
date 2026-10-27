@@ -3,10 +3,9 @@ import SwiftUI
 import XCTest
 @testable import OpenUsage
 
-/// Every metric title, plan and name a provider can produce renders at full size in the panel: every
-/// title fits the 86 pt label column, no plan truncates, and Robin's own accounts fit their headers and
-/// captions whole. Plans are the providers' official names, never shortened to fit; a long account name
-/// moves to its caption instead.
+/// Every metric title and plan a provider can produce renders at full size in the panel: every title
+/// fits the 86 pt label column and no plan truncates. Plans are the providers' official names, never
+/// shortened to fit. Robin's own accounts are measured on the header in `DashboardHeaderFitTests`.
 @MainActor
 final class DashboardLabelFitTests: XCTestCase {
     /// A provider's card: the panel minus its margin on each side.
@@ -38,44 +37,13 @@ final class DashboardLabelFitTests: XCTestCase {
     func testEveryPlanFitsInItsHeader() throws {
         for (kind, plans) in try plansByProvider() {
             XCTAssertFalse(plans.isEmpty, kind.displayName)
+            let account = account(kind, kind.displayName)
             for plan in plans {
-                XCTAssertLessThanOrEqual(idealWidth(header(kind: kind, name: kind.displayName, plan: plan)), cardWidth, "\(kind.displayName): \(plan)")
+                let header = DashboardProviderHeader(provider: account.provider, account: account, plan: plan) {
+                    ProviderIcon(source: account.provider.icon, inset: 0.04)
+                }
+                XCTAssertLessThanOrEqual(idealWidth(header), cardWidth, "\(kind.displayName): \(plan)")
             }
-        }
-    }
-
-    /// Robin's accounts, names and plans, as the dashboard draws them: a one-account provider in its
-    /// header when that fits — `DashboardHeaderLine.fits`, checked against what the header really asks
-    /// for when it names the account — on its caption otherwise, and a provider with several accounts
-    /// on each account's caption. "Grok — rob@sunstory.com  SuperGrok Heavy" still moves at the Headline
-    /// header; "Grok — Grok Account  SuperGrok Heavy" now fits with the refresh spinner's room to spare,
-    /// and "Grok — Grok Team Account" moves.
-    func testRobinsAccountsFitWithoutTruncating() {
-        let soleAccounts: [(ProviderKind, String, String, inHeader: Bool)] = [
-            (.codex, "Sunstory", "Pro 200", true), (.opencodeGo, "Go Basic", "Go", true),
-            (.grok, "Grok Account", "SuperGrok Heavy", true), (.grok, "Grok Team Account", "SuperGrok Heavy", false),
-            (.grok, "rob@sunstory.com", "SuperGrok Heavy", false),
-            (.cursor, "rob@sunstory.com", "Ultra", true), (.copilot, "robinebers", "Individual", true),
-            (.codex, "sam@hey.com", "Plus", true),
-        ]
-        for (kind, name, plan, inHeader) in soleAccounts {
-            let provider = account(kind, name).provider
-            let fits = DashboardHeaderLine.fits(provider: provider, name: name, plan: plan, width: cardWidth)
-            XCTAssertEqual(fits, inHeader, "\(kind.displayName) — \(name)  \(plan)")
-            let asked = idealWidth(header(kind: kind, name: name, plan: plan, naming: true))
-            if fits {
-                XCTAssertLessThanOrEqual(asked, cardWidth, "\(name) is named in the header and truncates there")
-            } else {
-                XCTAssertGreaterThan(asked, cardWidth - 40, "\(name) moves to the caption with room to spare in the header")
-            }
-        }
-        let captions: [(ProviderKind, String, String)] = [
-            (.claude, "Personal", "Max 20x"), (.claude, "Attention Machine 1", "Team 5x"),
-            (.claude, "Attention Machine 2", "Team 5x"),
-        ]
-        for (kind, name, plan) in captions {
-            let caption = DashboardAccountCaption(account: account(kind, name), plan: plan)
-            XCTAssertLessThanOrEqual(idealWidth(caption), cardWidth - 2 * DashboardGrid.cardPadding, name)
         }
     }
 
@@ -130,14 +98,6 @@ final class DashboardLabelFitTests: XCTestCase {
     private func account(_ kind: ProviderKind, _ name: String) -> DashboardAccount {
         DashboardAccount(provider: Provider(id: "\(kind.rawValue)@1", displayName: kind.displayName,
                                             icon: kind.iconSource, accountLabel: name), lines: [])
-    }
-
-    /// The header, naming the account when `naming` whether or not that fits.
-    private func header(kind: ProviderKind, name: String, plan: String, naming: Bool = false) -> some View {
-        let account = account(kind, name)
-        return DashboardProviderHeader(provider: account.provider, account: naming ? account : nil, plan: plan) {
-            ProviderIcon(source: account.provider.icon, inset: 0.04)
-        }
     }
 
     private func meter(left: Double, limit: Double) -> WidgetData {

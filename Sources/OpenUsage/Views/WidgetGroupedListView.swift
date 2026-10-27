@@ -94,18 +94,13 @@ struct WidgetGroupedListView: View {
         }
     }
 
-    /// An account with its menu and drag. In a one-account card the provider's menu stands in for its
-    /// menu and there is no other account to reorder; its caption shows only when the header can't name
-    /// it.
+    /// An account with its menu and drag. In a one-account card the header names the account, the
+    /// provider's menu stands in for its menu and there is no other account to reorder, so its rows
+    /// stand alone; in a card of several, each account is captioned over its rows.
     @ViewBuilder
     private func accountSection(_ account: DashboardAccount, in family: DashboardFamily, captioned: Bool) -> some View {
-        if family.soleAccount != nil {
-            VStack(alignment: .leading, spacing: 0) {
-                if captioned {
-                    DashboardAccountCaption(account: account, plan: dataStore.plan(for: account.id), status: status(for: account.id))
-                }
-                rows(of: account)
-            }
+        if !captioned {
+            rows(of: account)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 DashboardAccountCaption(account: account, plan: dataStore.plan(for: account.id), status: status(for: account.id))

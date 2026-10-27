@@ -157,7 +157,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         let shown = Set(NSApp.windows.filter(\.isVisible).map(ObjectIdentifier.init))
         func opened() -> [NSWindow] { NSApp.windows.filter { $0.isVisible && !shown.contains(ObjectIdentifier($0)) } }
         let headerMid = DashboardGrid.headerHeight / 2
-        let nameEnd = DashboardGrid.cardPadding + DashboardGrid.inset + ("Claude — Work" as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width
+        let nameEnd = DashboardGrid.cardPadding + DashboardGrid.inset + ("Work" as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width
 
         try hover(CGPoint(x: Self.nameX, y: headerMid), window, host)
         XCTAssertTrue(opened().isEmpty, "hovering the name opens something")
@@ -282,9 +282,9 @@ final class DashboardSectionTests: QuietWindowTestCase {
         XCTAssertEqual(log.accountDrags + log.metricDrags, 0)
     }
 
-    /// A one-account provider shows no caption: its header reads "Claude — Work". A double-click on
-    /// the name there renames the account in place with the whole name selected; a single click does
-    /// nothing; the header drags the provider.
+    /// A one-account provider shows no caption: its header reads the account's name, "Work". A
+    /// double-click on the name there renames the account in place with the whole name selected; a
+    /// single click does nothing; the header drags the provider.
     func testAOneAccountHeaderNamesTheAccountAndRenamesIt() throws {
         let log = Log()
         let (renaming, provider) = storedAccount(label: "Work")
@@ -307,7 +307,7 @@ final class DashboardSectionTests: QuietWindowTestCase {
         )
 
         let headerMid = DashboardGrid.headerHeight / 2
-        let name = CGPoint(x: Self.nameX + ("Claude — " as NSString).size(withAttributes: [.font: DashboardGrid.headerNSFont]).width, y: headerMid)
+        let name = CGPoint(x: Self.nameX, y: headerMid)
         click(name, window, host)
         RunLoop.main.run(until: Date().addingTimeInterval(0.6))
         XCTAssertNil(renaming.edit, "a single click on the name starts a rename")
