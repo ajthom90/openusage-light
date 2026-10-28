@@ -24,6 +24,17 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertNil(balance.fraction)
     }
 
+    func testMetersFollowTheDashboardOrderNotTheAlphabet() throws {
+        let json = SampleLimits.json().replacingOccurrences(of: "\"session\": {\"kind\": \"consumption\", \"unit\": \"percent\", \"used\": 36", with: "\"fable\": {\"kind\": \"consumption\", \"unit\": \"percent\", \"used\": 1, \"limit\": 100, \"utilization\": 0.01},\n            \"session\": {\"kind\": \"consumption\", \"unit\": \"percent\", \"used\": 36")
+        let claude = MobileAccount.accounts(in: try LimitsEnvelope.decode(Data(json.utf8)))[0]
+        XCTAssertEqual(claude.meters.map(\.id), ["session", "weekly", "fable"])
+    }
+
+    func testAnEmailOnlyNameIsNotShown() throws {
+        let json = SampleLimits.json().replacingOccurrences(of: "\"account\": \"Work\"", with: "\"account\": \"me@example.com\"")
+        XCTAssertEqual(MobileAccount.accounts(in: try LimitsEnvelope.decode(Data(json.utf8)))[0].name, "")
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")

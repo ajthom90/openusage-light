@@ -43,7 +43,7 @@ private struct AccountHeader: View {
     var body: some View {
         HStack {
             Text(account.providerName).font(.headline)
-            Text(account.name).foregroundStyle(.secondary)
+            if !account.name.isEmpty { Text(account.name).foregroundStyle(.secondary) }
             Spacer()
             if let plan = account.plan { Text(plan).font(.caption).foregroundStyle(.secondary) }
             if account.isStale { Label("Outdated", systemImage: "clock.badge.exclamationmark").font(.caption).foregroundStyle(.orange) }

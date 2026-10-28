@@ -15,6 +15,7 @@ public struct MobileMeter: Identifiable, Equatable, Sendable {
 public struct MobileAccount: Identifiable, Equatable, Sendable {
     public let id: String
     public let providerName: String
+    /// The name the user gave the account, or empty when it is only an email address (which is never shown).
     public let name: String
     public let plan: String?
     public let fetchedAt: Date
@@ -25,11 +26,12 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
     package static func accounts(in envelope: LimitsEnvelope) -> [MobileAccount] {
         envelope.order.compactMap { id in
             guard let provider = envelope.providers[id] else { return nil }
-            let meters = provider.resources.keys.sorted().compactMap { key in
-                provider.resources[key].map { meter(key: key, $0) }
-            }
+            // The dashboard's row order, then anything the document names that this version does not know.
+            let known = ProviderKind(rawValue: provider.provider).map(LimitsProjection.resourceKeys(for:)) ?? []
+            let keys = known.filter { provider.resources[$0] != nil } + provider.resources.keys.filter { !known.contains($0) }.sorted()
+            let meters = keys.compactMap { key in provider.resources[key].map { meter(key: key, $0) } }
             return MobileAccount(
-                id: id, providerName: provider.displayName, name: provider.account, plan: provider.plan,
+                id: id, providerName: provider.displayName, name: provider.account.contains("@") ? "" : provider.account, plan: provider.plan,
                 fetchedAt: provider.fetchedAt, isStale: provider.stale, meters: meters
             )
         }

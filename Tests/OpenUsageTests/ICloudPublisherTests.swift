@@ -28,6 +28,14 @@ final class ICloudPublisherTests: XCTestCase {
     }
 
     @MainActor
+    func testAnAccountNamedByItsEmailIsPublishedWithoutIt() throws {
+        let named = entry(.claude, label: "me@example.com")
+        let data = try ICloudPublisher.document(entries: [named], savedOrder: [], now: Date())
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("me@example.com"))
+        XCTAssertEqual(try LimitsEnvelope.decode(data).providers[named.account.cardID]?.account, "")
+    }
+
+    @MainActor
     func testPublisherIsOffWithoutAContainerEvenWhenSwitchedOn() {
         let defaults = UserDefaults(suiteName: "icloud-test-\(UUID())")!
         defaults.set(true, forKey: ICloudPublisher.enabledKey)

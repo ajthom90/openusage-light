@@ -117,6 +117,12 @@ package enum LimitsProjection {
 
     // MARK: - Public keys
 
+    /// The document's resource keys for a provider, in the order its dashboard rows run.
+    package static func resourceKeys(for kind: ProviderKind) -> [String] {
+        var seen = Set<String>()
+        return (specs[kind] ?? []).map(\.key).filter { seen.insert($0).inserted }
+    }
+
     private struct Spec {
         package let suffix: String
         package let key: String

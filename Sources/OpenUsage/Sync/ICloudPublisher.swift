@@ -29,9 +29,14 @@ final class ICloudPublisher {
     /// The document for the given accounts, in the user's saved dashboard order.
     static func document(entries: [LimitsProjection.Entry], savedOrder: [String], now: Date) throws -> Data {
         let ordered = LimitsService.ordered(entries.map(\.account), by: savedOrder).map(\.cardID)
-        let envelope = LimitsProjection.envelope(
+        var envelope = LimitsProjection.envelope(
             entries: entries, failures: [], order: ordered, now: now, freshFor: RefreshSetting.interval
         )
+        // An account named by its email shows as its provider alone, as Share Screenshot does: the email
+        // itself never leaves the Mac.
+        for (id, provider) in envelope.providers where provider.account.contains("@") {
+            envelope.providers[id]?.account = ""
+        }
         return Data(try envelope.json(pretty: false).utf8)
     }
 
