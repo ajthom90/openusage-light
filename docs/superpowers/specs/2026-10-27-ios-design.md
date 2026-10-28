@@ -1,6 +1,6 @@
 # iOS and iPadOS app with widgets: design notes
 
-Status: **idea, parked, not approved.** Nothing is built. This records what is known so the work can start from here later.
+Status: **approved and started (2026-10-28), on the fork's `ios` branch.** The first slice is built; see "Decisions" and "Built so far" at the end.
 
 ## Intent
 
@@ -57,3 +57,27 @@ Could the phone share logins with the Mac over iCloud Keychain? **Technically ye
 ## Not decided here
 
 Names, icons, pricing, release timing, and how an iOS app would be tested without a device.
+
+## Decisions (2026-10-28)
+
+The owner approved the recommended shape and these choices:
+
+- **The Mac is the only writer; the phone holds no tokens.** The Mac publishes the existing `openusage.limits.v1` document (the same JSON the `openusage` command prints) as one CloudKit record in the user's private database, in an **encrypted field**. It already carries only provider-reported numbers, the account name, and the saved order, so it is the right payload and needs no new format. `LimitsEnvelope.decode` reads it back.
+- **Mac sync is opt-in** and stays off until an iCloud container is configured at build time, so the Mac app behaves as before for everyone else.
+- **Identifiers:** bundle IDs use the owner's own reverse-DNS prefix (the iOS app is `<prefix>.ios`) and the container is `iCloud.<prefix>`. They live in `iOS/Config/Local.xcconfig`, which git ignores. `iOS/Config/Shared.xcconfig` holds blank placeholders, and `script/hooks/pre-commit` (enable with `git config core.hooksPath script/hooks`) refuses a commit containing the team ID, the container, or a signing file.
+- **Project:** `iOS/project.yml` generates `OpenUsageLight.xcodeproj` with XcodeGen (`cd iOS && xcodegen`), so no `.xcodeproj` is committed. This replaces the earlier idea of a hand-maintained project.
+- **Code layout:** `OpenUsageSync` (the CloudKit record, shared by the Mac and the phone) and `OpenUsageMobile` (the dashboard model and SwiftUI screen) are package targets, because the core's API is `package`-scoped and an app outside the package could not use it.
+- **First slice:** the Mac publishes; the phone app lists accounts and meters. Widgets, iPad layouts, and iPhone Duo come after (the Duo layout pages are still unread).
+
+## Built so far
+
+- `OpenUsageSync.CloudLimitsStore`: publish and fetch the record (compiles; not yet run against iCloud).
+- `OpenUsageMobile`: `MobileAccount` (document to cards, tested), `MobileModel` (iCloud fetch, last saved document, example numbers when no container), `DashboardScreen`.
+- `iOS/`: the app target, entitlements, and settings. Builds and runs in the iPhone simulator, showing example numbers.
+
+## Next
+
+1. The Mac publisher and a Settings switch. It needs a provisioning profile for the container, so the Mac dev build has to be signed with one.
+2. Sign the simulator and Mac into the same iCloud account and check a publish reaches the phone.
+3. Push notification on change (CloudKit subscription), then widgets.
+4. Before any TestFlight build, deploy the CloudKit schema from Development to Production.

@@ -22,6 +22,8 @@ var targets: [Target] = [
 // The menu-bar app and everything built on AppKit, SwiftUI, and the Keychain exist only on macOS.
 #if os(macOS)
 products += [
+    .library(name: "OpenUsageMobile", targets: ["OpenUsageMobile"]),
+    .library(name: "OpenUsageSync", targets: ["OpenUsageSync"]),
     .executable(name: "OpenUsage", targets: ["OpenUsageApp"]),
     // Named apart from `openusage` (the command users run): macOS paths ignore case, so the two
     // would collide. The app's installer links `openusage` to this binary.
@@ -41,6 +43,16 @@ targets += [
         resources: [
             .copy("Resources/ProviderIcons")
         ],
+        swiftSettings: swift6
+    ),
+    // Shared by the Mac app (which publishes) and the iOS and iPadOS apps (which read): one CloudKit record.
+    .target(name: "OpenUsageSync", path: "Sources/OpenUsageSync", swiftSettings: swift6),
+    // The phone and tablet dashboard, built on the same limits document the command prints.
+    .target(name: "OpenUsageMobile", dependencies: ["OpenUsageCore", "OpenUsageSync"], path: "Sources/OpenUsageMobile", swiftSettings: swift6),
+    .testTarget(
+        name: "OpenUsageMobileTests",
+        dependencies: ["OpenUsageMobile", "OpenUsageCore"],
+        path: "Tests/OpenUsageMobileTests",
         swiftSettings: swift6
     ),
     .executableTarget(name: "OpenUsageApp", dependencies: ["OpenUsage"], path: "Sources/OpenUsageApp", swiftSettings: swift6),
@@ -89,7 +101,8 @@ targets += [
 let package = Package(
     name: "OpenUsage",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v15),
+        .iOS(.v18)
     ],
     products: products,
     dependencies: dependencies,
