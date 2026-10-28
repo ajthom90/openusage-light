@@ -21,15 +21,25 @@ public final class MobileModel {
     public private(set) var source: Source = .sample
     public private(set) var message: String?
     public private(set) var isLoading = false
+    /// Whether the user follows the Mac's "Show Usage As" setting or has chosen a reading on this device.
+    public private(set) var choice: DisplayChoice
 
     private let store: CloudLimitsStore?
     private let defaults: UserDefaults
+    private var document: Data?
 
     /// `containerIdentifier` is empty or `nil` when iCloud is not set up, which leaves the example numbers.
     public init(containerIdentifier: String?, defaults: UserDefaults = SharedLimits.defaults) {
         store = containerIdentifier.flatMap { $0.isEmpty ? nil : CloudLimitsStore(containerIdentifier: $0) }
         self.defaults = defaults
-        if let data = SharedLimits.load(from: defaults), apply(data) { source = .saved } else { applySample() }
+        choice = SharedLimits.loadChoice(from: defaults)
+        if let saved = SharedLimits.load(from: defaults), apply(saved) { source = .saved } else { applySample() }
+    }
+
+    public func setChoice(_ new: DisplayChoice) {
+        choice = new
+        SharedLimits.saveChoice(new, to: defaults)
+        if let document { _ = apply(document) } else { applySample() }
     }
 
     public func refresh() async {
@@ -40,12 +50,13 @@ public final class MobileModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            guard let data = try await store.fetch() else {
+            guard let published = try await store.fetch() else {
                 message = "Nothing has been published yet. Turn on iCloud sync in OpenUsage Light on your Mac."
                 return
             }
-            if apply(data) {
-                SharedLimits.save(data, to: defaults)
+            SharedLimits.saveMacDisplay(published.displayMode, to: defaults)
+            if apply(published.document) {
+                SharedLimits.save(published.document, to: defaults)
                 source = .cloud
                 message = nil
             } else {
@@ -58,14 +69,17 @@ public final class MobileModel {
 
     @discardableResult
     private func apply(_ data: Data) -> Bool {
-        guard let envelope = try? LimitsEnvelope.decode(data) else { return false }
-        accounts = MobileAccount.accounts(in: envelope)
-        generatedAt = envelope.generatedAt
+        guard let snapshot = UsageSnapshot(document: data, display: SharedLimits.resolvedDisplay(from: defaults)) else { return false }
+        document = data
+        accounts = snapshot.accounts
+        generatedAt = snapshot.generatedAt
         return true
     }
 
     private func applySample() {
         source = .sample
-        _ = apply(Data(SampleLimits.json().utf8))
+        let snapshot = UsageSnapshot.sample(display: SharedLimits.resolvedDisplay(from: defaults))
+        accounts = snapshot.accounts
+        generatedAt = snapshot.generatedAt
     }
 }

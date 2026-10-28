@@ -16,6 +16,7 @@ struct OpenUsageLightApp: App {
             } else {
                 DashboardScreen(model: model)
                     .onChange(of: model.generatedAt) { WidgetCenter.shared.reloadAllTimelines() }
+                    .onChange(of: model.choice) { WidgetCenter.shared.reloadAllTimelines() }
             }
         }
     }

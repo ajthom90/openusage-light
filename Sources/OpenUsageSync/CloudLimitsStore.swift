@@ -14,6 +14,14 @@ public struct CloudLimitsStore: Sendable {
     public static let recordName = "limits-v1"
     static let documentKey = "limits"
     static let generatedAtKey = "generatedAt"
+    static let displayModeKey = "displayMode"
+
+    /// What the Mac published: the limits document, and how its user chose to read usage ("used" or
+    /// "remaining"), which the phone follows unless the user overrides it there.
+    public struct Published: Sendable {
+        public let document: Data
+        public let displayMode: String?
+    }
 
     public let containerIdentifier: String
 
@@ -24,7 +32,7 @@ public struct CloudLimitsStore: Sendable {
     private var database: CKDatabase { CKContainer(identifier: containerIdentifier).privateCloudDatabase }
 
     /// Replaces the stored document.
-    public func publish(_ document: Data, generatedAt: Date) async throws {
+    public func publish(_ document: Data, generatedAt: Date, displayMode: String? = nil) async throws {
         let id = CKRecord.ID(recordName: Self.recordName)
         let record: CKRecord
         do {
@@ -34,14 +42,16 @@ public struct CloudLimitsStore: Sendable {
         }
         record[Self.documentKey] = document as CKRecordValue
         record[Self.generatedAtKey] = generatedAt as CKRecordValue
+        record[Self.displayModeKey] = displayMode.map { $0 as CKRecordValue }
         _ = try await database.save(record)
     }
 
-    /// The stored document, or `nil` when the Mac has not published one yet.
-    public func fetch() async throws -> Data? {
+    /// What the Mac last published, or `nil` when it has not published anything yet.
+    public func fetch() async throws -> Published? {
         do {
             let record = try await database.record(for: CKRecord.ID(recordName: Self.recordName))
-            return record[Self.documentKey] as? Data
+            guard let document = record[Self.documentKey] as? Data else { return nil }
+            return Published(document: document, displayMode: record[Self.displayModeKey] as? String)
         } catch let error as CKError where error.code == .unknownItem {
             return nil
         }

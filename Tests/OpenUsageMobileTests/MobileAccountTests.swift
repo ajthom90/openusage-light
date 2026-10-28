@@ -41,6 +41,26 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(snapshot.accounts[2].headline?.id, "balance")
     }
 
+    func testRemainingReadsWhatIsLeftAndStillColoursByUse() throws {
+        let envelope = try LimitsEnvelope.decode(Data(SampleLimits.json().utf8))
+        let session = try XCTUnwrap(MobileAccount.accounts(in: envelope, display: .remaining)[0].meters.first { $0.id == "session" })
+        XCTAssertEqual(session.valueText, "64% left")
+        XCTAssertEqual(session.shortText, "64% left")
+        XCTAssertEqual(try XCTUnwrap(session.fraction), 0.64, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(session.usedFraction), 0.36, accuracy: 1e-9)
+        let used = try XCTUnwrap(MobileAccount.accounts(in: envelope, display: .used)[0].meters.first { $0.id == "session" })
+        XCTAssertEqual(used.shortText, "36%")
+    }
+
+    func testTheChoiceFollowsTheMacUnlessOverridden() {
+        let defaults = UserDefaults(suiteName: "display-test-\(UUID())")!
+        XCTAssertEqual(SharedLimits.resolvedDisplay(from: defaults), .remaining, "the Mac's own default is left")
+        SharedLimits.saveMacDisplay("used", to: defaults)
+        XCTAssertEqual(SharedLimits.resolvedDisplay(from: defaults), .used)
+        SharedLimits.saveChoice(.remaining, to: defaults)
+        XCTAssertEqual(SharedLimits.resolvedDisplay(from: defaults), .remaining)
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")

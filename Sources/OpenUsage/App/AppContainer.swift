@@ -80,7 +80,9 @@ final class AppContainer {
         let entries = providers.map {
             LimitsProjection.Entry(account: $0.account, snapshot: dataStore.snapshots[$0.provider.id], descriptors: $0.widgetDescriptors)
         }
-        await iCloudPublisher.publish(entries: entries, savedOrder: SavedDashboardOrder.providerOrder(in: defaults))
+        await iCloudPublisher.publish(
+            entries: entries, savedOrder: SavedDashboardOrder.providerOrder(in: defaults), displayMode: dataStore.meterStyle
+        )
     }
 
     private func observeAccounts() {

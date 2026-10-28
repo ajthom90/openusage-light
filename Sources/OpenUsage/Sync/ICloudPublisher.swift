@@ -40,11 +40,11 @@ final class ICloudPublisher {
         return Data(try envelope.json(pretty: false).utf8)
     }
 
-    func publish(entries: [LimitsProjection.Entry], savedOrder: [String], now: Date = Date()) async {
+    func publish(entries: [LimitsProjection.Entry], savedOrder: [String], displayMode: WidgetDisplayMode, now: Date = Date()) async {
         guard isEnabled, let store else { return }
         do {
             let document = try Self.document(entries: entries, savedOrder: savedOrder, now: now)
-            try await store.publish(document, generatedAt: now)
+            try await store.publish(document, generatedAt: now, displayMode: displayMode.rawValue)
             AppLog.info(.refresh, "published \(entries.count) accounts to iCloud")
         } catch {
             // The error text can name the container but never carries the document or any credential.

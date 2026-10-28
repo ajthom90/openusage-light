@@ -64,19 +64,14 @@ private struct MeterLine: View {
                 Text(title).font(compact ? .caption2.weight(.semibold) : .caption.weight(.semibold)).lineLimit(1)
                     .layoutPriority(1)
                 Spacer(minLength: 4)
-                Text(short(meter)).font(compact ? .caption2 : .caption).foregroundStyle(.secondary).monospacedDigit()
+                Text(meter.shortText).font(compact ? .caption2 : .caption).foregroundStyle(.secondary).monospacedDigit()
             }
             if let fraction = meter.fraction {
-                ProgressView(value: fraction).tint(usageTint(fraction))
+                ProgressView(value: fraction).tint(usageTint(meter.usedFraction ?? fraction))
             }
         }
     }
 
-    /// "4%" for a bounded meter; for the rest the value without its trailing word ("$12.40", "0 resets").
-    private func short(_ meter: MobileMeter) -> String {
-        meter.fraction.map { "\(Int(($0 * 100).rounded()))%" }
-            ?? meter.valueText.replacingOccurrences(of: " available", with: "")
-    }
 }
 
 private struct MediumLayout: View {
@@ -121,12 +116,12 @@ private struct CircularGauge: View {
 
     var body: some View {
         // The most-used headline meter: the one closest to its limit.
-        let top = accounts.compactMap(\.headline).compactMap { meter in meter.fraction.map { (meter, $0) } }
-            .max { $0.1 < $1.1 }
-        Gauge(value: top?.1 ?? 0) {
+        let top = accounts.compactMap(\.headline).filter { $0.fraction != nil }
+            .max { ($0.usedFraction ?? 0) < ($1.usedFraction ?? 0) }
+        Gauge(value: top?.fraction ?? 0) {
             Text("Use")
         } currentValueLabel: {
-            Text(top.map { "\(Int(($0.1 * 100).rounded()))" } ?? "–")
+            Text(top?.fraction.map { "\(Int(($0 * 100).rounded()))" } ?? "–")
         }
         .gaugeStyle(.accessoryCircularCapacity)
     }

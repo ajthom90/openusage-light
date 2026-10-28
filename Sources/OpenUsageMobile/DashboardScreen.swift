@@ -26,6 +26,17 @@ public struct DashboardScreen: View {
                 }
             }
             .navigationTitle("Usage")
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Picker("Show Usage As", selection: Binding(get: { model.choice }, set: { model.setChoice($0) })) {
+                            ForEach(DisplayChoice.allCases) { Text($0.label).tag($0) }
+                        }
+                    } label: {
+                        Label("Show Usage As", systemImage: "slider.horizontal.3")
+                    }
+                }
+            }
             .refreshable { await model.refresh() }
             .task { await model.refresh() }
         }
@@ -63,7 +74,7 @@ private struct MeterRow: View {
                 Text(meter.valueText).foregroundStyle(.secondary)
             }
             if let fraction = meter.fraction {
-                ProgressView(value: fraction).tint(fraction >= 0.9 ? .red : (fraction >= 0.7 ? .orange : .accentColor))
+                ProgressView(value: fraction).tint(usageTint(meter.usedFraction ?? fraction))
             }
             if let resetsAt = meter.resetsAt {
                 Text("Resets \(resetsAt.formatted(.relative(presentation: .named)))").font(.caption).foregroundStyle(.secondary)

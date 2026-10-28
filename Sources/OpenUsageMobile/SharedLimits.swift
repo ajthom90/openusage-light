@@ -22,3 +22,50 @@ public enum SharedLimits {
         defaults.data(forKey: key)
     }
 }
+
+/// Whether a meter reads as what has been used or what is left.
+public enum UsageDisplay: String, Sendable, CaseIterable {
+    case used, remaining
+}
+
+/// The user's choice on the phone: follow the Mac, or always show one reading.
+public enum DisplayChoice: String, Sendable, CaseIterable, Identifiable {
+    case followMac, remaining, used
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .followMac: "Same as Mac"
+        case .remaining: "Left"
+        case .used: "Used"
+        }
+    }
+}
+
+extension SharedLimits {
+    private static let macDisplayKey = "openusage.display.mac"
+    private static let choiceKey = "openusage.display.choice"
+
+    /// How the Mac's user reads usage, as last published. The Mac's own default is "left".
+    public static func saveMacDisplay(_ mode: String?, to defaults: UserDefaults = SharedLimits.defaults) {
+        if let mode { defaults.set(mode, forKey: macDisplayKey) }
+    }
+
+    public static func loadChoice(from defaults: UserDefaults = SharedLimits.defaults) -> DisplayChoice {
+        defaults.string(forKey: choiceKey).flatMap(DisplayChoice.init(rawValue:)) ?? .followMac
+    }
+
+    public static func saveChoice(_ choice: DisplayChoice, to defaults: UserDefaults = SharedLimits.defaults) {
+        defaults.set(choice.rawValue, forKey: choiceKey)
+    }
+
+    /// The reading to draw: the user's own choice, else the Mac's, else "left".
+    public static func resolvedDisplay(from defaults: UserDefaults = SharedLimits.defaults) -> UsageDisplay {
+        switch loadChoice(from: defaults) {
+        case .remaining: return .remaining
+        case .used: return .used
+        case .followMac: return defaults.string(forKey: macDisplayKey).flatMap(UsageDisplay.init(rawValue:)) ?? .remaining
+        }
+    }
+}

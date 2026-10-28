@@ -39,10 +39,12 @@ struct UsageProvider: TimelineProvider {
     /// Fresh from iCloud when reachable, else the last document the app saved, else example numbers.
     private func entry() async -> UsageEntry {
         if let container = Bundle.main.object(forInfoDictionaryKey: "ICloudContainer") as? String, !container.isEmpty,
-           let document = try? await CloudLimitsStore(containerIdentifier: container).fetch(),
-           let snapshot = UsageSnapshot(document: document) {
-            SharedLimits.save(document)
-            return UsageEntry(date: Date(), snapshot: snapshot)
+           let published = try? await CloudLimitsStore(containerIdentifier: container).fetch() {
+            SharedLimits.saveMacDisplay(published.displayMode)
+            if let snapshot = UsageSnapshot(document: published.document) {
+                SharedLimits.save(published.document)
+                return UsageEntry(date: Date(), snapshot: snapshot)
+            }
         }
         if let document = SharedLimits.load(), let snapshot = UsageSnapshot(document: document) {
             return UsageEntry(date: Date(), snapshot: snapshot)

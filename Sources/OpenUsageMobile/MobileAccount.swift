@@ -5,9 +5,14 @@ import OpenUsageCore
 public struct MobileMeter: Identifiable, Equatable, Sendable {
     public let id: String
     public let title: String
-    /// 0...1 for a bounded meter; `nil` for a balance or an unbounded count.
+    /// 0...1 for a bounded meter, as the bar fills: what is used or what is left, per the display setting.
+    /// `nil` for a balance or an unbounded count.
     public let fraction: Double?
+    /// How much is used, 0...1, whatever the display setting: what colours the bar and picks the closest meter.
+    public let usedFraction: Double?
     public let valueText: String
+    /// The same reading, short enough for a small widget: "36%" or "64% left", "$12.40".
+    public let shortText: String
     public let resetsAt: Date?
 }
 
@@ -29,13 +34,13 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
     }
 
     /// The accounts in the document's order, which is the order the user saved on the Mac.
-    package static func accounts(in envelope: LimitsEnvelope) -> [MobileAccount] {
+    package static func accounts(in envelope: LimitsEnvelope, display: UsageDisplay = .used) -> [MobileAccount] {
         envelope.order.compactMap { id in
             guard let provider = envelope.providers[id] else { return nil }
             // The dashboard's row order, then anything the document names that this version does not know.
             let known = ProviderKind(rawValue: provider.provider).map(LimitsProjection.resourceKeys(for:)) ?? []
             let keys = known.filter { provider.resources[$0] != nil } + provider.resources.keys.filter { !known.contains($0) }.sorted()
-            let meters = keys.compactMap { key in provider.resources[key].map { meter(key: key, $0) } }
+            let meters = keys.compactMap { key in provider.resources[key].map { meter(key: key, $0, display) } }
             return MobileAccount(
                 id: id, providerName: provider.displayName, name: provider.account.contains("@") ? "" : provider.account, plan: provider.plan,
                 fetchedAt: provider.fetchedAt, isStale: provider.stale, meters: meters
@@ -43,10 +48,13 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
         }
     }
 
-    private static func meter(key: String, _ resource: LimitsEnvelope.Resource) -> MobileMeter {
-        MobileMeter(
-            id: key, title: title(for: key), fraction: resource.utilization.map { min(max($0, 0), 1) },
-            valueText: valueText(resource), resetsAt: resource.resetsAt
+    private static func meter(key: String, _ resource: LimitsEnvelope.Resource, _ display: UsageDisplay) -> MobileMeter {
+        let used = resource.utilization.map { min(max($0, 0), 1) }
+        let fraction = used.map { display == .remaining ? 1 - $0 : $0 }
+        return MobileMeter(
+            id: key, title: title(for: key), fraction: fraction, usedFraction: used,
+            valueText: valueText(resource, display), shortText: shortText(resource, display, fraction: fraction),
+            resetsAt: resource.resetsAt
         )
     }
 
@@ -62,16 +70,26 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
             .joined(separator: " ")
     }
 
-    static func valueText(_ resource: LimitsEnvelope.Resource) -> String {
+    static func valueText(_ resource: LimitsEnvelope.Resource, _ display: UsageDisplay) -> String {
         switch resource.kind {
         case .consumption:
             guard let used = resource.used else { return "" }
-            if resource.unit == "percent" { return "\(number(used))% used" }
+            let left = resource.remaining ?? resource.limit.map { max($0 - used, 0) }
+            if resource.unit == "percent" {
+                return display == .remaining ? "\(number(left ?? max(100 - used, 0)))% left" : "\(number(used))% used"
+            }
+            if display == .remaining, let left { return "\(amount(left, resource.unit)) left" }
             if let limit = resource.limit { return "\(amount(used, resource.unit)) of \(amount(limit, resource.unit))" }
             return amount(used, resource.unit)
         case .balance:
             return resource.available.map { "\(amount($0, resource.unit)) available" } ?? ""
         }
+    }
+
+    /// "36%" (used) or "64% left"; a balance or count without its trailing word.
+    static func shortText(_ resource: LimitsEnvelope.Resource, _ display: UsageDisplay, fraction: Double?) -> String {
+        if let fraction { return "\(Int((fraction * 100).rounded()))%" + (display == .remaining ? " left" : "") }
+        return valueText(resource, display).replacingOccurrences(of: " available", with: "")
     }
 
     private static func amount(_ value: Double, _ unit: String) -> String {
