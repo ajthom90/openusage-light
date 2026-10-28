@@ -35,9 +35,16 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(MobileAccount.accounts(in: try LimitsEnvelope.decode(Data(json.utf8)))[0].name, "")
     }
 
+    func testHeadlineIsTheFirstBoundedMeterAndWidgetsReadTheSample() throws {
+        let snapshot = UsageSnapshot.sample()
+        XCTAssertEqual(snapshot.accounts[0].headline?.id, "session")
+        XCTAssertEqual(snapshot.accounts[2].headline?.id, "balance")
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")
+        XCTAssertEqual(MobileAccount.title(for: "apiUsage"), "API Usage")
     }
 
     @MainActor

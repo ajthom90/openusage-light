@@ -24,13 +24,12 @@ public final class MobileModel {
 
     private let store: CloudLimitsStore?
     private let defaults: UserDefaults
-    private static let savedKey = "openusage.limits.saved"
 
     /// `containerIdentifier` is empty or `nil` when iCloud is not set up, which leaves the example numbers.
-    public init(containerIdentifier: String?, defaults: UserDefaults = .standard) {
+    public init(containerIdentifier: String?, defaults: UserDefaults = SharedLimits.defaults) {
         store = containerIdentifier.flatMap { $0.isEmpty ? nil : CloudLimitsStore(containerIdentifier: $0) }
         self.defaults = defaults
-        if let data = defaults.data(forKey: Self.savedKey), apply(data) { source = .saved } else { applySample() }
+        if let data = SharedLimits.load(from: defaults), apply(data) { source = .saved } else { applySample() }
     }
 
     public func refresh() async {
@@ -46,7 +45,7 @@ public final class MobileModel {
                 return
             }
             if apply(data) {
-                defaults.set(data, forKey: Self.savedKey)
+                SharedLimits.save(data, to: defaults)
                 source = .cloud
                 message = nil
             } else {

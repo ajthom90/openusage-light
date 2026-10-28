@@ -22,6 +22,12 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
     public let isStale: Bool
     public let meters: [MobileMeter]
 
+    /// The meter that stands for the account on a small widget: its first bounded meter (the session, for a
+    /// provider that has one), or else its first meter.
+    public var headline: MobileMeter? {
+        meters.first { $0.fraction != nil } ?? meters.first
+    }
+
     /// The accounts in the document's order, which is the order the user saved on the Mac.
     package static func accounts(in envelope: LimitsEnvelope) -> [MobileAccount] {
         envelope.order.compactMap { id in
@@ -44,14 +50,16 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
         )
     }
 
-    /// `rateLimitResets` → "Rate Limit Resets"; `session` → "Session".
+    /// `rateLimitResets` → "Rate Limit Resets"; `session` → "Session"; `apiUsage` → "API Usage".
     static func title(for key: String) -> String {
-        var words = ""
+        var words: [String] = [""]
         for character in key {
-            if character.isUppercase, !words.isEmpty { words.append(" ") }
-            words.append(character)
+            if character.isUppercase, !(words.last ?? "").isEmpty { words.append("") }
+            words[words.count - 1].append(character)
         }
-        return words.prefix(1).uppercased() + words.dropFirst()
+        let acronyms: Set<String> = ["api", "usd"]
+        return words.map { acronyms.contains($0.lowercased()) ? $0.uppercased() : $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 
     static func valueText(_ resource: LimitsEnvelope.Resource) -> String {
