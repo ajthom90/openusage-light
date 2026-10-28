@@ -71,13 +71,14 @@ The owner approved the recommended shape and these choices:
 
 ## Built so far
 
-- `OpenUsageSync.CloudLimitsStore`: publish and fetch the record (compiles; not yet run against iCloud).
-- `OpenUsageMobile`: `MobileAccount` (document to cards, tested), `MobileModel` (iCloud fetch, last saved document, example numbers when no container), `DashboardScreen`.
-- `iOS/`: the app target, entitlements, and settings. Builds and runs in the iPhone simulator, showing example numbers.
+- The Mac publishes after each refresh (default on in a build signed for the container; Settings → iCloud turns it off), with the account failures and its Show Usage As choice. Names that are emails are left out.
+- The phone app: accounts in the Mac's order, meters in dashboard order, "left" or "used" following the Mac or a toolbar override, per-account refresh failures, an outdated-Mac warning, a readable-width column on iPad. Checked on a real iPhone and the simulators (iPhone, iPad, iPhone Duo outer display).
+- The widget: small, medium, large, and Lock Screen layouts. Checked on the real phone's Home Screen.
+- Push on change: a CloudKit query subscription sends a silent push when the Mac publishes; in a test the backgrounded phone received it two seconds later and saved the new document. Two earlier background tests got no push, possibly iOS throttling after many quick republishes (unproven).
 
 ## Next
 
-1. The Mac publisher and a Settings switch. It needs a provisioning profile for the container, so the Mac dev build has to be signed with one.
-2. Sign the simulator and Mac into the same iCloud account and check a publish reaches the phone.
-3. Push notification on change (CloudKit subscription), then widgets.
-4. Before any TestFlight build, deploy the CloudKit schema from Development to Production.
+1. iPhone Duo: the inner display, and Apple's layout pages (unread).
+2. An app icon and launch screen; versioning; deploy the CloudKit schema to Production before TestFlight.
+3. Try the end-to-end encrypted field on a real device (the plain field stays as the Simulator fallback).
+4. Delete the old encrypted `current` record from the Development environment in the CloudKit Console.

@@ -35,6 +35,20 @@ Download `OpenUsageLight-Setup.exe` from the Windows workflow's artifacts and ru
 
 To build on Windows, install Swift and the Visual Studio build tools, then run `swift build`; `script\package_windows.cmd` makes the zip that `script/installer.iss` wraps.
 
+## iPhone and iPad
+
+The `iOS/` folder holds an iPhone and iPad app with Home Screen and Lock Screen widgets. It shows the limits your Mac reports; it signs in to nothing and holds no tokens or keys. The Mac publishes the same limits document the `openusage` command prints (account names that are emails are left out) to one record in your private iCloud (CloudKit) database, and the phone reads it. The Mac and the phone must use the same iCloud account, and the phone updates only while the Mac is awake and online. Show Usage As on the Mac decides whether the phone reads "left" or "used"; the phone can override it from its toolbar menu.
+
+It is built with your own Apple Developer account, so it is not part of the default build. Copy `iOS/Config/Local.xcconfig.example` to `iOS/Config/Local.xcconfig` (git ignores it) and fill in your team, a reverse-DNS prefix, and an iCloud container. Run `git config core.hooksPath script/hooks` so a commit containing those values is refused. Then:
+
+```sh
+cd iOS && xcodegen
+xcodebuild -scheme OpenUsageMacSigning -destination 'platform=macOS' -allowProvisioningUpdates build   # makes the Mac profile
+xcodebuild -scheme OpenUsageLight -destination 'id=<your device>' -allowProvisioningUpdates build
+```
+
+`./script/build_and_run.sh` then signs the Mac app for the container and turns on Settings → iCloud → Sync to iPhone and iPad (`ICLOUD_SYNC=0` builds without it). The app and widget read the container from their Info.plist, so a build without one shows example numbers.
+
 ## Providers
 
 The account picker supports Claude, Codex, Cursor, Antigravity, Copilot, Grok, Muse Code, Ollama, OpenCode, OpenRouter, and Z.ai. Providers use OAuth except Ollama, OpenCode, OpenRouter, and Z.ai, which use API keys: none of them offers a sign-in that the app can use to read usage. Each API-key step links to the page where you create the key. OpenRouter's balance needs a Management key. Muse Code (Meta) signs in with a code you approve in the browser and shows its 5-hour and weekly allowance as Session and Weekly; Meta documents no usage endpoint for it, so this relies on the same request Muse Code's own sign-in makes and may change without notice.
@@ -73,7 +87,7 @@ The development app is staged as `dist/OpenUsage Light.app` with bundle identifi
 
 ## Architecture
 
-This SwiftPM package has three code targets. `OpenUsageCore` holds the platform-neutral data model and the limits document (Foundation only, so a Windows or Linux app can build on it); `OpenUsage` is the macOS app library; `OpenUsageCLI` is the `openusage` command. On Windows the package adds `OpenUsageWindows` (library), `OpenUsageWindowsApp` (the tray app), and `OpenUsageWindowsCLI`. A test fails if `OpenUsageCore` imports anything but Foundation. Provider clients, mappers, runtimes, and sign-in logic live in the core too, so every platform shares them.
+This SwiftPM package has three code targets. `OpenUsageCore` holds the platform-neutral data model and the limits document (Foundation only, so a Windows or Linux app can build on it); `OpenUsage` is the macOS app library; `OpenUsageCLI` is the `openusage` command. The package also has `OpenUsageSync` (the CloudKit record) and `OpenUsageMobile` (the phone dashboard and widget views, which the iOS app and widget wrap). On Windows the package adds `OpenUsageWindows` (library), `OpenUsageWindowsApp` (the tray app), and `OpenUsageWindowsCLI`. A test fails if `OpenUsageCore` imports anything but Foundation. Provider clients, mappers, runtimes, and sign-in logic live in the core too, so every platform shares them.
 
 The app uses an AppKit status item and panel with SwiftUI content. `AccountStore` persists account metadata; `CredentialVault` stores each account's credential; `ProviderLogin` implements sign-in; and `AccountProviderRuntime` fetches and maps usage for one account. The dashboard is built from those runtimes and the account-specific metric layout.
 
