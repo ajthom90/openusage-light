@@ -45,6 +45,15 @@ final class ICloudPublisherTests: XCTestCase {
     }
 
     @MainActor
+    func testEndToEndEncryptionIsOffUntilTurnedOn() {
+        let defaults = UserDefaults(suiteName: "icloud-encrypt-\(UUID())")!
+        let publisher = ICloudPublisher(containerIdentifier: "iCloud.example", defaults: defaults)
+        XCTAssertFalse(publisher.isEncrypting)
+        defaults.set(true, forKey: ICloudPublisher.encryptKey)
+        XCTAssertTrue(publisher.isEncrypting)
+    }
+
+    @MainActor
     func testPublisherIsOffWithoutAContainerEvenWhenSwitchedOn() {
         let defaults = UserDefaults(suiteName: "icloud-test-\(UUID())")!
         defaults.set(true, forKey: ICloudPublisher.enabledKey)

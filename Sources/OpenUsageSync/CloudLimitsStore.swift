@@ -6,13 +6,14 @@ import Foundation
 /// encrypted by CloudKit in transit and at rest. It carries provider-reported numbers only, never a token
 /// or key, and exactly one device (the Mac) writes it.
 ///
-/// It is a regular field, not a CloudKit end-to-end `encryptedValues` field: those need Apple's Manatee
-/// service, which the Simulator's iCloud account does not have, so the phone app could not be developed or
-/// tested against them. Moving to an encrypted field is a follow-up to try on real devices.
+/// By default the document is a regular field. The Mac can instead write it as a CloudKit end-to-end
+/// `encryptedValues` field, readable only on devices with iCloud Keychain; the Simulator's iCloud account has
+/// no Manatee service, so it cannot read one. A reader takes whichever field is present.
 public struct CloudLimitsStore: Sendable {
     public static let recordType = "Limits"
     public static let recordName = "limits-v1"
     static let documentKey = "limits"
+    static let encryptedDocumentKey = "limitsEncrypted"
     static let generatedAtKey = "generatedAt"
     static let displayModeKey = "displayMode"
 
@@ -32,7 +33,7 @@ public struct CloudLimitsStore: Sendable {
     private var database: CKDatabase { CKContainer(identifier: containerIdentifier).privateCloudDatabase }
 
     /// Replaces the stored document.
-    public func publish(_ document: Data, generatedAt: Date, displayMode: String? = nil) async throws {
+    public func publish(_ document: Data, generatedAt: Date, displayMode: String? = nil, encrypted: Bool = false) async throws {
         let id = CKRecord.ID(recordName: Self.recordName)
         let record: CKRecord
         do {
@@ -40,7 +41,14 @@ public struct CloudLimitsStore: Sendable {
         } catch let error as CKError where error.code == .unknownItem {
             record = CKRecord(recordType: Self.recordType, recordID: id)
         }
-        record[Self.documentKey] = document as CKRecordValue
+        // One field at a time: writing one clears the other, so a reader never sees a stale copy.
+        if encrypted {
+            record[Self.documentKey] = nil
+            record.encryptedValues[Self.encryptedDocumentKey] = document
+        } else {
+            record.encryptedValues[Self.encryptedDocumentKey] = nil
+            record[Self.documentKey] = document as CKRecordValue
+        }
         record[Self.generatedAtKey] = generatedAt as CKRecordValue
         record[Self.displayModeKey] = displayMode.map { $0 as CKRecordValue }
         _ = try await database.save(record)
@@ -50,7 +58,8 @@ public struct CloudLimitsStore: Sendable {
     public func fetch() async throws -> Published? {
         do {
             let record = try await database.record(for: CKRecord.ID(recordName: Self.recordName))
-            guard let document = record[Self.documentKey] as? Data else { return nil }
+            let document = (record.encryptedValues[Self.encryptedDocumentKey] as? Data) ?? (record[Self.documentKey] as? Data)
+            guard let document else { return nil }
             return Published(document: document, displayMode: record[Self.displayModeKey] as? String)
         } catch let error as CKError where error.code == .unknownItem {
             return nil

@@ -8,6 +8,7 @@ struct SettingsScreen: View {
     @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
     @AppStorage(TimeFormatSetting.key) private var timeFormat = TimeFormatSetting.auto
     @AppStorage(ICloudPublisher.enabledKey) private var iCloudSync = true
+    @AppStorage(ICloudPublisher.encryptKey) private var iCloudEncrypt = false
     @State private var launchAtLogin = LaunchAtLoginSetting()
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
@@ -43,6 +44,11 @@ struct SettingsScreen: View {
                         row("Sync to iPhone and iPad") {
                             Toggle("", isOn: $iCloudSync).settingsSwitchStyle()
                                 .onChange(of: iCloudSync) { _, on in if on { container.publishToICloudNow() } }
+                        }
+                        row("Encrypt End to End") {
+                            Toggle("", isOn: $iCloudEncrypt).settingsSwitchStyle()
+                                .disabled(!iCloudSync)
+                                .onChange(of: iCloudEncrypt) { _, _ in container.publishToICloudNow() }
                         }
                     }
                 }

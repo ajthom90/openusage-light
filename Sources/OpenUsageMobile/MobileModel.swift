@@ -68,7 +68,10 @@ public final class MobileModel {
                 message = "The Mac published data this version can't read. Update this app."
             }
         } catch {
-            message = "Couldn't reach iCloud: \(error.localizedDescription)"
+            let text = error.localizedDescription
+            message = text.contains("Manatee")
+                ? "This device can't read end-to-end encrypted data (it needs iCloud Keychain). Turn off Encrypt End to End on the Mac, or use a device with iCloud Keychain."
+                : "Couldn't reach iCloud: \(text)"
         }
     }
 

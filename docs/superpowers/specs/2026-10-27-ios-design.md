@@ -80,7 +80,7 @@ The owner approved the recommended shape and these choices:
 
 1. iPhone Duo: checked in the simulator in closed (outer display), open wide, open tall, partly folded tall (horizontal fold), partly folded wide (vertical fold), and Split View. Not checked: other apps' sizes in Split View, App Store Duo screenshots.
 2. An app icon and launch screen; versioning; deploy the CloudKit schema to Production before TestFlight.
-3. Try the end-to-end encrypted field on a real device (the plain field stays as the Simulator fallback).
+3. (Done) End-to-end encryption is an option: Settings → iCloud → Encrypt End to End on the Mac writes the document as a CloudKit `encryptedValues` field and clears the plain one. Probed first: the Mac and the real phone can use encrypted fields; the Simulator's iCloud account cannot ("Manatee is not available"), and the phone app says so in plain words. Off by default so simulators keep working.
 4. Delete the old encrypted `current` record from the Development environment in the CloudKit Console.
 
 ## iPhone Duo notes (from Apple's guidance, read 2026-10-28)

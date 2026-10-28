@@ -10,6 +10,7 @@ import OpenUsageSync
 @MainActor
 final class ICloudPublisher {
     static let enabledKey = "iCloudSyncEnabled"
+    static let encryptKey = "iCloudSyncEncrypted"
 
     /// The container this build was signed for, or `nil` for a build without iCloud.
     static var containerIdentifier: String? {
@@ -26,6 +27,9 @@ final class ICloudPublisher {
 
     /// On by default in a build signed for iCloud; the Settings switch turns it off.
     var isEnabled: Bool { store != nil && (defaults.object(forKey: Self.enabledKey) as? Bool ?? true) }
+
+    /// Whether to publish as an end-to-end encrypted field. Off by default: the Simulator cannot read one.
+    var isEncrypting: Bool { defaults.bool(forKey: Self.encryptKey) }
 
     /// The document for the given accounts, in the user's saved dashboard order.
     static func document(
@@ -50,7 +54,7 @@ final class ICloudPublisher {
         guard isEnabled, let store else { return }
         do {
             let document = try Self.document(entries: entries, failures: failures, savedOrder: savedOrder, now: now)
-            try await store.publish(document, generatedAt: now, displayMode: displayMode.rawValue)
+            try await store.publish(document, generatedAt: now, displayMode: displayMode.rawValue, encrypted: isEncrypting)
             AppLog.info(.refresh, "published \(entries.count) accounts to iCloud")
         } catch {
             // The error text can name the container but never carries the document or any credential.
