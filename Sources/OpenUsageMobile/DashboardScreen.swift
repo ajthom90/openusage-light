@@ -35,6 +35,10 @@ public struct DashboardScreen: View {
                     }
                 }
             }
+            // A readable column on an iPad or the unfolded Duo, instead of cards stretched across the screen.
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity)
+            .background(groupedBackground)
             .navigationTitle("Usage")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
@@ -50,6 +54,14 @@ public struct DashboardScreen: View {
             .refreshable { await model.refresh() }
             .task { await model.refresh() }
         }
+    }
+
+    private var groupedBackground: Color {
+        #if canImport(UIKit)
+        Color(.systemGroupedBackground)
+        #else
+        Color.clear
+        #endif
     }
 
     private func footer(_ updated: Date) -> String {

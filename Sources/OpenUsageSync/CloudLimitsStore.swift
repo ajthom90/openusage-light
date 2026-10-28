@@ -56,4 +56,25 @@ public struct CloudLimitsStore: Sendable {
             return nil
         }
     }
+
+    static let subscriptionID = "limits-v1-changes"
+
+    /// Asks CloudKit to send this device a silent push whenever the Mac publishes, so the app and its
+    /// widget can refresh without waiting for a timer. Safe to call on every launch.
+    public func subscribeToChanges() async throws {
+        do {
+            _ = try await database.subscription(for: Self.subscriptionID)
+            return
+        } catch let error as CKError where error.code == .unknownItem {
+            // Not subscribed yet: fall through and create it.
+        }
+        let subscription = CKQuerySubscription(
+            recordType: Self.recordType, predicate: NSPredicate(value: true), subscriptionID: Self.subscriptionID,
+            options: [.firesOnRecordCreation, .firesOnRecordUpdate]
+        )
+        let info = CKSubscription.NotificationInfo()
+        info.shouldSendContentAvailable = true
+        subscription.notificationInfo = info
+        _ = try await database.save(subscription)
+    }
 }

@@ -26,12 +26,14 @@ targets:
         com.apple.developer.icloud-container-identifiers: ["$(ICLOUD_CONTAINER)"]
         com.apple.developer.icloud-services: [CloudKit]
         com.apple.security.application-groups: ["$(APP_GROUP)"]
+        aps-environment: development
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: OpenUsage Light
         ICloudContainer: $(ICLOUD_CONTAINER)
         AppGroup: $(APP_GROUP)
+        UIBackgroundModes: [remote-notification]
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]

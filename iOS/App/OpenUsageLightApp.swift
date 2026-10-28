@@ -1,9 +1,11 @@
 import OpenUsageMobile
 import SwiftUI
+import UIKit
 import WidgetKit
 
 @main
 struct OpenUsageLightApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = MobileModel(
         containerIdentifier: Bundle.main.object(forInfoDictionaryKey: "ICloudContainer") as? String
     )
