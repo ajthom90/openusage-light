@@ -70,14 +70,11 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(accounts[1].notice, "Sign in again")
     }
 
-    func testColumnsFollowTheWidthInEvenNumbersAndTheFoldBecomesTheGap() {
-        XCTAssertEqual(GridMetrics(width: 393, foldWidth: 0).columns, 1)
-        XCTAssertEqual(GridMetrics(width: 670, foldWidth: 0).columns, 2)
-        XCTAssertEqual(GridMetrics(width: 1032, foldWidth: 0).columns, 2)
-        XCTAssertEqual(GridMetrics(width: 1376, foldWidth: 0).columns, 4)
-        let folded = GridMetrics(width: 951, foldWidth: 48)
-        XCTAssertEqual(folded.columns, 2)
-        XCTAssertEqual(folded.gap, 48)
+    func testColumnsFollowTheWidthInEvenNumbers() {
+        XCTAssertEqual(GridMetrics(width: 393).columns, 1)
+        XCTAssertEqual(GridMetrics(width: 670).columns, 2)
+        XCTAssertEqual(GridMetrics(width: 1032).columns, 2)
+        XCTAssertEqual(GridMetrics(width: 1376).columns, 4)
     }
 
     func testShortCardsStackInsteadOfLeavingHoles() {
@@ -100,7 +97,13 @@ final class MobileAccountTests: XCTestCase {
     func testFoldGeometryTellsAVerticalHingeFromAHorizontalOne() {
         XCTAssertEqual(FoldGeometry(regions: []), .none)
         XCTAssertEqual(FoldGeometry(regions: [CGRect(x: 0, y: 321, width: 669, height: 40)]), .horizontal(minY: 321, maxY: 361))
-        XCTAssertEqual(FoldGeometry(regions: [CGRect(x: 455, y: 0, width: 40, height: 669)]), .vertical(width: 40))
+        XCTAssertEqual(FoldGeometry(regions: [CGRect(x: 455, y: 0, width: 40, height: 669)]), .vertical(minX: 455, maxX: 495))
+    }
+
+    func testCardsAreSharedAcrossAVerticalFoldInOrder() {
+        let sides = PaneSplit.sides(heights: [300, 100, 280, 100, 100], spacing: 16)
+        XCTAssertEqual(sides.left, [0, 3])
+        XCTAssertEqual(sides.right, [1, 2, 4])
     }
 
     func testOnlyCardsThatFitGoAboveTheFold() {

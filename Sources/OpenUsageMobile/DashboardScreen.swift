@@ -36,32 +36,38 @@ public struct DashboardScreen: View {
     @ViewBuilder
     private func content(in proxy: GeometryProxy) -> some View {
         let fold = FoldGeometry(regions: foldRegions(in: proxy))
+        let heights = model.accounts.map(PaneSplit.estimatedHeight(of:))
+        let bannerRoom: CGFloat = (model.message != nil || model.isOutdated()) ? 60 : 0
         switch fold {
         case .horizontal(let minY, let maxY):
             // A fold across the middle: one pane above it and one below, each scrolling on its own, with the
             // hinge itself left empty so no card is hidden under it.
-            let grid = GridMetrics(width: proxy.size.width, foldWidth: 0)
-            let bannerRoom: CGFloat = (model.message != nil || model.isOutdated()) ? 60 : 0
-            let above = PaneSplit.countAbove(
-                heights: model.accounts.map(PaneSplit.estimatedHeight(of:)), columns: grid.columns, spacing: 16,
-                available: minY - 32 - bannerRoom
-            )
-            let top = Array(model.accounts.prefix(above)), bottom = Array(model.accounts.dropFirst(above))
+            let columns = GridMetrics(width: proxy.size.width).columns
+            let above = PaneSplit.countAbove(heights: heights, columns: columns, spacing: 16, available: minY - 32 - bannerRoom)
             VStack(spacing: 0) {
-                ScrollView { pane(top, grid: grid, showsBanners: true, showsFooter: false) }
+                ScrollView { pane(Array(model.accounts.prefix(above)), columns: columns, showsBanners: true, showsFooter: false) }
                     .frame(height: max(minY, 0))
                 Color.clear.frame(height: max(maxY - minY, 0))
-                ScrollView { pane(bottom, grid: grid, showsBanners: false, showsFooter: true) }
+                ScrollView { pane(Array(model.accounts.dropFirst(above)), columns: columns, showsBanners: false, showsFooter: true) }
                     .frame(maxHeight: .infinity)
             }
-        case .vertical(let width):
-            ScrollView { pane(model.accounts, grid: GridMetrics(width: proxy.size.width, foldWidth: width), showsBanners: true, showsFooter: true) }
+        case .vertical(let minX, let maxX):
+            // A fold down the middle: one pane on each side of the hinge's real position, the cards shared out
+            // so the two sides come out about equally tall.
+            let (left, right) = PaneSplit.sides(heights: heights, spacing: 16)
+            HStack(spacing: 0) {
+                ScrollView { pane(left.map { model.accounts[$0] }, columns: 1, showsBanners: true, showsFooter: false) }
+                    .frame(width: max(minX, 0))
+                Color.clear.frame(width: max(maxX - minX, 0))
+                ScrollView { pane(right.map { model.accounts[$0] }, columns: 1, showsBanners: false, showsFooter: true) }
+                    .frame(maxWidth: .infinity)
+            }
         case .none:
-            ScrollView { pane(model.accounts, grid: GridMetrics(width: proxy.size.width, foldWidth: 0), showsBanners: true, showsFooter: true) }
+            ScrollView { pane(model.accounts, columns: GridMetrics(width: proxy.size.width).columns, showsBanners: true, showsFooter: true) }
         }
     }
 
-    private func pane(_ accounts: [MobileAccount], grid: GridMetrics, showsBanners: Bool, showsFooter: Bool) -> some View {
+    private func pane(_ accounts: [MobileAccount], columns: Int, showsBanners: Bool, showsFooter: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             if showsBanners {
                 if let message = model.message {
@@ -74,7 +80,7 @@ public struct DashboardScreen: View {
                     )
                 }
             }
-            MasonryLayout(columns: grid.columns, columnGap: grid.gap, rowSpacing: 16) {
+            MasonryLayout(columns: columns, columnGap: 16, rowSpacing: 16) {
                 ForEach(accounts) { AccountCard(account: $0) }
             }
             if showsFooter, let updated = model.generatedAt {
@@ -106,13 +112,13 @@ public struct DashboardScreen: View {
 /// horizontal one top and bottom.
 enum FoldGeometry: Equatable {
     case none
-    case vertical(width: CGFloat)
+    case vertical(minX: CGFloat, maxX: CGFloat)
     case horizontal(minY: CGFloat, maxY: CGFloat)
 
     init(regions: [CGRect]) {
         // The tallest-or-widest band wins if the system ever reports more than one.
         if let band = regions.filter({ $0.width > 0 && $0.height > 0 }).max(by: { max($0.width, $0.height) < max($1.width, $1.height) }) {
-            self = band.height > band.width ? .vertical(width: band.width) : .horizontal(minY: band.minY, maxY: band.maxY)
+            self = band.height > band.width ? .vertical(minX: band.minX, maxX: band.maxX) : .horizontal(minY: band.minY, maxY: band.maxY)
         } else {
             self = .none
         }
@@ -125,6 +131,14 @@ enum PaneSplit {
     /// A card's height before it is measured: its header plus about this much per meter.
     static func estimatedHeight(of account: MobileAccount) -> CGFloat {
         45 + 58 * CGFloat(max(account.meters.count, 1)) + (account.notice == nil ? 0 : 24)
+    }
+
+    /// Which cards go on the left of a vertical fold and which on the right (indexes, each in saved order),
+    /// sharing them out so the two sides come out about equally tall.
+    static func sides(heights: [CGFloat], spacing: CGFloat) -> (left: [Int], right: [Int]) {
+        let slots = MasonryPlacement.place(heights: heights, columns: 2, spacing: spacing).slots
+        let indexes = Array(slots.indices)
+        return (indexes.filter { slots[$0].column == 0 }, indexes.filter { slots[$0].column == 1 })
     }
 
     /// How many leading cards fit above the fold when packed into `columns` columns.
@@ -140,20 +154,12 @@ enum PaneSplit {
     }
 }
 
-/// How many columns, and how wide a gap between them, for a given width. Always an even number of columns
-/// beyond one, so the content divides cleanly down the middle when a Duo is folded.
+/// How many columns for a given width: always an even number beyond one, so content divides cleanly.
 struct GridMetrics: Equatable {
     let columns: Int
-    let gap: CGFloat
 
-    init(width: CGFloat, foldWidth: CGFloat) {
-        if foldWidth > 0 {
-            columns = 2
-            gap = foldWidth
-        } else {
-            columns = width < 640 ? 1 : (width < 1200 ? 2 : 4)
-            gap = 16
-        }
+    init(width: CGFloat) {
+        columns = width < 640 ? 1 : (width < 1200 ? 2 : 4)
     }
 }
 

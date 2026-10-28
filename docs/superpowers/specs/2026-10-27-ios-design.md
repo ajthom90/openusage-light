@@ -78,7 +78,7 @@ The owner approved the recommended shape and these choices:
 
 ## Next
 
-1. iPhone Duo: the outer display is checked; the inner display (open, partially folded, Split View) still needs a look in Device Hub, since the pose cannot be set from the command line.
+1. iPhone Duo: checked in the simulator in closed (outer display), open wide, open tall, partly folded tall (horizontal fold), partly folded wide (vertical fold), and Split View. Not checked: other apps' sizes in Split View, App Store Duo screenshots.
 2. An app icon and launch screen; versioning; deploy the CloudKit schema to Production before TestFlight.
 3. Try the end-to-end encrypted field on a real device (the plain field stays as the Simulator fallback).
 4. Delete the old encrypted `current` record from the Development environment in the CloudKit Console.
@@ -87,4 +87,4 @@ The owner approved the recommended shape and these choices:
 
 Sources: the HIG page "Designing for iPhone Duo" and the documentation "Preparing your app for iPhone Duo" (add `.md` to a developer.apple.com URL for markdown). Two displays: an outer one (closed; compact width, regular height in portrait) and an inner one (open; regular width and height). The inner display ignores the supported-orientations setting, so layout follows size classes or the space given, never orientation or idiom. Building with the iOS 27.1 or later SDK (we use 27.2) gives the full-screen layout.
 
-What the app does: standard `NavigationStack` and toolbar (so the system moves the bars to a vertical strip on the outer display), a toolbar item with both a title and an icon, no `UIScreen.main`, and a card grid whose column count comes from the width (1, 2, or 4, always even beyond one). When the fold is active (`GeometryProxy.reservedRegions(kind: .division)`, iOS 27.1+), it uses two columns with the fold's width as the gap, so no card straddles the hinge. Not done: an arrangement view, `ReservedRegion` for custom UI, Duo screenshots for the App Store badge.
+What the app does: standard `NavigationStack` and toolbar (so the system moves the bars to a vertical strip on the outer display), a toolbar item with both a title and an icon, no `UIScreen.main`, and a card layout packed by height into 1, 2, or 4 columns by width (always even beyond one). When a fold is active (`GeometryProxy.reservedRegions(kind: .division)`, iOS 27.1+) the dashboard becomes two scrolling panes placed on either side of the hinge's real position: above and below a horizontal fold, left and right of a vertical one. The fold's reported frame is in the view's own coordinates; use its edges, not just its width. Not done: an arrangement view, `ReservedRegion` for custom UI, Duo screenshots for the App Store badge.
