@@ -70,4 +70,24 @@ package struct LimitsEnvelope: Codable, Equatable, Sendable {
         }
         return String(decoding: try encoder.encode(self), as: UTF8.self)
     }
+
+    /// Reads a document written by `json(pretty:)`. A document of another schema is refused rather than
+    /// guessed at, so a newer producer never shows up as wrong numbers on an older reader.
+    package static func decode(_ data: Data) throws -> LimitsEnvelope {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let text = try decoder.singleValueContainer().decode(String.self)
+            guard let date = OpenUsageISO8601.date(from: text) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "not an ISO-8601 date: \(text)"))
+            }
+            return date
+        }
+        let envelope = try decoder.decode(LimitsEnvelope.self, from: data)
+        guard envelope.schema == Self.schema else { throw DecodeError.unsupportedSchema(envelope.schema) }
+        return envelope
+    }
+
+    package enum DecodeError: Error, Equatable {
+        case unsupportedSchema(String)
+    }
 }

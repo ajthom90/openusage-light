@@ -1,0 +1,12 @@
+// Build settings shared by every iOS target. Nothing personal belongs here: put your team and identifiers in
+// Local.xcconfig (gitignored), copied from Local.xcconfig.example.
+#include? "Local.xcconfig"
+
+// Blank until Local.xcconfig sets them, which leaves iCloud sync off and the app on its sample data.
+DEVELOPMENT_TEAM =
+BUNDLE_ID_PREFIX = org.example.openusage
+ICLOUD_CONTAINER =
+
+SWIFT_VERSION = 6.0
+IPHONEOS_DEPLOYMENT_TARGET = 18.0
+CODE_SIGN_STYLE = Automatic

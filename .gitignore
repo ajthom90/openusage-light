@@ -25,3 +25,7 @@ node_modules/
 *.xcarchive
 *.xcresult
 .build-test/
+
+# Personal Apple Developer settings (team, container); see iOS/Config/Shared.xcconfig
+iOS/Config/Local.xcconfig
+iOS/*.xcodeproj/

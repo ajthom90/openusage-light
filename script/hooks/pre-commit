@@ -1,0 +1,23 @@
+#!/bin/bash
+# Refuses a commit whose staged changes contain a value from the gitignored iOS/Config/Local.xcconfig (your
+# Apple team and iCloud container) or a signing file. Enable with: git config core.hooksPath script/hooks
+set -u
+ROOT=$(git rev-parse --show-toplevel)
+LOCAL="$ROOT/iOS/Config/Local.xcconfig"
+status=0
+
+if git diff --cached --name-only | grep -E -i '\.(p12|p8|pem|mobileprovision|provisionprofile|cer)$|Local\.xcconfig$' | grep -v 'Local.xcconfig.example' >/dev/null; then
+  echo "pre-commit: a signing file or Local.xcconfig is staged; unstage it." >&2
+  status=1
+fi
+
+if [ -f "$LOCAL" ]; then
+  while IFS= read -r value; do
+    [ -z "$value" ] && continue
+    if git diff --cached -U0 | grep '^+' | grep -v '^+++' | grep -F -- "$value" >/dev/null; then
+      echo "pre-commit: staged changes contain a personal value from Local.xcconfig ($value)." >&2
+      status=1
+    fi
+  done < <(sed -n 's/^[A-Z_]* *= *//p' "$LOCAL" | sed 's/[[:space:]]*$//')
+fi
+exit $status

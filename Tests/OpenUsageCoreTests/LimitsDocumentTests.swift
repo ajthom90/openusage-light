@@ -72,6 +72,28 @@ final class LimitsProjectionTests: XCTestCase {
         XCTAssertEqual(provider.plan, "Pro")
     }
 
+    func testDocumentReadsBackWhatWasWritten() throws {
+        let reset = now.addingTimeInterval(3600)
+        let e = entry(.claude, lines: [
+            .progress(label: "Session", used: 42, limit: 100, format: .percent, resetsAt: reset, periodDurationMs: 18_000_000)
+        ])
+        let original = envelope([e])
+        let decoded = try LimitsEnvelope.decode(Data(try original.json().utf8))
+        XCTAssertEqual(decoded.order, original.order)
+        XCTAssertEqual(decoded.providers[e.account.cardID]?.resources["session"]?.used, 42)
+        // Timestamps are written to the millisecond, so compare at that precision.
+        XCTAssertEqual(try XCTUnwrap(decoded.generatedAt).timeIntervalSince1970, now.timeIntervalSince1970, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(decoded.providers[e.account.cardID]?.resources["session"]?.resetsAt).timeIntervalSince1970,
+                       reset.timeIntervalSince1970, accuracy: 0.001)
+    }
+
+    func testDocumentOfAnotherSchemaIsRefused() throws {
+        let json = try envelope([]).json().replacingOccurrences(of: "openusage.limits.v1", with: "openusage.limits.v2")
+        XCTAssertThrowsError(try LimitsEnvelope.decode(Data(json.utf8))) {
+            XCTAssertEqual($0 as? LimitsEnvelope.DecodeError, .unsupportedSchema("openusage.limits.v2"))
+        }
+    }
+
     func testPublicKeysDoNotFollowDashboardRowIds() throws {
         let e = entry(.cursor, lines: [
             .progress(label: "Total usage", used: 10, limit: 100, format: .percent)

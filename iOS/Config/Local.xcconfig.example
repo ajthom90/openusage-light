@@ -1,0 +1,4 @@
+// Copy to Local.xcconfig (which git ignores) and fill in your own values.
+DEVELOPMENT_TEAM = YOURTEAMID
+BUNDLE_ID_PREFIX = dev.example
+ICLOUD_CONTAINER = iCloud.dev.example.openusage
