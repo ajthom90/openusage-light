@@ -16,9 +16,12 @@ final class AppContainer {
     let renaming: AccountRenameStore
     @ObservationIgnored private var providers: [AccountProviderRuntime]
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private let iCloudPublisher = ICloudPublisher()
+    @ObservationIgnored private let defaults: UserDefaults
 
     init(accounts: AccountStore = AccountStore(), defaults: UserDefaults = .standard) async {
         self.accounts = accounts
+        self.defaults = defaults
         let providers = ProviderCatalog.make(accounts: accounts.accounts, vault: accounts.credentialVault)
         let registry = WidgetRegistry.from(providers)
         let notificationSettings = NotificationSettingsStore(defaults: defaults)
@@ -60,9 +63,19 @@ final class AppContainer {
             while !Task.isCancelled {
                 await dataStore.refreshAll()
                 await dataStore.evaluateNotifications()
+                await publishToICloud()
                 try? await Task.sleep(for: .milliseconds(Int64(RefreshSetting.interval * 1_000)))
             }
         }
+    }
+
+    /// Hands the phone apps what was just fetched; a no-op unless iCloud sync is on.
+    private func publishToICloud() async {
+        guard iCloudPublisher.isEnabled else { return }
+        let entries = providers.map {
+            LimitsProjection.Entry(account: $0.account, snapshot: dataStore.snapshots[$0.provider.id], descriptors: $0.widgetDescriptors)
+        }
+        await iCloudPublisher.publish(entries: entries, savedOrder: SavedDashboardOrder.providerOrder(in: defaults))
     }
 
     private func observeAccounts() {

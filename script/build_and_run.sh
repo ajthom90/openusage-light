@@ -10,6 +10,10 @@ set -euo pipefail
 # Usage: script/build_and_run.sh [run|build|logs|verify]
 # Env:   CODESIGN_IDENTITY  override signing identity (exact name or hash)
 #        CONFIG             "release" (default) or "debug"
+#        ICLOUD_SYNC=1      sign with an iCloud container so the app can sync to the iPhone and iPad apps. Reads the
+#                           team, bundle prefix, and container from iOS/Config/Local.xcconfig (gitignored), uses the
+#                           bundle id <prefix>.mac, and embeds the profile Xcode made for it (build it first with
+#                           `cd iOS && xcodegen && xcodebuild -scheme OpenUsageMacSigning -allowProvisioningUpdates`).
 
 MODE="${1:-run}"
 CONFIG="${CONFIG:-release}"
@@ -17,6 +21,23 @@ CONFIG="${CONFIG:-release}"
 TARGET_NAME="OpenUsage"                 # SwiftPM target / binary name
 APP_DISPLAY="OpenUsage Light"           # user-facing app name
 BUNDLE_ID="${BUNDLE_ID:-com.robinebers.openusage-light.dev}"
+ICLOUD_PLIST_KEY=""
+ICLOUD_PROFILE=""
+if [ "${ICLOUD_SYNC:-}" = "1" ]; then
+  LOCAL_XCCONFIG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/iOS/Config/Local.xcconfig"
+  [ -f "$LOCAL_XCCONFIG" ] || { echo "ICLOUD_SYNC=1 needs $LOCAL_XCCONFIG" >&2; exit 1; }
+  xcconfig_value() { /usr/bin/sed -n "s/^$1 *= *//p" "$LOCAL_XCCONFIG" | /usr/bin/sed 's/[[:space:]]*$//'; }
+  ICLOUD_CONTAINER="$(xcconfig_value ICLOUD_CONTAINER)"
+  BUNDLE_ID="${BUNDLE_ID_OVERRIDE:-$(xcconfig_value BUNDLE_ID_PREFIX).mac}"
+  PROFILE_NAME="Mac Team Provisioning Profile: $BUNDLE_ID"
+  for profile in "$HOME"/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.provisionprofile; do
+    name="$(/usr/bin/security cms -D -i "$profile" 2>/dev/null | /usr/bin/plutil -extract Name raw -o - - 2>/dev/null || true)"
+    [ "$name" = "$PROFILE_NAME" ] && ICLOUD_PROFILE="$profile"
+  done
+  [ -n "$ICLOUD_PROFILE" ] || { echo "no provisioning profile named '$PROFILE_NAME'; build the OpenUsageMacSigning scheme first" >&2; exit 1; }
+  ICLOUD_PLIST_KEY="<key>ICloudContainer</key><string>$ICLOUD_CONTAINER</string>"
+  echo "==> iCloud sync build ($BUNDLE_ID)"
+fi
 MIN_SYSTEM_VERSION="15.0"
 APP_VERSION="0.1.0"
 APP_BUILD="0.1.0"
@@ -133,6 +154,7 @@ cat >"$INFO_PLIST" <<PLIST
   <string>NSApplication</string>
   <key>NSHighResolutionCapable</key>
   <true/>
+  $ICLOUD_PLIST_KEY
 </dict>
 </plist>
 PLIST
@@ -143,6 +165,13 @@ CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-}"
 if [ -z "$CODESIGN_IDENTITY" ]; then
   CODESIGN_IDENTITY=$(/usr/bin/security find-identity -p codesigning -v 2>/dev/null \
     | /usr/bin/awk -F\" '/Apple Development:/ { print $2; exit }')
+fi
+
+if [ -n "$ICLOUD_PROFILE" ]; then
+  # The signed entitlements must be the ones the profile grants: take them from it, as Xcode does.
+  /bin/cp "$ICLOUD_PROFILE" "$APP_CONTENTS/embedded.provisionprofile"
+  SIGN_ENTITLEMENTS="$(/usr/bin/mktemp -t openusage-entitlements).plist"
+  /usr/bin/security cms -D -i "$ICLOUD_PROFILE" | /usr/bin/plutil -extract Entitlements xml1 -o "$SIGN_ENTITLEMENTS" -
 fi
 
 if [ -n "$CODESIGN_IDENTITY" ]; then

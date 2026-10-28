@@ -37,6 +37,7 @@ targets += [
         name: "OpenUsage",
         dependencies: [
             "OpenUsageCore",
+            "OpenUsageSync",
             .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
         ],
         path: "Sources/OpenUsage",

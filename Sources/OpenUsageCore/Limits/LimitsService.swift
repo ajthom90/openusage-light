@@ -68,7 +68,7 @@ package struct LimitsService {
         return Outcome(envelope: envelope)
     }
 
-    private static func ordered(_ accounts: [Account], by saved: [String]) -> [Account] {
+    package static func ordered(_ accounts: [Account], by saved: [String]) -> [Account] {
         let position = Dictionary(saved.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         let known = accounts.filter { position[$0.cardID] != nil }.sorted { position[$0.cardID]! < position[$1.cardID]! }
         return known + accounts.filter { position[$0.cardID] == nil }

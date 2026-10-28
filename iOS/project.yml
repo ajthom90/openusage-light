@@ -38,3 +38,14 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: NO
+  OpenUsageMacSigning:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources: [MacSigning]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).mac
+        PRODUCT_NAME: OpenUsageMacSigning
+        CODE_SIGN_ENTITLEMENTS: MacSigning/OpenUsageMacSigning.entitlements
+        GENERATE_INFOPLIST_FILE: YES

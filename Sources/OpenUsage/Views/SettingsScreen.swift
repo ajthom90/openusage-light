@@ -7,6 +7,7 @@ struct SettingsScreen: View {
     @Environment(WidgetDataStore.self) private var dataStore
     @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
     @AppStorage(TimeFormatSetting.key) private var timeFormat = TimeFormatSetting.auto
+    @AppStorage(ICloudPublisher.enabledKey) private var iCloudSync = false
     @State private var launchAtLogin = LaunchAtLoginSetting()
     @State private var scrollPosition = ScrollPosition(edge: .top)
 
@@ -37,6 +38,13 @@ struct SettingsScreen: View {
                 }
                 usageDisplaySection
                 notificationsSection
+                if ICloudPublisher.containerIdentifier != nil {
+                    section("iCloud") {
+                        row("Sync to iPhone and iPad") {
+                            Toggle("", isOn: $iCloudSync).settingsSwitchStyle()
+                        }
+                    }
+                }
                 if CommandLineInstaller.forRunningApp().status() != .unavailable {
                     section("Command Line") { SettingsCommandLineRow() }
                 }
