@@ -80,3 +80,7 @@ The provider code imports only Foundation, but it calls helpers that live in the
 
 - Source reaches the ARM VM as a base64 archive through `prlctl exec` (arguments over ~3 KB fail; the host's folders are not shared). Pack with `COPYFILE_DISABLE=1`, or macOS `tar` adds `._*` metadata files that break the UTF-8 import test. Builds run through `vcvarsall.bat` first (`arm64` or `x64`).
 - The x64 machine takes the archive with `scp` and builds over `ssh`. Run a GUI installer there with `start /wait`, or `cmd` returns before it finishes.
+
+## Installer check (2026-10-28)
+
+CI installs, runs, and uninstalls `OpenUsageLight-Setup.exe` silently on fresh x64 and arm64 runners. The owner also clicked through the interactive wizard on Windows and it worked. Not yet checked: upgrading over a running app, Antigravity and Copilot sign-in.
