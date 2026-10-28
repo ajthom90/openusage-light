@@ -97,6 +97,19 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(placed.slots.map(\.y), [0, 60, 130])
     }
 
+    func testFoldGeometryTellsAVerticalHingeFromAHorizontalOne() {
+        XCTAssertEqual(FoldGeometry(regions: []), .none)
+        XCTAssertEqual(FoldGeometry(regions: [CGRect(x: 0, y: 321, width: 669, height: 40)]), .horizontal(minY: 321, maxY: 361))
+        XCTAssertEqual(FoldGeometry(regions: [CGRect(x: 455, y: 0, width: 40, height: 669)]), .vertical(width: 40))
+    }
+
+    func testOnlyCardsThatFitGoAboveTheFold() {
+        let heights: [CGFloat] = [280, 220, 200, 120, 190]
+        XCTAssertEqual(PaneSplit.countAbove(heights: heights, columns: 2, spacing: 16, available: 300), 2)
+        XCTAssertEqual(PaneSplit.countAbove(heights: heights, columns: 2, spacing: 16, available: 10), 1, "always at least one")
+        XCTAssertEqual(PaneSplit.countAbove(heights: heights, columns: 2, spacing: 16, available: 5000), 5)
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")
