@@ -25,10 +25,7 @@ public struct DashboardScreen: View {
                                 systemImage: "clock.badge.exclamationmark", tint: .orange
                             )
                         }
-                        LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: grid.gap, alignment: .top), count: grid.columns),
-                            spacing: 16
-                        ) {
+                        MasonryLayout(columns: grid.columns, columnGap: grid.gap, rowSpacing: 16) {
                             ForEach(model.accounts) { AccountCard(account: $0) }
                         }
                         if let updated = model.generatedAt {

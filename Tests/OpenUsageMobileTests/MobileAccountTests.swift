@@ -80,6 +80,23 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(folded.gap, 48)
     }
 
+    func testShortCardsStackInsteadOfLeavingHoles() {
+        // Five cards in two columns: tall, short, tall, short, short. The shorts pile up beside the talls.
+        let placed = MasonryPlacement.place(heights: [300, 100, 280, 100, 100], columns: 2, spacing: 16)
+        XCTAssertEqual(placed.slots.map(\.column), [0, 1, 1, 0, 1])
+        XCTAssertEqual(placed.slots[0].y, 0)
+        XCTAssertEqual(placed.slots[2].y, 116)
+        XCTAssertEqual(placed.slots[3].y, 316)
+        XCTAssertEqual(placed.slots[4].y, 412)
+        XCTAssertEqual(placed.height, 512)
+    }
+
+    func testOneColumnKeepsTheOrderTopToBottom() {
+        let placed = MasonryPlacement.place(heights: [50, 60, 70], columns: 1, spacing: 10)
+        XCTAssertEqual(placed.slots.map(\.column), [0, 0, 0])
+        XCTAssertEqual(placed.slots.map(\.y), [0, 60, 130])
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")
