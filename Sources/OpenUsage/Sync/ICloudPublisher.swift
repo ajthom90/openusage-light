@@ -24,13 +24,16 @@ final class ICloudPublisher {
         self.defaults = defaults
     }
 
-    var isEnabled: Bool { store != nil && defaults.bool(forKey: Self.enabledKey) }
+    /// On by default in a build signed for iCloud; the Settings switch turns it off.
+    var isEnabled: Bool { store != nil && (defaults.object(forKey: Self.enabledKey) as? Bool ?? true) }
 
     /// The document for the given accounts, in the user's saved dashboard order.
-    static func document(entries: [LimitsProjection.Entry], savedOrder: [String], now: Date) throws -> Data {
+    static func document(
+        entries: [LimitsProjection.Entry], failures: [LimitsEnvelope.Failure] = [], savedOrder: [String], now: Date
+    ) throws -> Data {
         let ordered = LimitsService.ordered(entries.map(\.account), by: savedOrder).map(\.cardID)
         var envelope = LimitsProjection.envelope(
-            entries: entries, failures: [], order: ordered, now: now, freshFor: RefreshSetting.interval
+            entries: entries, failures: failures, order: ordered, now: now, freshFor: RefreshSetting.interval
         )
         // An account named by its email shows as its provider alone, as Share Screenshot does: the email
         // itself never leaves the Mac.
@@ -40,10 +43,13 @@ final class ICloudPublisher {
         return Data(try envelope.json(pretty: false).utf8)
     }
 
-    func publish(entries: [LimitsProjection.Entry], savedOrder: [String], displayMode: WidgetDisplayMode, now: Date = Date()) async {
+    func publish(
+        entries: [LimitsProjection.Entry], failures: [LimitsEnvelope.Failure], savedOrder: [String],
+        displayMode: WidgetDisplayMode, now: Date = Date()
+    ) async {
         guard isEnabled, let store else { return }
         do {
-            let document = try Self.document(entries: entries, savedOrder: savedOrder, now: now)
+            let document = try Self.document(entries: entries, failures: failures, savedOrder: savedOrder, now: now)
             try await store.publish(document, generatedAt: now, displayMode: displayMode.rawValue)
             AppLog.info(.refresh, "published \(entries.count) accounts to iCloud")
         } catch {

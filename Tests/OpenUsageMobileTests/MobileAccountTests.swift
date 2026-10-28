@@ -61,6 +61,15 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(SharedLimits.resolvedDisplay(from: defaults), .remaining)
     }
 
+    func testAnAccountThatFailedToRefreshCarriesTheMacsMessage() throws {
+        let json = SampleLimits.json().replacingOccurrences(
+            of: "\"errors\": []", with: "\"errors\": [{\"providerId\": \"codex@sample2\", \"message\": \"Sign in again\"}]"
+        )
+        let accounts = MobileAccount.accounts(in: try LimitsEnvelope.decode(Data(json.utf8)))
+        XCTAssertNil(accounts[0].notice)
+        XCTAssertEqual(accounts[1].notice, "Sign in again")
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")

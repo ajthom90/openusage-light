@@ -7,7 +7,7 @@ struct SettingsScreen: View {
     @Environment(WidgetDataStore.self) private var dataStore
     @AppStorage(AppearanceSetting.key) private var appearance = AppearanceSetting.system
     @AppStorage(TimeFormatSetting.key) private var timeFormat = TimeFormatSetting.auto
-    @AppStorage(ICloudPublisher.enabledKey) private var iCloudSync = false
+    @AppStorage(ICloudPublisher.enabledKey) private var iCloudSync = true
     @State private var launchAtLogin = LaunchAtLoginSetting()
     @State private var scrollPosition = ScrollPosition(edge: .top)
 

@@ -16,13 +16,23 @@ public struct DashboardScreen: View {
                 }
                 ForEach(model.accounts) { account in
                     Section {
+                        if let notice = account.notice {
+                            Label(notice, systemImage: "exclamationmark.triangle.fill")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
                         ForEach(account.meters) { MeterRow(meter: $0) }
                     } header: {
                         AccountHeader(account: account)
                     }
                 }
                 if let updated = model.generatedAt {
-                    Section { Text(footer(updated)).font(.footnote).foregroundStyle(.secondary) }
+                    Section {
+                        if model.isOutdated(), model.source != .sample {
+                            Label("Your Mac hasn't updated this in a while. It may be asleep or offline.", systemImage: "clock.badge.exclamationmark")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
+                        Text(footer(updated)).font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle("Usage")

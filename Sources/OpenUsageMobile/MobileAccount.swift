@@ -25,6 +25,8 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
     public let plan: String?
     public let fetchedAt: Date
     public let isStale: Bool
+    /// Why the Mac could not refresh this account on its last try, if it could not (the numbers shown are then the last good ones).
+    public let notice: String?
     public let meters: [MobileMeter]
 
     /// The meter that stands for the account on a small widget: its first bounded meter (the session, for a
@@ -43,7 +45,8 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
             let meters = keys.compactMap { key in provider.resources[key].map { meter(key: key, $0, display) } }
             return MobileAccount(
                 id: id, providerName: provider.displayName, name: provider.account.contains("@") ? "" : provider.account, plan: provider.plan,
-                fetchedAt: provider.fetchedAt, isStale: provider.stale, meters: meters
+                fetchedAt: provider.fetchedAt, isStale: provider.stale,
+                notice: envelope.errors.first { $0.providerId == id }?.message, meters: meters
             )
         }
     }

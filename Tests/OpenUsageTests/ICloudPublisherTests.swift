@@ -36,6 +36,15 @@ final class ICloudPublisherTests: XCTestCase {
     }
 
     @MainActor
+    func testSyncIsOnByDefaultWithAContainerAndCanBeSwitchedOff() {
+        let defaults = UserDefaults(suiteName: "icloud-default-\(UUID())")!
+        let publisher = ICloudPublisher(containerIdentifier: "iCloud.example", defaults: defaults)
+        XCTAssertTrue(publisher.isEnabled)
+        defaults.set(false, forKey: ICloudPublisher.enabledKey)
+        XCTAssertFalse(publisher.isEnabled)
+    }
+
+    @MainActor
     func testPublisherIsOffWithoutAContainerEvenWhenSwitchedOn() {
         let defaults = UserDefaults(suiteName: "icloud-test-\(UUID())")!
         defaults.set(true, forKey: ICloudPublisher.enabledKey)

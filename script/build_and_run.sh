@@ -10,7 +10,9 @@ set -euo pipefail
 # Usage: script/build_and_run.sh [run|build|logs|verify]
 # Env:   CODESIGN_IDENTITY  override signing identity (exact name or hash)
 #        CONFIG             "release" (default) or "debug"
-#        ICLOUD_SYNC=1      sign with an iCloud container so the app can sync to the iPhone and iPad apps. Reads the
+#        ICLOUD_SYNC        sign with an iCloud container so the app can sync to the iPhone and iPad apps. On by
+#                           default when iOS/Config/Local.xcconfig exists and the profile below has been made;
+#                           ICLOUD_SYNC=0 builds without it, ICLOUD_SYNC=1 fails if it cannot. Reads the
 #                           team, bundle prefix, and container from iOS/Config/Local.xcconfig (gitignored), uses the
 #                           bundle id <prefix>.mac, and embeds the profile Xcode made for it (build it first with
 #                           `cd iOS && xcodegen && xcodebuild -scheme OpenUsageMacSigning -allowProvisioningUpdates`).
@@ -23,8 +25,11 @@ APP_DISPLAY="OpenUsage Light"           # user-facing app name
 BUNDLE_ID="${BUNDLE_ID:-com.robinebers.openusage-light.dev}"
 ICLOUD_PLIST_KEY=""
 ICLOUD_PROFILE=""
-if [ "${ICLOUD_SYNC:-}" = "1" ]; then
-  LOCAL_XCCONFIG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/iOS/Config/Local.xcconfig"
+BUNDLE_ID_BEFORE_ICLOUD="$BUNDLE_ID"
+LOCAL_XCCONFIG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/iOS/Config/Local.xcconfig"
+ICLOUD_SYNC="${ICLOUD_SYNC:-auto}"
+[ "$ICLOUD_SYNC" = "auto" ] && [ ! -f "$LOCAL_XCCONFIG" ] && ICLOUD_SYNC=0
+if [ "$ICLOUD_SYNC" != "0" ]; then
   [ -f "$LOCAL_XCCONFIG" ] || { echo "ICLOUD_SYNC=1 needs $LOCAL_XCCONFIG" >&2; exit 1; }
   xcconfig_value() { /usr/bin/sed -n "s/^$1 *= *//p" "$LOCAL_XCCONFIG" | /usr/bin/sed 's/[[:space:]]*$//'; }
   ICLOUD_CONTAINER="$(xcconfig_value ICLOUD_CONTAINER)"
@@ -34,9 +39,15 @@ if [ "${ICLOUD_SYNC:-}" = "1" ]; then
     name="$(/usr/bin/security cms -D -i "$profile" 2>/dev/null | /usr/bin/plutil -extract Name raw -o - - 2>/dev/null || true)"
     [ "$name" = "$PROFILE_NAME" ] && ICLOUD_PROFILE="$profile"
   done
-  [ -n "$ICLOUD_PROFILE" ] || { echo "no provisioning profile named '$PROFILE_NAME'; build the OpenUsageMacSigning scheme first" >&2; exit 1; }
-  ICLOUD_PLIST_KEY="<key>ICloudContainer</key><string>$ICLOUD_CONTAINER</string>"
-  echo "==> iCloud sync build ($BUNDLE_ID)"
+  if [ -z "$ICLOUD_PROFILE" ] && [ "$ICLOUD_SYNC" = "auto" ]; then
+    echo "==> no iCloud profile ('$PROFILE_NAME'); building without sync. See the ICLOUD_SYNC note at the top." >&2
+    BUNDLE_ID="${BUNDLE_ID_BEFORE_ICLOUD}"
+  elif [ -z "$ICLOUD_PROFILE" ]; then
+    echo "no provisioning profile named '$PROFILE_NAME'; build the OpenUsageMacSigning scheme first" >&2; exit 1
+  else
+    ICLOUD_PLIST_KEY="<key>ICloudContainer</key><string>$ICLOUD_CONTAINER</string>"
+    echo "==> iCloud sync build ($BUNDLE_ID)"
+  fi
 fi
 MIN_SYSTEM_VERSION="15.0"
 APP_VERSION="0.1.0"

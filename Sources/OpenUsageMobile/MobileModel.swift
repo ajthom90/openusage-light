@@ -21,6 +21,11 @@ public final class MobileModel {
     public private(set) var source: Source = .sample
     public private(set) var message: String?
     public private(set) var isLoading = false
+
+    /// The Mac has not published for longer than a few refreshes, so it may be asleep or offline.
+    public func isOutdated(now: Date = Date()) -> Bool {
+        generatedAt.map { now.timeIntervalSince($0) > 15 * 60 } ?? false
+    }
     /// Whether the user follows the Mac's "Show Usage As" setting or has chosen a reading on this device.
     public private(set) var choice: DisplayChoice
 
