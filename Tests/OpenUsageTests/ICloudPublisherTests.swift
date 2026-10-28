@@ -13,6 +13,7 @@ final class ICloudPublisherTests: XCTestCase {
         return LimitsProjection.Entry(account: account, snapshot: snapshot, descriptors: [])
     }
 
+    @MainActor
     func testDocumentFollowsTheSavedOrderAndCarriesNoCredentials() throws {
         let claude = entry(.claude, label: "Work"), codex = entry(.codex, label: "Personal")
         let data = try ICloudPublisher.document(
