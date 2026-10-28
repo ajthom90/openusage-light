@@ -42,6 +42,7 @@ struct SettingsScreen: View {
                     section("iCloud") {
                         row("Sync to iPhone and iPad") {
                             Toggle("", isOn: $iCloudSync).settingsSwitchStyle()
+                                .onChange(of: iCloudSync) { _, on in if on { container.publishToICloudNow() } }
                         }
                     }
                 }

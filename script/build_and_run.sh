@@ -172,6 +172,16 @@ if [ -n "$ICLOUD_PROFILE" ]; then
   /bin/cp "$ICLOUD_PROFILE" "$APP_CONTENTS/embedded.provisionprofile"
   SIGN_ENTITLEMENTS="$(/usr/bin/mktemp -t openusage-entitlements).plist"
   /usr/bin/security cms -D -i "$ICLOUD_PROFILE" | /usr/bin/plutil -extract Entitlements xml1 -o "$SIGN_ENTITLEMENTS" -
+  # The profile grants wildcards (`*`) that a signed app must spell out, and CloudKit refuses a "*" for its
+  # services. Name them as Xcode does, and drop the wildcard groups the app does not use.
+  PB=/usr/libexec/PlistBuddy
+  $PB -c "Delete :com.apple.developer.icloud-services" "$SIGN_ENTITLEMENTS"
+  $PB -c "Add :com.apple.developer.icloud-services array" -c "Add :com.apple.developer.icloud-services:0 string CloudKit" "$SIGN_ENTITLEMENTS"
+  $PB -c "Delete :com.apple.developer.icloud-container-environment" "$SIGN_ENTITLEMENTS"
+  $PB -c "Add :com.apple.developer.icloud-container-environment string Development" "$SIGN_ENTITLEMENTS"
+  for key in com.apple.developer.ubiquity-container-identifiers com.apple.developer.ubiquity-kvstore-identifier keychain-access-groups; do
+    $PB -c "Delete :$key" "$SIGN_ENTITLEMENTS" 2>/dev/null || true
+  done
 fi
 
 if [ -n "$CODESIGN_IDENTITY" ]; then

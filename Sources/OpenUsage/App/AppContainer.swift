@@ -69,6 +69,11 @@ final class AppContainer {
         }
     }
 
+    /// Publishes right away, for when the user has just turned sync on.
+    func publishToICloudNow() {
+        Task { await publishToICloud() }
+    }
+
     /// Hands the phone apps what was just fetched; a no-op unless iCloud sync is on.
     private func publishToICloud() async {
         guard iCloudPublisher.isEnabled else { return }
