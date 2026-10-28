@@ -70,6 +70,16 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(accounts[1].notice, "Sign in again")
     }
 
+    func testColumnsFollowTheWidthInEvenNumbersAndTheFoldBecomesTheGap() {
+        XCTAssertEqual(GridMetrics(width: 393, foldWidth: 0).columns, 1)
+        XCTAssertEqual(GridMetrics(width: 670, foldWidth: 0).columns, 2)
+        XCTAssertEqual(GridMetrics(width: 1032, foldWidth: 0).columns, 2)
+        XCTAssertEqual(GridMetrics(width: 1376, foldWidth: 0).columns, 4)
+        let folded = GridMetrics(width: 951, foldWidth: 48)
+        XCTAssertEqual(folded.columns, 2)
+        XCTAssertEqual(folded.gap, 48)
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")
