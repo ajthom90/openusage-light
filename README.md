@@ -25,7 +25,7 @@ openusage --force          # refresh now instead of reusing recent results
 
 Install it from Settings → Command Line, which links `/usr/local/bin/openusage` to the helper inside the app, so app updates update the command. Exit codes are `0` for success, `2` for invalid arguments or an unknown provider, and `4` when a refresh failed; the last good results are still printed, with the failure listed in `errors`.
 
-The output is the `openusage.limits.v1` document: `order` lists the account ids in your dashboard order, and `providers` maps each id to its plan, `fetchedAt`, `expiresAt`, `stale`, and a `resources` object. A resource is either `consumption` (`used`, plus `limit`, `remaining`, `utilization` and `resetsAt` when the provider reports them) or `balance` (`available`), with an explicit `unit`. Only provider-reported numbers appear; a resource the provider did not report is left out. Credentials never appear.
+The output is the `openusage.limits.v1` document: `order` lists the account ids in your dashboard order, and `providers` maps each id to its plan, `fetchedAt`, `expiresAt`, `stale`, and a `resources` object. A resource is either `consumption` (`used`, plus `limit`, `remaining`, `utilization` and `resetsAt` when the provider reports them) or `balance` (`available`), with an explicit `unit`. Only provider-reported numbers appear; a resource the provider did not report is left out. Credentials never appear. A resource may also carry a `label`, the name the dashboard shows for it (such as "Other Models"); it is for display only, so key on the resource's own name.
 
 ## Windows
 

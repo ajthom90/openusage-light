@@ -55,7 +55,7 @@ public struct MobileAccount: Identifiable, Equatable, Sendable {
         let used = resource.utilization.map { min(max($0, 0), 1) }
         let fraction = used.map { display == .remaining ? 1 - $0 : $0 }
         return MobileMeter(
-            id: key, title: title(for: key), fraction: fraction, usedFraction: used,
+            id: key, title: resource.label ?? title(for: key), fraction: fraction, usedFraction: used,
             valueText: valueText(resource, display), shortText: shortText(resource, display, fraction: fraction),
             resetsAt: resource.resetsAt
         )

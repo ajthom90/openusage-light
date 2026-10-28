@@ -9,6 +9,10 @@ package extension LimitsProjection.Entry {
             metricLabels: Dictionary(
                 descriptors.map { (String($0.id.dropFirst(prefix)), $0.metricLabel) },
                 uniquingKeysWith: { first, _ in first }
+            ),
+            titles: Dictionary(
+                descriptors.map { (String($0.id.dropFirst(prefix)), $0.title) },
+                uniquingKeysWith: { first, _ in first }
             )
         )
     }

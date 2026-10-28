@@ -14,11 +14,14 @@ package enum LimitsProjection {
         /// The snapshot line label behind each dashboard row, by the row's id without the account's
         /// prefix (`session`, `extra`, …). The rows live with the dashboard, so the caller supplies them.
         package let metricLabels: [String: String]
+        /// The title the dashboard shows for each row, by the same row id.
+        package let titles: [String: String]
 
-        package init(account: Account, snapshot: ProviderSnapshot?, metricLabels: [String: String]) {
+        package init(account: Account, snapshot: ProviderSnapshot?, metricLabels: [String: String], titles: [String: String] = [:]) {
             self.account = account
             self.snapshot = snapshot
             self.metricLabels = metricLabels
+            self.titles = titles
         }
     }
 
@@ -65,7 +68,8 @@ package enum LimitsProjection {
         for spec in specs[entry.account.kind] ?? [] {
             guard let label = entry.metricLabels[spec.suffix],
                   let line = snapshot.line(label: label),
-                  let resource = resource(from: line, spec: spec) else { continue }
+                  var resource = resource(from: line, spec: spec) else { continue }
+            resource.label = entry.titles[spec.suffix]
             result[spec.key] = resource
         }
         return result

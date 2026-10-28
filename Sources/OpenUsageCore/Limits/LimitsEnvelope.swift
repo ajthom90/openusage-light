@@ -46,6 +46,9 @@ package struct LimitsEnvelope: Codable, Equatable, Sendable {
         package var windowSeconds: Int?
         /// When each currently available reset expires, for resources that list them.
         package var expiries: [Date]?
+        /// The name the dashboard shows for this reading ("Other Models"), when it has one. Optional and
+        /// display-only: scripts should key on the resource's own key, which never changes.
+        package var label: String?
     }
 
     package struct Failure: Codable, Equatable, Sendable {

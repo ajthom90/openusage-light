@@ -72,6 +72,22 @@ final class LimitsProjectionTests: XCTestCase {
         XCTAssertEqual(provider.plan, "Pro")
     }
 
+    func testResourcesCarryTheDashboardTitleWhenKnown() throws {
+        let account = Account(kind: .cursor, label: "Work")
+        let snapshot = ProviderSnapshot(
+            providerID: account.cardID, displayName: "Cursor", plan: nil,
+            lines: [.progress(label: "Other Models", used: 3, limit: 100, format: .percent, resetsAt: nil, periodDurationMs: nil)],
+            refreshedAt: now
+        )
+        let entry = LimitsProjection.Entry(
+            account: account, snapshot: snapshot, metricLabels: ["api": "Other Models"], titles: ["api": "Other Models"]
+        )
+        let provider = try XCTUnwrap(envelope([entry]).providers[account.cardID])
+        XCTAssertEqual(provider.resources["apiUsage"]?.label, "Other Models")
+        let plain = LimitsProjection.Entry(account: account, snapshot: snapshot, metricLabels: ["api": "Other Models"])
+        XCTAssertNil(try XCTUnwrap(envelope([plain]).providers[account.cardID]).resources["apiUsage"]?.label)
+    }
+
     func testDocumentReadsBackWhatWasWritten() throws {
         let reset = now.addingTimeInterval(3600)
         let e = entry(.claude, lines: [

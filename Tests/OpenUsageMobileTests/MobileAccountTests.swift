@@ -110,6 +110,16 @@ final class MobileAccountTests: XCTestCase {
         XCTAssertEqual(PaneSplit.countAbove(heights: heights, columns: 2, spacing: 16, available: 5000), 5)
     }
 
+    func testAMeterUsesTheMacsTitleWhenTheDocumentHasOne() throws {
+        let json = SampleLimits.json().replacingOccurrences(
+            of: "\"session\": {\"kind\": \"consumption\", \"unit\": \"percent\", \"used\": 36",
+            with: "\"session\": {\"label\": \"Other Models\", \"kind\": \"consumption\", \"unit\": \"percent\", \"used\": 36"
+        )
+        let claude = MobileAccount.accounts(in: try LimitsEnvelope.decode(Data(json.utf8)))[0]
+        XCTAssertEqual(claude.meters.first { $0.id == "session" }?.title, "Other Models")
+        XCTAssertEqual(claude.meters.first { $0.id == "weekly" }?.title, "Weekly")
+    }
+
     func testTitlesAreSpacedAndCapitalised() {
         XCTAssertEqual(MobileAccount.title(for: "rateLimitResets"), "Rate Limit Resets")
         XCTAssertEqual(MobileAccount.title(for: "session"), "Session")
